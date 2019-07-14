@@ -23,12 +23,12 @@ namespace WS
 		template<size_t toget, typename T, typename ... Rest>				struct getter<toget, toget, T, Rest...> { using type=typename T; };
 	public:
 		//get<i>:type bzw get_t<i> liefert den typ an "index" der template-parameter-liste. index=0 ist der erste typ von links
-		template<int index> struct get
+		template<size_t index> struct get
 		{
 			static_assert(index < sizeof...(types), "index out of bounds");
 			using type=typename getter<0, index, types ...>::type;
 		};
-		template<int index> using get_t = typename get<index>::type;
+		template<size_t index> using get_t = typename get<index>::type;
 		//size() liefert die anzahl der typen
 		constexpr static size_t size(){return sizeof...(types);}
 		//include <tuple>. liefert std::tuple<types...>
