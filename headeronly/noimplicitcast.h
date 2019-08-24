@@ -405,11 +405,18 @@ namespace WP
 	};
 }
 
-//TYPEDEF2 nur nötig, weil VC den default-template Explicit_Type_Trait_all von Explicit_Type_Trait_all nicht korrekt auswertet
+
 #define TYPEDEF2_BEGIN(type_name,value_type,...) struct type_name : WP::Explicit_Type<type_name,value_type,__VA_ARGS__>{typedef value_type value_t;using Explicit_Type::Explicit_Type;
 #define TYPEDEF2_END }
 #define TYPEDEF2(type_name,value_type,...) TYPEDEF2_BEGIN(type_name,value_type,##__VA_ARGS__) TYPEDEF2_END
-#define TYPEDEF_BEGIN(type_name,value_type) TYPEDEF2_BEGIN(type_name,value_type,WP::Explicit_Type_Trait_all)
+
 #define TYPEDEF_END }
-#define TYPEDEF(type_name,value_type) TYPEDEF_BEGIN(type_name,value_type) TYPEDEF_END
+#if _MSC_VER >= 1921 //Visual Studio 2019 version 16.1 	
+#	define TYPEDEF_BEGIN(type_name, value_type,...) TYPEDEF2_BEGIN(type_name, value_type,##__VA_ARGS__)
+#	define TYPEDEF(type_name,value_type,...) TYPEDEF_BEGIN(type_name,value_type,##__VA_ARGS__) TYPEDEF_END
+#else
+//TYPEDEF2 nur nötig, weil VC den default-template Explicit_Type_Trait_all von Explicit_Type_Trait_all nicht korrekt auswertet
+#	define TYPEDEF_BEGIN(type_name,value_type) TYPEDEF2_BEGIN(type_name,value_type,WP::Explicit_Type_Trait_all)
+#	define TYPEDEF(type_name,value_type) TYPEDEF_BEGIN(type_name,value_type) TYPEDEF_END
+#endif
 

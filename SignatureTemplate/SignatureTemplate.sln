@@ -5,6 +5,40 @@ VisualStudioVersion = 15.0.28307.705
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SignatureTemplate", "SignatureTemplate\SignatureTemplate.vcxproj", "{30F2211D-0BAE-407C-B066-73E06590A186}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "headeronly", "headeronly", "{6FE0E9BF-B354-41B1-AAFA-A89A967E33DC}"
+	ProjectSection(SolutionItems) = preProject
+		..\headeronly\AllocMem.h = ..\headeronly\AllocMem.h
+		..\headeronly\Auto_Ptr.h = ..\headeronly\Auto_Ptr.h
+		..\headeronly\char_helper.h = ..\headeronly\char_helper.h
+		..\headeronly\cout_umleitung.h = ..\headeronly\cout_umleitung.h
+		..\headeronly\DefaultParameter.h = ..\headeronly\DefaultParameter.h
+		..\headeronly\DestruktorCall.hpp = ..\headeronly\DestruktorCall.hpp
+		..\headeronly\dtor_call.h = ..\headeronly\dtor_call.h
+		..\headeronly\dtor_call_x.h = ..\headeronly\dtor_call_x.h
+		..\headeronly\enum_string.h = ..\headeronly\enum_string.h
+		..\headeronly\IKeyValuePairDB.h = ..\headeronly\IKeyValuePairDB.h
+		..\headeronly\is_in.h = ..\headeronly\is_in.h
+		..\headeronly\iterator_access.h = ..\headeronly\iterator_access.h
+		..\headeronly\MapTuplekey.h = ..\headeronly\MapTuplekey.h
+		..\headeronly\noimplicitcast.h = ..\headeronly\noimplicitcast.h
+		..\headeronly\PropertyContainer.h = ..\headeronly\PropertyContainer.h
+		..\headeronly\Ptr_Array.h = ..\headeronly\Ptr_Array.h
+		..\headeronly\shared_ptr_equ_op.h = ..\headeronly\shared_ptr_equ_op.h
+		..\headeronly\string_helper.h = ..\headeronly\string_helper.h
+		..\headeronly\string_serializer.h = ..\headeronly\string_serializer.h
+		..\headeronly\SyncReadWrite.h = ..\headeronly\SyncReadWrite.h
+		..\headeronly\tokenizer.h = ..\headeronly\tokenizer.h
+		..\headeronly\tribool.h = ..\headeronly\tribool.h
+		..\headeronly\type_list.h = ..\headeronly\type_list.h
+		..\headeronly\unique_voidptr.h = ..\headeronly\unique_voidptr.h
+		..\headeronly\UniqueArray.h = ..\headeronly\UniqueArray.h
+		..\headeronly\WP_Cache.h = ..\headeronly\WP_Cache.h
+		..\headeronly\WP_Helper.h = ..\headeronly\WP_Helper.h
+		..\headeronly\WP_lessVariadic.h = ..\headeronly\WP_lessVariadic.h
+		..\headeronly\WP_lessVariadiclessOp.h = ..\headeronly\WP_lessVariadiclessOp.h
+		..\headeronly\wp_time.h = ..\headeronly\wp_time.h
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
