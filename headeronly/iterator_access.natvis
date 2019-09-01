@@ -1,0 +1,19 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+  <!--
+  iterator_access.natvis benutzerdefinierte Watchansicht zu iterator_access.h
+  von Werner Schiwietz
+  kann z.B. den Projektdateien hinzugefügt werden
+  -->
+<AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
+  <Type Name="WP::_iterator_access&lt;*&gt;">
+    <DisplayString Condition="first==0">uninitialized</DisplayString>
+    <DisplayString Condition="first==last">empty</DisplayString>
+    <DisplayString>{first,[&amp;*last-&amp;*first]} (size:{&amp;*last-&amp;*first}) </DisplayString>
+    <Expand>
+      <ArrayItems>
+        <Size>&amp;*last-&amp;*first</Size>
+        <ValuePointer>&amp;*first</ValuePointer>
+      </ArrayItems>
+    </Expand>
+  </Type>
+</AutoVisualizer>

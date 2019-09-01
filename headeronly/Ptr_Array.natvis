@@ -1,0 +1,17 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
+  <!--
+  Ptr_array.natvis benutzerdefinierte Watchansicht zu Ptr_array.h
+  von Werner Schiwietz
+  kann z.B. den Projektdateien hinzugefügt werden
+  -->
+  <Type Name="WP::ptr_array&lt;*&gt;">
+    <DisplayString>(elemente={elementcount} bytelen={bytelen})</DisplayString>
+    <Expand>
+      <ArrayItems>
+        <Size>elementcount</Size>
+        <ValuePointer>(pointer_type)pointer</ValuePointer>
+      </ArrayItems>
+    </Expand>
+  </Type>
+</AutoVisualizer>

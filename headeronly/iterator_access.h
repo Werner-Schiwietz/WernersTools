@@ -20,6 +20,11 @@
 #pragma push_macro("min")
 #undef min
 
+#if _HAS_CXX17
+#	define _WS_DEPECATED_(message) [[deprecated( #message )]]
+#else
+#	define _WS_DEPECATED_(message)
+#endif
 /*//nur um breakpoints an auf shared_ptr machen zu koennen
 namespace WP
 {
@@ -80,7 +85,7 @@ namespace WP
 		auto const &	end()const{return last;}
 		auto &			begin(){return first;}
 		auto &			end(){return last;}
-		auto			GetNextEntry()//dont use this, its historic
+		_WS_DEPECATED_(deprecated: dont use this. use begin() end()) auto			GetNextEntry()//dont use this, its historic
 		{
 			auto retvalue = begin();
 			if( begin()!=end())

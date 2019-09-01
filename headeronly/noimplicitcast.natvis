@@ -1,11 +1,13 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
+  <!--
+  noimplicitcast.natvis benutzerdefinierte Watchansicht zu noimplicitcast.h
+  von Werner Schiwietz
+  kann z.B. den Projektdateien hinzugefügt werden
+  -->
 <AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
   <Type Name="noimplicitcast&lt;*&gt;">
     <DisplayString>{_value}</DisplayString>
   </Type>
-  <!--<Type Name="WP::_strong_type&lt;*&gt;">
-    <DisplayString>{value}</DisplayString>
-  </Type>-->
   <Type Name="WP::Explicit_Type_TraitBase&lt;*&gt;">
     <DisplayString>{value}</DisplayString>
   </Type>
