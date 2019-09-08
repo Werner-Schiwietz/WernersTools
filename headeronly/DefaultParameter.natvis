@@ -1,0 +1,11 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+  <!--
+  DefaultParameter.natvis benutzerdefinierte Watchansicht zu DefaultParameter.h
+  von Werner Schiwietz
+  kann z.B. den Projektdateien hinzugefügt werden
+  -->
+<AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
+  <Type Name="WS::_defaultParam&lt;*&gt;">
+    <DisplayString>({values,view(noparens)})</DisplayString>
+  </Type>
+</AutoVisualizer>
