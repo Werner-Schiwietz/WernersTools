@@ -22,18 +22,29 @@ namespace autoptr
 	{
 	public:
 		
-		TEST_METHOD(TestMethod_initializer_list)
+		TEST_METHOD(always_red_TestMethod_initializer_list)
 		{
 			std::stringstream cout;
 			cout << "expect  " << Enum::v2 << ' ' << Enum::v1 << std::endl;
 			cout << "getting ";
 			auto x = GetList();
+			std::vector<Enum> vec{ GetList()};
+			std::vector<Enum> vec2{ Enum::v2,Enum::v1 };
 			for( auto iter = x.begin(); iter!=x.end(); ++iter )
 				cout << *iter << ' ';
 			for (auto e : x)
 				cout << e << ' ';
 			cout << std::endl;
 			Logger::WriteMessage( cout.str().c_str() );
+
+			auto & container = x;//red
+			//auto & container = vec2;//green
+			auto i = container.begin();
+			Assert::IsTrue( i != container.end() );
+			Assert::IsTrue(*i == Enum::v2 );
+			Assert::IsTrue( ++i != container.end());
+			Assert::IsTrue( *i == Enum::v1);
+			Assert::IsTrue( ++i == container.end());
 		}
 		TEST_METHOD(mem_leak)
 		{
