@@ -25,19 +25,6 @@
 #include <memory>
 #include <atomic>
 
-#ifdef _DEBUG
-//#	define AUTOPTR_MEMLEAKDETECTION
-#	ifdef AUTOPTR_MEMLEAKDETECTION
-#		include "..\BASIS\memleakhelper.h"
-#	endif
-#	pragma push_macro("new")
-#	ifndef DEBUG_NEW
-		//aus afx.h
-//		void* __cdecl operator new(size_t nSize, char const * lpszFileName, int nLine);
-#		define DEBUG_NEW new(__FILE__, __LINE__)
-#		define new DEBUG_NEW
-#	endif
-#endif
 
 //#define LINE_STRING2(x) #x				//macht aus der zahl einen sting
 //#define LINE_STRING1(x) LINE_STRING2(x)	//nötig, damit __LINE__ zur Zahl wird
@@ -73,7 +60,8 @@ namespace WP
 			}
 			ReferenzCounterShare* AddRef( ) const
 			{
-				++this->counter;
+				if(this)
+					++this->counter;
 				return const_cast<ReferenzCounterShare*>(this);
 			}
 
@@ -481,7 +469,3 @@ namespace WP
 	};
 }
 
-#ifdef _DEBUG
-#	pragma pop_macro("new")
-#	undef AUTOPTR_MEMLEAKDETECTION
-#endif
