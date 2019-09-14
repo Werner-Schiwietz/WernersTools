@@ -262,10 +262,10 @@ namespace WP
 
 			return *this;
 		}
-		template<typename U>auto_ptr & operator=(auto_ptr<U> & r)
+		template<typename U>auto_ptr & operator=(auto_ptr<U> const & r)
 		{
 			static_assert( std::is_base_of<U, T>::value
-						|| std::is_base_of<T, U>::value
+						   || std::is_base_of<T, U>::value
 						, __FUNCTION__ " pointer sind nicht zuweisbar");
 
 			auto_ptr<T> temp( r );
