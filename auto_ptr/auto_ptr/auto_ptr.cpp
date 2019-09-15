@@ -34,25 +34,21 @@ namespace
 	{
 		virtualA()
 		{
-			INT_PTR*** vtable = (INT_PTR***)this;
-			auto purecall = _purecall;
 			Assert::IsTrue( find_purecall( (INT_PTR***)this ) );
 			//(void)fA();//Link-Fehler in Version 16.2.0
-			//usingPureVirtual();//terminate programm.
+			usingPureVirtual();
 		}
 		virtual int fA() = 0;
 		void usingPureVirtual() 
 		{ 
-			auto erg = find_purecall( (INT_PTR***)this ); erg;
-			fA(); 
+			if( find_purecall( (INT_PTR***)this )==false )
+				fA();
 		}
 	};
 	struct virtualAA : virtualA
 	{
 		virtualAA() : virtualA()
 		{
-			INT_PTR*** vtable = (INT_PTR***)this;
-			auto purecall = _purecall;
 			Assert::IsTrue( find_purecall( (INT_PTR***)this ) );
 			(void)fA();//
 			(void)fAA();//ist zwar als pure declariert, hat aber implementierung
@@ -60,10 +56,9 @@ namespace
 		}
 		void usingPureVirtual() 
 		{ 
-			auto erg = find_purecall( (INT_PTR***)this ); erg;
 			(void)fA(); 
-			if(erg==false)
-				(void)fAA();//?? aus ctor abort??
+			if(find_purecall( (INT_PTR***)this )==false)
+				(void)fAA();//?? aus ctor abort?? 
 		}
 		virtual int fA() override {return 1;}
 		virtual int fAA()  = 0 { return 1; }
@@ -72,8 +67,6 @@ namespace
 	{
 		virtualAAA() : virtualAA()
 		{
-			INT_PTR*** vtable = (INT_PTR***)this;
-			auto purecall = _purecall;
 			Assert::IsFalse( find_purecall( (INT_PTR***)this ) );
 			(void)fA();
 			(void)fAA();
@@ -110,7 +103,7 @@ namespace Allerei
 			Logger::WriteMessage( cout.str().c_str() );
 
 			auto & container = x;//red
-								 //auto & container = vec2;//green
+			//auto & container = vec2;//green
 			auto i = container.begin();
 			Assert::IsTrue( i != container.end() );
 			Assert::IsTrue( *i == Enum::v2 );
@@ -177,7 +170,7 @@ namespace autoptr
 			auto fn = [](WP::auto_ptr<int>&& ptr)
 			{
 				Assert::IsTrue( ptr.owner() );
-				ptr.transfer();//wenn owner, und das ist er hier, wird das objekt freigegeben
+				(void)ptr.transfer();//wenn owner, und das ist er hier, wird das objekt freigegeben
 				Assert::IsFalse(ptr.owner());
 				Assert::IsFalse(ptr);
 			};
@@ -195,13 +188,13 @@ namespace autoptr
 				Assert::IsTrue( ptr );
 				if( ptr.owner() )
 				{
-					ptr.transfer();//wenn nicht owner, wird das objekt freigegeben
+					(void)ptr.transfer();//wenn owner, wird das objekt freigegeben
 					Assert::IsFalse(ptr.owner());
 					Assert::IsFalse(ptr);
 				}
 				else
 				{
-					ptr.transfer();//wenn nicht owner, wird das objekt freigegeben
+					(void)ptr.transfer();//wenn nicht owner, wird das objekt nicht freigegeben
 					Assert::IsFalse(ptr.owner());
 					Assert::IsTrue(ptr);
 				}
