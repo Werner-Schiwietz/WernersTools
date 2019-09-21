@@ -423,15 +423,49 @@ namespace autoptr
 			}
 			Assert::IsNull(ptr.get());
 		}
+		TEST_METHOD(auto_ptr_from_this_von_moved_objekt)
+		{
+			struct Data : WP::enable_auto_ptr_from_this<Data>
+			{
+				int value = 0;
+				Data(int value):value(value){}
+				Data(){}
+				Data( Data const & r ) : value(r.value){};
+				Data(Data&&r) : Data(){swap(r);}
+				void swap(Data&r){std::swap( this->value, r.value );}
+			};
+
+
+			Data d1{1};
+			auto p1=d1.auto_ptr_from_this();
+			Assert::IsTrue( p1->value == d1.value );
+
+			auto d2{d1};
+			auto p2=d2.auto_ptr_from_this();
+			Assert::IsTrue( p1->value == d1.value );
+			Assert::IsTrue( p2->value == d1.value );
+			++d2.value;
+			++p2->value;
+			Assert::IsTrue( p2->value != d1.value );
+			Assert::IsTrue( p2->value == d2.value );
+
+			auto d3{std::move( d1 )};
+			auto p3=d3.auto_ptr_from_this();
+			Assert::IsTrue( p1->value == d1.value );
+			Assert::IsTrue( p1->value == Data{}.value );
+			Assert::IsTrue( p3->value == d3.value );
+			Assert::IsTrue( p3->value != d1.value );
+		}
 		TEST_METHOD(auto_ptr_from_this_von_objekt_im_vector)
 		{	//per auto_ptr_from_this gemerkte pointer auf std::vector-elemente werden durch reallok im vector zu nullptr, obwohl die ojekte im vector am index noch vorhanden sind
+			//deshalb nicht auf dynamische container anwenden, zu gefährlich für den programmablauf
 			struct Data : WP::enable_auto_ptr_from_this<Data>
 			{
 				Data(int value):value(value){}
 				int value;
 			};
 			std::vector<Data> container;
-			container.reserve( 3 );
+			//container.reserve( 3 );
 			std::vector<WP::auto_ptr<Data>> ptrs;
 
 			int value = 0;
