@@ -423,6 +423,45 @@ namespace autoptr
 			}
 			Assert::IsNull(ptr.get());
 		}
+		TEST_METHOD(auto_ptr_from_this_von_objekt_im_vector)
+		{	//per auto_ptr_from_this gemerkte pointer auf std::vector-elemente werden durch reallok im vector zu nullptr, obwohl die ojekte im vector am index noch vorhanden sind
+			struct Data : WP::enable_auto_ptr_from_this<Data>
+			{
+				Data(int value):value(value){}
+				int value;
+			};
+			std::vector<Data> container;
+			container.reserve( 3 );
+			std::vector<WP::auto_ptr<Data>> ptrs;
+
+			int value = 0;
+			container.emplace_back( value );
+			ptrs.emplace_back( container[0].auto_ptr_from_this() );
+			Data const * p1 = &container[0];
+
+			for( value=1;value < 50; ++value )
+			{
+				container.emplace_back( value );
+				ptrs.emplace_back( container.back().auto_ptr_from_this() );
+				Data const * p2 = &container[0];
+				if( p1 != p2 )
+				{	//sollte der container umkopiert worden sein, sind die gemerkten auto_pointer null. ist halt so
+					p1 = p2;
+					for( int index=0; index<value; ++index )
+					{
+						auto x1 = container[index].auto_ptr_from_this().get();
+						auto x2 = ptrs[index].get();
+						Assert::IsTrue( x2==nullptr );
+						ptrs[index] = container[index].auto_ptr_from_this();
+					}
+				}
+				else
+				{	//solange nicht umkopiert wurde sind die pointer gültig
+					for( int index=0; index<=value; ++index )
+						Assert::IsTrue( container[index].auto_ptr_from_this().get()==ptrs[index].get() );
+				}
+			}
+		}
 		TEST_METHOD(shared_weak_ptr)
 		{
 			WP::auto_ptr<int> p{ std::make_shared<int>(5) };
