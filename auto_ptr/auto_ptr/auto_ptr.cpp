@@ -75,18 +75,11 @@ namespace
 	};
 }
 
-namespace Allerei
+namespace _Immer_Rot
 {
-	TEST_CLASS( Allerei )
+	TEST_CLASS( Immer_Rot )
 	{
 	public:
-		TEST_METHOD( findiung_pure_virtual_function )
-		{
-			virtualAAA aaa;
-			aaa.usingPureVirtual();
-			aaa.virtualAA::usingPureVirtual();
-			aaa.virtualA::usingPureVirtual();
-		}
 		TEST_METHOD( always_red_TestMethod_initializer_list )
 		{
 			std::stringstream cout;
@@ -103,13 +96,27 @@ namespace Allerei
 			Logger::WriteMessage( cout.str().c_str() );
 
 			auto & container = x;//red
-			//auto & container = vec2;//green
+								 //auto & container = vec2;//green
 			auto i = container.begin();
 			Assert::IsTrue( i != container.end() );
 			Assert::IsTrue( *i == Enum::v2 );
 			Assert::IsTrue( ++i != container.end() );
 			Assert::IsTrue( *i == Enum::v1 );
 			Assert::IsTrue( ++i == container.end() );
+		}
+	};
+}
+namespace Allerei
+{
+	TEST_CLASS( Allerei )
+	{
+	public:
+		TEST_METHOD( findiung_pure_virtual_function )
+		{
+			virtualAAA aaa;
+			aaa.usingPureVirtual();
+			aaa.virtualAA::usingPureVirtual();
+			aaa.virtualA::usingPureVirtual();
 		}
 		TEST_METHOD( mem_leak )
 		{
@@ -250,6 +257,9 @@ namespace autoptr
 			Assert::IsTrue( ptr );
 			Assert::IsFalse( ptr.owner() );
 			Assert::IsTrue( ptr_owner.get() == ptr.get() );
+			Assert::IsTrue( ptr_owner == ptr );
+			Assert::IsTrue( ptr_owner == ptr.get() );
+			Assert::IsTrue( ptr_owner.get() == ptr );
 
 			releaseptr( std::move( ptr_owner ) );
 			Assert::IsFalse( ptr_owner );
@@ -266,7 +276,7 @@ namespace autoptr
 			Assert::IsTrue( ptr );
 			Assert::IsTrue( ptr.owner() );
 			Assert::IsTrue( ptr_owner );
-			Assert::IsTrue( ptr_owner.get() == ptr.get() );
+			Assert::IsTrue( ptr_owner == ptr );
 		}
 		TEST_METHOD(auto_ptr__as_parameter_copy)
 		{
@@ -303,11 +313,11 @@ namespace autoptr
 			takeownership( ptr  );
 			Assert::IsTrue( ptr );
 			Assert::IsTrue( ptr.owner() );
-			Assert::IsTrue( ptr_owner.get() == ptr.get() );
+			Assert::IsTrue( ptr_owner == ptr );
 			takeownership( ptr.transfer() );
 			Assert::IsTrue( ptr );
 			Assert::IsFalse( ptr.owner() );
-			Assert::IsTrue( ptr_owner.get() == ptr.get() );
+			Assert::IsTrue( ptr_owner == ptr );
 
 			ptr= WP::auto_ptr<int>( new int( 5 ), true );
 			takeownership( std::move( ptr ) );
@@ -324,7 +334,7 @@ namespace autoptr
 				Assert::IsTrue( x.owner() );
 				Assert::IsTrue( x2 );
 				Assert::IsFalse( x2.owner() );
-				Assert::IsTrue( x2.get()==x.get() );
+				Assert::IsTrue( x2==x );
 			}
 			{	//2 same as 1
 				WP::auto_ptr<int> x{ std::make_unique<int>(5) };
@@ -334,7 +344,7 @@ namespace autoptr
 				Assert::IsTrue( x.owner() );
 				Assert::IsTrue( x2 );
 				Assert::IsFalse( x2.owner() );
-				Assert::IsTrue( x2.get()==x.get() );
+				Assert::IsTrue( x2==x );
 			}
 			{	//3 move x wird nullptr x2 wird owner
 				WP::auto_ptr<int> x{ std::make_unique<int>(5) };
@@ -352,7 +362,7 @@ namespace autoptr
 				Assert::IsFalse( x.owner() );
 				Assert::IsTrue( x2 );
 				Assert::IsTrue( x2.owner() );
-				Assert::IsTrue( x2.get()==x.get() );
+				Assert::IsTrue( x2==x );
 			}
 		}
 		TEST_METHOD(auto_ptr__)
@@ -366,8 +376,8 @@ namespace autoptr
 			Assert::IsFalse(x.owner());
 			Assert::IsTrue(xx.owner());
 			Assert::IsFalse(xxx.owner());
-			Assert::IsTrue(xx.get() == x.get());
-			Assert::IsTrue(xx.get() == xxx.get());
+			Assert::IsTrue(xx == x);
+			Assert::IsTrue(xx == xxx);
 		}
 
 		TEST_METHOD(cast_multiple_inheritance)
@@ -492,7 +502,7 @@ namespace autoptr
 				else
 				{	//solange nicht umkopiert wurde sind die pointer gültig
 					for( int index=0; index<=value; ++index )
-						Assert::IsTrue( container[index].auto_ptr_from_this().get()==ptrs[index].get() );
+						Assert::IsTrue( container[index].auto_ptr_from_this()==ptrs[index] );
 				}
 			}
 		}
@@ -512,6 +522,133 @@ namespace autoptr
 			p1 = WP::auto_ptr<int>{};
 			Assert::IsNull(p1.get());
 			Assert::IsNull(p2.get());
+		}
+
+		TEST_METHOD(uebergebe_ptr_als_owner_per_transfer)
+		{
+			auto fnTakeOverOwnershipAndReturnOwner=[]( WP::auto_ptr_owner<int> ptr )->WP::auto_ptr<int>//auto_ptr_owner wirft exception, wenn ptr nicht owner ist
+			{
+				return ptr;
+			};
+			WP::auto_ptr<int> ptr = WP::auto_ptr_owner<int>( new int( 5 ) );
+			Assert::IsTrue( ptr.owner() );
+			auto ptr_owner = fnTakeOverOwnershipAndReturnOwner( ptr.transfer() );//transfer() führt hier dazu, dass ptr den pointer behaelt bis objekt zerstoert wird
+			Assert::IsFalse( ptr.owner() );
+			Assert::IsTrue( ptr_owner.owner() );
+			Assert::IsTrue( ptr_owner==ptr );
+			(void)ptr_owner.transfer();//liefert owner_ptr als returnwert. da dieses nicht verwendet wird, wird verwaltetes objekt zerstört
+			Assert::IsTrue( ptr == nullptr );
+			Assert::IsTrue( ptr_owner == nullptr );
+		}
+		TEST_METHOD(uebergebe_ptr_als_owner_per_referenz)
+		{
+			auto fnTakeOverOwnershipAndReturnOwner=[]( WP::auto_ptr_owner<int> ptr )//auto_ptr_owner wirft exception, wenn ptr nicht owner ist
+			{
+				return WP::auto_ptr<int>(ptr);
+			};
+			{
+				WP::auto_ptr<int> ptr = WP::auto_ptr_owner<int>( new int( 5 ) );
+				Assert::IsTrue( ptr.owner() );
+				auto ptr_owner = fnTakeOverOwnershipAndReturnOwner( ptr );//ptr als referenz führt hier dazu, dass ptr den pointer behaelt bis objekt zerstoert wird
+				Assert::IsFalse( ptr.owner() );
+				Assert::IsTrue( ptr_owner.owner() );
+				Assert::IsTrue( ptr_owner==ptr );
+				(void)ptr_owner.transfer();//liefert owner_ptr als returnwert. da dieses nicht verwendet wird, wird verwaltetes objekt zerstört
+				Assert::IsTrue( ptr == nullptr );
+				Assert::IsTrue( ptr_owner == nullptr );
+			}
+		}
+		TEST_METHOD(uebergebe_ptr_als_owner_per_move)
+		{
+			auto fnTakeOverOwnershipAndReturnOwner=[]( WP::auto_ptr_owner<int> ptr )//auto_ptr_owner wirft exception, wenn ptr nicht owner ist
+			{
+				return WP::auto_ptr<int>(ptr);
+			};
+			{
+				WP::auto_ptr<int> ptr = WP::auto_ptr_owner<int>( new int( 5 ) );
+				Assert::IsTrue( ptr.owner() );
+				auto ptr_owner = fnTakeOverOwnershipAndReturnOwner( std::move(ptr) );//std::move führt hier zu ptr==nullptr, evtl besser transfer()
+				Assert::IsFalse( ptr.owner() );
+				Assert::IsTrue( ptr_owner.owner() );
+				Assert::IsTrue( ptr==nullptr );//std::move setzt ptr auf nullptr. wenn pointer stehen bleiben soll transfer() benutzen, s.o.
+				(void)ptr_owner.transfer();//liefert owner_ptr als returnwert. da dieses nicht verwendet wird, wird verwaltetes objekt zerstört
+				Assert::IsTrue( ptr == nullptr );
+				Assert::IsTrue( ptr_owner == nullptr );
+			}
+		}
+		TEST_METHOD(uebergebe_ptr_als_owner_per_unmanged_ptr)
+		{
+			auto fnTakeOverOwnershipAndReturnOwner=[]( WP::auto_ptr_owner<int> ptr )//auto_ptr_owner wirft exception, wenn ptr nicht owner ist
+			{
+				return WP::auto_ptr<int>(ptr);
+			};
+			{
+				auto unmanged_ptr = new int( 5 );
+				Assert::IsTrue( *unmanged_ptr==5 );
+				auto ptr_owner = fnTakeOverOwnershipAndReturnOwner( unmanged_ptr );
+				Assert::IsTrue( ptr_owner.owner() );
+				Assert::IsTrue( *unmanged_ptr==5 );
+				(void)ptr_owner.transfer();//liefert owner_ptr als returnwert. da dieses nicht verwendet wird, wird verwaltetes objekt zerstört
+				Assert::IsTrue( ptr_owner == nullptr );
+				try
+				{
+					Assert::IsTrue( *unmanged_ptr!=5 );//greift auf freigegeben speicher zu
+				}catch(...){}
+			}
+		}
+		TEST_METHOD(uebergebe_ptr_als_ownerless_exception)
+		{
+			auto fnTakeOverOwnershipAndReturnOwner=[]( WP::auto_ptr_owner<int> ptr )
+			{
+				return WP::auto_ptr<int>(ptr);
+			};
+			int i=5;
+			WP::auto_ptr<int> ptr( &i );
+			Assert::IsFalse( ptr.owner() );
+			try
+			{
+				//fnTakeOverOwnershipAndReturnOwner wirft exception, wenn parameter nicht owner ist
+				auto ptr_owner = fnTakeOverOwnershipAndReturnOwner( ptr );
+				Assert::Fail( L"exception erwartet" );
+			}
+			catch(std::exception &  )
+			{}
+		}
+
+		TEST_METHOD(release_as_unique_ptr)
+		{	//release sind schlechte funktionen, weil die pointer im zugriff bleiben, die zerstörung der objekt aber nicht bemerkt wird
+			WP::auto_ptr<int> ptr = WP::auto_ptr_owner<int>( new int( 5 ) );
+			Assert::IsTrue( ptr.owner() );
+			{
+				auto p1 = ptr.release_as_unique_ptr();
+				Assert::IsTrue( p1.get()==ptr.get() );
+				Assert::IsTrue( *p1==5 );
+				Assert::IsTrue( *ptr==5 );
+			}
+			//Assert::IsFalse( *ptr==5 );//vorsicht ptr liefert noch den bereits freigegebenen speicher
+
+			{
+				auto ptr1 = WP::auto_ptr_owner<int>( new int( 5 ) );
+				ptr = ptr1;
+				Assert::IsTrue( ptr1==nullptr );
+				Assert::IsTrue( ptr.owner() );
+				{
+					auto p1 = ptr.release_as_unique_ptr();
+					Assert::IsTrue( p1.get() );
+				}
+				//Assert::IsTrue( *ptr==5 );
+			}
+
+			{
+				WP::auto_ptr<int> ptr1 = WP::auto_ptr_owner<int>( new int( 5 ) );
+				ptr = ptr1;
+				Assert::IsFalse( ptr.owner() );
+				{
+					auto p1 = ptr.release_as_unique_ptr();
+					Assert::IsFalse( p1.get() );
+				}
+				Assert::IsTrue( *ptr==5 );
+			}
 		}
 	};
 }

@@ -15,6 +15,8 @@
 //  mit transfer(), neues objekt wird owner wenn ursprungsobjekt owner war
 // oder ownerless(), kopie wird nie owner
 //
+//wenn ihr mit ableitungen und pointer auf basis/abgeleitete klassen arbeitet, sollte ihr immer einen virtuellen destruktor in der basisklasse haben (virtual ~T();)
+//
 //ausserdem gibt es enable_auto_ptr_from_this siehe enable_shared_from_this
 //		struct A : public enable_auto_ptr_from_this<A>{};
 //		A a;
@@ -241,13 +243,13 @@ namespace WP
 			this->Ptr = std::move(tempU.Ptr);
 		}
 
-		auto_ptr & operator=(auto_ptr && r)
+		auto_ptr & operator=(auto_ptr && r) noexcept
 		{
 			auto_ptr temp( std::move(r) );
 			this->swap( temp );
 			return *this;
 		}
-		auto_ptr & operator=(auto_ptr const & r) 
+		auto_ptr & operator=(auto_ptr const & r) noexcept
 		{
 			return operator=(r.ownerless());
 		}
@@ -262,7 +264,7 @@ namespace WP
 
 			return *this;
 		}
-		template<typename U>auto_ptr & operator=(auto_ptr<U> const & r)
+		template<typename U>auto_ptr & operator=(auto_ptr<U> const & r) noexcept
 		{
 			static_assert( std::is_base_of<U, T>::value
 						   || std::is_base_of<T, U>::value
@@ -277,58 +279,71 @@ namespace WP
 		{
 			return operator=( auto_ptr(std::move(ptr)) );
 		}
-		auto_ptr & operator=(pointer_type ptr)
+		auto_ptr & operator=(pointer_type ptr) noexcept
 		{
 			if (this->get() == ptr)
 				return *this;
 			return operator=( auto_ptr(ptr) );
 		}
 
-		template<typename U> bool operator< ( auto_ptr<U> const & r ) const // vergleicht pointer, nicht den unhalt
+		template<typename U> bool operator==( auto_ptr<U> const & r ) const noexcept { return get()==r.get(); }//vergleicht die per get() gelieferten pointer
+		template<typename U> bool operator!=( auto_ptr<U> const & r ) const noexcept { return get()!=r.get(); }
+		bool operator==( pointer_type r ) const noexcept { return get()==r; }//vergleicht die per get() gelieferten pointer
+		bool operator!=( pointer_type r ) const noexcept { return get()!=r; }//vergleicht die per get() gelieferten pointer
+		friend bool operator==( pointer_type l, auto_ptr const & r ) noexcept { return l==r.get(); }//vergleicht die per get() gelieferten pointer
+		friend bool operator!=( pointer_type l, auto_ptr const & r ) noexcept { return l==r.get(); }//vergleicht die per get() gelieferten pointer
+
+		template<typename U> bool operator< ( auto_ptr<U> const & r ) const noexcept // vergleicht pointer, nicht den unhalt
 		{
 			//nicht get() da der < operator evtl. z.b. als Key in einer std::map verwendet wird. dort soll er zumindest bei der reihenfolgenpflege immer den gleichen wert liefern 
 			//und nicht nullptr, wenn das objekt nicht mehr existiert. (verwendung in CAbschnitt::_WieDuplexDrucken)
 			return this->share.pointer < r.share.pointer;
 		}
 
-		void swap( auto_ptr & r )
+		void swap( auto_ptr & r ) noexcept
 		{
 			std::swap(this->share,r.share);
 			std::swap(this->Ptr,r.Ptr);
 			std::swap(this->SharedPtr,r.SharedPtr);
 		}
-		operator pointer_type() const
+		operator pointer_type() const noexcept
 		{
 			return share.get();
 		}
 
 		//std::add_lvalue_reference_t<std::remove_pointer_t<pointer_type>>& operator *() const //ohne implementierung kommt genau das gleiche raus
-		std::remove_pointer_t<pointer_type> & operator *() const //ohne implementierung kommt genau das gleiche raus, man kann aber keinen breakpoint setzen
+		std::remove_pointer_t<pointer_type> & operator *() const noexcept//ohne implementierung kommt genau das gleiche raus, man kann aber keinen breakpoint setzen
 		{
 			return *share.get();
 		}
-		pointer_type operator->() const//liefert pointer
+		pointer_type operator->() const noexcept //liefert pointer
 		{
 			return share.get();
 		}
-		pointer_type get() const//liefert pointer
+		pointer_type get() const noexcept //liefert pointer
 		{ 
 			return share.get();
 		}
-		operator bool() const
+		operator bool() const noexcept
 		{
 			return get()!=nullptr;
 		}
 
 		//liefert pointer, wenn owner war, sonst nullptr. ist danach nicht mehr owner, behaelt aber immer seinen pointer. der aufrufer uebernimmt damit die verantwortung. 
 		//exterm gefährlich weil nicht klar ist, wie lange interner pointer gueltig ist
-		pointer_type  Ptr_release() 
+		pointer_type  Ptr_release() noexcept 
 		{
 			return this->Ptr.release();
 		}
+		//liefert std::unique_ptr<T>, wenn owner war, sonst nullptr. ist danach nicht mehr owner, behaelt aber immer seinen pointer. der aufrufer uebernimmt damit die verantwortung. 
+		//exterm gefährlich weil nicht klar ist, wie lange interner pointer gueltig ist
+		std::unique_ptr<T> release_as_unique_ptr() noexcept
+		{	
+			return std::unique_ptr<T>(this->Ptr.release());
+		}
 		//liefert immer pointer, gibt ggf. ownership ab, bzw. this behaelt aber immer seinen pointer. der aufrufer uebernimmt damit ggf die verantwortung fuer die resource. 
 		//exterm gefährlich weil nicht klar ist, wie lange interner pointer gueltig ist
-		pointer_type release()
+		pointer_type release() noexcept
 		{	
 			this->Ptr.release();
 			return share.get();
@@ -376,39 +391,54 @@ namespace WP
 		public:
 		//diese funktion wird wohl nie jemand benutzen
 		template<typename U> auto_ptr<U> trytransfer()  //Versucht den transfer auch von basisklasse zur ableitung. 
-														//wenn es klappt verliefert this ownership
+														//wenn es klappt verliert this ownership
 														//wenn ein dynamic_cast klappt wird auf jeden fall der pointer gesetzt aber ownership bleibt ggf. bei this
 		{
 			return _trytransfer<U>( *this );
 		}
 
 		//weak wie release, this behaelt pointer, bei SharedPtr wird die strong referenz NICHT erhöht
-		auto_ptr weak() const
+		auto_ptr weak() const noexcept
 		{
 			auto_ptr retvalue( *this );
 			retvalue.SharedPtr.reset();//
 			return retvalue;
 		}
 		//transfer wie release, this behaelt pointer, verliert ggf. aber ownership. bei SharedPtr wird die strong referenz erhöht
-		auto_ptr transfer() const
+		auto_ptr transfer() const noexcept
 		{
 			auto_ptr retvalue( *this );
 			retvalue.Ptr = std::move(this->Ptr);
 			return retvalue;
 		}
 		//ownerless wie transfer, this behaelt pointer und ggf. ownership. bei SharedPtr wird die strong referenz erhöht
-		auto_ptr ownerless() const
+		auto_ptr ownerless() const noexcept
 		{
 			auto_ptr retvalue( *this );
 			return retvalue;
 		}
 
-		bool owner() const
+		bool owner() const noexcept
 		{
 			return this->Ptr.get()!=nullptr;
 		}
 	};
-
+	//nur als parameter fuer funktionen benutzen. als instanzen, also member und lokale variablen, immer nur als auto_ptr<T> anlegen
+	template<typename T> class auto_ptr_owner 
+	{
+		auto_ptr<T> data;
+	public:
+		auto_ptr_owner( typename auto_ptr<T>::pointer_type p ) : data( p, true ){}
+		auto_ptr_owner( auto_ptr<T> const & must_be_owner ) = delete;
+		auto_ptr_owner( auto_ptr<T> && must_be_owner ) 
+		{
+			if( must_be_owner.owner() == false )
+				throw std::invalid_argument( "WP::auto_ptr mit owner-attribut erwartet" );
+			data = std::move(must_be_owner);
+		}
+		auto_ptr_owner( auto_ptr<T> & must_be_owner ) : auto_ptr_owner(must_be_owner.transfer()){}
+		operator auto_ptr<T>() { return std::move( data ); }//onetime conversation. einmaliger aufruf, danach ist data==nullptr
+	};
 	template<typename dest_t,typename source_t> auto_ptr<dest_t> dynamic_pointer_cast( auto_ptr<source_t> const & r )
 	{
 		return auto_ptr<dest_t> ( r );
