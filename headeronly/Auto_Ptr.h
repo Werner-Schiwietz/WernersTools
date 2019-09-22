@@ -10,18 +10,20 @@
 //tests in BasisUnitTests\UT_dtor_call.cpp TEST_CLASS(UT_auto_ptr)
 //
 //wird konsequent WP::auto_ptr verwendet (also ein owner und 0-n nichtowner bzw  shared_ptr und weak_ptr) wird nicht mehr auf freigegebene pointer zugegriffen. diese sind statt dessen ggf. nullptr.
-//in neuen code besser reine std::shared_pointer verwenden
+//in neuen code evtl. besser reine std::shared_pointer verwenden
 //Kopien eines auto_ptr 
 //  mit transfer(), neues objekt wird owner wenn ursprungsobjekt owner war
 // oder ownerless(), kopie wird nie owner
 //
 //wenn ihr mit ableitungen und pointer auf basis/abgeleitete klassen arbeitet, sollte ihr immer einen virtuellen destruktor in der basisklasse haben (virtual ~T();)
 //
-//ausserdem gibt es enable_auto_ptr_from_this siehe enable_shared_from_this
+//ausserdem gibt es enable_auto_ptr_from_this siehe std::enable_shared_from_this
 //		struct A : public enable_auto_ptr_from_this<A>{};
 //		A a;
 //		WP::auto_ptr<A> ptr = a.auto_ptr_from_this();//ptr wird nullptr, wenn a zerstoert wird
-
+//
+//als parameter in funktionen kann WP::auto_ptr_owner<T> verwendetet weerden
+//die klasse muss im konstruktror owner werden, sonst wirft deren ctor eine std::exception
 
 
 #include <memory>
@@ -423,20 +425,23 @@ namespace WP
 			return this->Ptr.get()!=nullptr;
 		}
 	};
-	//nur als parameter fuer funktionen benutzen. als instanzen, also member und lokale variablen, immer nur als auto_ptr<T> anlegen
+	//nur als parameter fuer funktionen benutzen. als member und lokale variablen immer nur als auto_ptr<T> anlegen
 	template<typename T> class auto_ptr_owner 
 	{
 		auto_ptr<T> data;
 	public:
-		auto_ptr_owner( typename auto_ptr<T>::pointer_type p ) : data( p, true ){}
+		//usage: z.B. void foo( WP::auto_ptr_owner<int> );
+		auto_ptr_owner( typename auto_ptr<T>::pointer_type p ) : data( p, true ){}														// fn( new int{5} );
 		auto_ptr_owner( auto_ptr<T> const & must_be_owner ) = delete;
-		auto_ptr_owner( auto_ptr<T> && must_be_owner ) 
+		auto_ptr_owner( auto_ptr<T> && must_be_owner )																					// fn( WP::auto_ptr<int>(new int{5}) );
 		{
 			if( must_be_owner.owner() == false )
 				throw std::invalid_argument( "WP::auto_ptr mit owner-attribut erwartet" );
 			data = std::move(must_be_owner);
 		}
-		auto_ptr_owner( auto_ptr<T> & must_be_owner ) : auto_ptr_owner(must_be_owner.transfer()){}
+		auto_ptr_owner( auto_ptr<T> & must_be_owner ) : auto_ptr_owner(must_be_owner.transfer()){}										// fn( ptr );//wobei ptr ein lvalue vom typ WP::auto_ptr<int> ist
+		template<typename U>auto_ptr_owner( U && r ) : auto_ptr_owner( auto_ptr<T>( std::move(r) ) ){}									// fn( std::unique_ptr<int>(new int{5}) );
+
 		operator auto_ptr<T>() { return std::move( data ); }//onetime conversation. einmaliger aufruf, danach ist data==nullptr
 	};
 	template<typename dest_t,typename source_t> auto_ptr<dest_t> dynamic_pointer_cast( auto_ptr<source_t> const & r )

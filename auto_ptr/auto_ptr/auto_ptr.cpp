@@ -552,7 +552,9 @@ namespace autoptr
 				auto ptr_owner = fnTakeOverOwnershipAndReturnOwner( ptr );//ptr als referenz führt hier dazu, dass ptr den pointer behaelt bis objekt zerstoert wird
 				Assert::IsFalse( ptr.owner() );
 				Assert::IsTrue( ptr_owner.owner() );
-				Assert::IsTrue( ptr_owner==ptr );
+				Assert::IsTrue( *ptr == 5 );
+				Assert::IsTrue( *ptr_owner == 5 );
+				Assert::IsTrue( ptr_owner == ptr );
 				(void)ptr_owner.transfer();//liefert owner_ptr als returnwert. da dieses nicht verwendet wird, wird verwaltetes objekt zerstört
 				Assert::IsTrue( ptr == nullptr );
 				Assert::IsTrue( ptr_owner == nullptr );
@@ -574,6 +576,22 @@ namespace autoptr
 				(void)ptr_owner.transfer();//liefert owner_ptr als returnwert. da dieses nicht verwendet wird, wird verwaltetes objekt zerstört
 				Assert::IsTrue( ptr == nullptr );
 				Assert::IsTrue( ptr_owner == nullptr );
+			}
+		}
+		TEST_METHOD(uebergebe_ptr_als_owner_per_unique_ptr)
+		{
+			auto fnTakeOverOwnershipAndReturnOwner=[]( WP::auto_ptr_owner<int> ptr )//auto_ptr_owner wirft exception, wenn ptr nicht owner ist
+			{
+				return WP::auto_ptr<int>(ptr);
+			};
+			{
+				auto ptr = std::unique_ptr<int>( new int( 5 ) );
+				auto ptr_owner = fnTakeOverOwnershipAndReturnOwner( std::move(ptr) );//std::move führt hier zu ptr==nullptr
+				Assert::IsTrue( ptr == nullptr );
+				Assert::IsTrue( ptr_owner != nullptr );
+				Assert::IsTrue( *ptr_owner == 5 );
+				Assert::IsTrue( ptr_owner.owner() );
+				(void)ptr_owner.transfer();//liefert owner_ptr als returnwert. da dieses nicht verwendet wird, wird verwaltetes objekt zerstört
 			}
 		}
 		TEST_METHOD(uebergebe_ptr_als_owner_per_unmanged_ptr)
@@ -614,7 +632,29 @@ namespace autoptr
 			catch(std::exception &  )
 			{}
 		}
+		TEST_METHOD(auto_ptr_owner_zugriff)
+		{
+			auto ptr = WP::auto_ptr_owner<int>( new int( 5 ) );
+			(WP::auto_ptr<int>)ptr;//cast nach auto_ptr genau einmal möglich, danach ist ptr empty
+			Assert::IsTrue( ptr == nullptr );
 
+			ptr = WP::auto_ptr_owner<int>( new int( 6 ) );
+			int *				p1 = nullptr;
+			WP::auto_ptr<int>	p2;
+			{
+				WP::auto_ptr<int> owner = ptr;//übertragung des objekt-pointers auf owner, ptr wird empty
+				Assert::IsTrue( ptr == nullptr );
+				p1 = owner;
+				p2 = owner;
+				Assert::IsTrue( owner.owner() );
+				Assert::IsTrue( *owner == 6 );
+				Assert::IsFalse( p2.owner() );
+				Assert::IsTrue( *p2 == 6 );
+				Assert::IsTrue( *p1 == 6 );
+			}
+			//Assert::IsTrue( *p1 != 6 );//unmanaged pointer auf ungültigen speicher
+			Assert::IsTrue( p2 == nullptr );//managed pointer wird zu nullptr
+		}
 		TEST_METHOD(release_as_unique_ptr)
 		{	//release sind schlechte funktionen, weil die pointer im zugriff bleiben, die zerstörung der objekt aber nicht bemerkt wird
 			WP::auto_ptr<int> ptr = WP::auto_ptr_owner<int>( new int( 5 ) );
