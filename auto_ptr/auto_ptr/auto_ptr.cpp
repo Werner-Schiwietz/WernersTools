@@ -131,6 +131,79 @@ namespace autoptr
 	TEST_CLASS(autoptr)
 	{
 	public:
+		TEST_METHOD(auto_ptr__compare)
+		{
+			WP::auto_ptr<int> ptr;
+			Assert::IsFalse( ptr );
+			Assert::IsTrue( !ptr );
+			Assert::IsTrue( ptr==ptr  );
+			Assert::IsTrue( ptr==NULL  );
+			Assert::IsFalse( ptr!=NULL  );
+			Assert::IsTrue( ptr==nullptr  );
+			Assert::IsFalse( ptr!=nullptr  );
+			Assert::IsFalse( NULL!=ptr  );
+			Assert::IsTrue( NULL==ptr  );
+			Assert::IsTrue( nullptr==ptr );
+			Assert::IsFalse( nullptr!=ptr  );
+
+			ptr= WP::auto_ptr<int>( new int( 5 ), true );
+			Assert::IsTrue( ptr );
+			Assert::IsFalse( !ptr );
+			Assert::IsTrue( ptr==ptr  );
+			Assert::IsTrue( ptr!=NULL  );
+			Assert::IsFalse( ptr==NULL  );
+			Assert::IsTrue( ptr!=nullptr  );
+			Assert::IsFalse( ptr==nullptr  );
+			Assert::IsTrue( NULL!=ptr  );
+			Assert::IsFalse( NULL==ptr  );
+			Assert::IsTrue( nullptr!=ptr );
+			Assert::IsFalse( nullptr==ptr  );
+		}
+		TEST_METHOD(auto_ptr__compare_inherit)
+		{
+			struct A{virtual ~A(){}};
+			struct B{virtual ~B(){}};
+			struct AB : A, B{};
+
+			WP::auto_ptr<A> pa;
+			WP::auto_ptr<B> pb;
+			WP::auto_ptr<AB> pab;
+
+			pa = WP::auto_ptr<AB>{new AB{}};
+			pab = pa;
+			pb = pab;
+
+			Assert::IsTrue( static_cast<void*>(pa.get())!=static_cast<void*>(pb.get()) );
+			Assert::IsTrue( pab==pa );
+			Assert::IsTrue( pab==pb );
+
+
+			Assert::IsTrue( pab.get()==pa.get() );
+			Assert::IsTrue( pab.get()==pb.get() );
+
+			//??
+			auto pa1 = pa.get();
+			auto pb1 = pb.get();
+			auto pab1 = pab.get();
+			Assert::IsTrue( pab1==pb1 );
+			Assert::IsTrue( (void*)pab1!=(void*)pb1 );
+			{
+				AB ab;
+				auto pab2 = &ab;
+				A* pa2 = &ab;
+				B* pb2 = &ab;
+				Assert::IsTrue( pab2==pb2 );
+				Assert::IsTrue( (void*)pab2!=(void*)pb2 );
+
+				Assert::IsTrue( pab!=pb2 );
+				Assert::IsTrue( (void*)pa2!=(void*)pb2 );
+			}
+			//??
+
+			pa = WP::auto_ptr<A>{new A{}};
+			pab = pa;
+			Assert::IsFalse(pab);
+		}
 		TEST_METHOD(auto_ptr__copy_leer)
 		{
 			WP::auto_ptr<int> x;
@@ -365,7 +438,7 @@ namespace autoptr
 				Assert::IsTrue( x2==x );
 			}
 		}
-		TEST_METHOD(auto_ptr__)
+		TEST_METHOD(auto_ptr__ownership_transfer)
 		{
 			WP::auto_ptr<int> x{ std::make_unique<int>(5) };
 			Assert::IsTrue(x.owner());
@@ -636,14 +709,15 @@ namespace autoptr
 		{
 			auto ptr = WP::auto_ptr_owner<int>( new int( 5 ) );
 			(WP::auto_ptr<int>)ptr;//cast nach auto_ptr genau einmal möglich, danach ist ptr empty
-			Assert::IsTrue( ptr == nullptr );
+			Assert::IsTrue( static_cast<WP::auto_ptr<int>>(ptr) == nullptr );
+			Assert::IsTrue( static_cast<WP::auto_ptr<int>>(ptr) == NULL );
 
 			ptr = WP::auto_ptr_owner<int>( new int( 6 ) );
 			int *				p1 = nullptr;
 			WP::auto_ptr<int>	p2;
 			{
 				WP::auto_ptr<int> owner = ptr;//übertragung des objekt-pointers auf owner, ptr wird empty
-				Assert::IsTrue( ptr == nullptr );
+				Assert::IsTrue( static_cast<WP::auto_ptr<int>>(ptr) == nullptr );
 				p1 = owner;
 				p2 = owner;
 				Assert::IsTrue( owner.owner() );
@@ -669,8 +743,8 @@ namespace autoptr
 
 			{
 				auto ptr1 = WP::auto_ptr_owner<int>( new int( 5 ) );
-				ptr = ptr1;
-				Assert::IsTrue( ptr1==nullptr );
+				ptr = ptr1.transfer();
+				Assert::IsTrue( static_cast<WP::auto_ptr<int>>(ptr1)==nullptr );
 				Assert::IsTrue( ptr.owner() );
 				{
 					auto p1 = ptr.release_as_unique_ptr();

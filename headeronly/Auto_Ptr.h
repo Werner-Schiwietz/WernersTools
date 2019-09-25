@@ -146,6 +146,7 @@ namespace WP
 		
 	};
 
+	using take_ownership=bool;
 	template<typename T> class auto_ptr
 	{
 		template<typename> friend class auto_ptr;
@@ -170,11 +171,11 @@ namespace WP
 			if( Ptr || SharedPtr.use_count()==1 )
 				share.SetNullptr();
 		}
-		auto_ptr( pointer_type p, bool autodelete ) 
+		auto_ptr( pointer_type p, take_ownership autodelete ) 
 			: share(p)
 			, Ptr(autodelete ? p : nullptr){}
 		//explicit
-		auto_ptr( pointer_type p ) : auto_ptr( p, false ){}
+		auto_ptr( pointer_type p ) : auto_ptr( p, take_ownership(false) ){}
 		//explicit 
 		auto_ptr( std::unique_ptr<T> && Ptr ) 
 			: share(Ptr.get())
@@ -288,12 +289,13 @@ namespace WP
 			return operator=( auto_ptr(ptr) );
 		}
 
-		template<typename U> bool operator==( auto_ptr<U> const & r ) const noexcept { return get()==r.get(); }//vergleicht die per get() gelieferten pointer
-		template<typename U> bool operator!=( auto_ptr<U> const & r ) const noexcept { return get()!=r.get(); }
-		bool operator==( pointer_type r ) const noexcept { return get()==r; }//vergleicht die per get() gelieferten pointer
-		bool operator!=( pointer_type r ) const noexcept { return get()!=r; }//vergleicht die per get() gelieferten pointer
-		friend bool operator==( pointer_type l, auto_ptr const & r ) noexcept { return l==r.get(); }//vergleicht die per get() gelieferten pointer
-		friend bool operator!=( pointer_type l, auto_ptr const & r ) noexcept { return l==r.get(); }//vergleicht die per get() gelieferten pointer
+		template<typename U> bool operator==( auto_ptr<U> const & r ) const noexcept { return this->get() == r.get(); }
+		template<typename U> bool operator!=( auto_ptr<U> const & r ) const noexcept { return !operator==(r); }
+		//mit den folgenden 4 vergleichs-op geht kein vergleich mit NULL mehr
+		//bool operator==( pointer_type r ) const noexcept { return get()==r; }//vergleicht die per get() gelieferten pointer
+		//bool operator!=( pointer_type r ) const noexcept { return get()!=r; }//vergleicht die per get() gelieferten pointer
+		//friend bool operator==( pointer_type l, auto_ptr const & r ) noexcept { return l==r.get(); }//vergleicht die per get() gelieferten pointer
+		//friend bool operator!=( pointer_type l, auto_ptr const & r ) noexcept { return l==r.get(); }//vergleicht die per get() gelieferten pointer
 
 		template<typename U> bool operator< ( auto_ptr<U> const & r ) const noexcept // vergleicht pointer, nicht den unhalt
 		{
@@ -420,7 +422,11 @@ namespace WP
 			return retvalue;
 		}
 
-		bool owner() const noexcept
+		bool owner() const noexcept//same as isowner()
+		{
+			return this->Ptr.get()!=nullptr;
+		}
+		bool isowner() const noexcept//same as owner()
 		{
 			return this->Ptr.get()!=nullptr;
 		}
@@ -442,7 +448,8 @@ namespace WP
 		auto_ptr_owner( auto_ptr<T> & must_be_owner ) : auto_ptr_owner(must_be_owner.transfer()){}										// fn( ptr );//wobei ptr ein lvalue vom typ WP::auto_ptr<int> ist
 		template<typename U>auto_ptr_owner( U && r ) : auto_ptr_owner( auto_ptr<T>( std::move(r) ) ){}									// fn( std::unique_ptr<int>(new int{5}) );
 
-		operator auto_ptr<T>() { return std::move( data ); }//onetime conversation. einmaliger aufruf, danach ist data==nullptr
+		operator auto_ptr<T>() { return std::move( data ); }//einmaliger aufruf, danach ist data==nullptr
+		auto_ptr<T> transfer() {return std::move( data ); }//einmaliger aufruf, danach ist data==nullptr
 	};
 	template<typename dest_t,typename source_t> auto_ptr<dest_t> dynamic_pointer_cast( auto_ptr<source_t> const & r )
 	{
@@ -457,7 +464,7 @@ namespace WP
 	{
 		return auto_ptr<T[]>( p,false );
 	}
-	template<typename T> auto CreateTPtrArray( T* p, bool autodelete )
+	template<typename T> auto CreateTPtrArray( T* p, take_ownership autodelete )
 	{
 		return auto_ptr<T[]>( p,autodelete );
 	}
@@ -465,7 +472,7 @@ namespace WP
 	{
 		return auto_ptr<T>( p,false );
 	}
-	template<typename T> auto CreateTPtr( T* p, bool autodelete )
+	template<typename T> auto CreateTPtr( T* p, take_ownership autodelete )
 	{
 		return auto_ptr<T>( p,autodelete );
 	}
@@ -503,4 +510,3 @@ namespace WP
 		}
 	};
 }
-
