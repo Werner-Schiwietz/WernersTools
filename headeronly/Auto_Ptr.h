@@ -422,13 +422,17 @@ namespace WP
 			return retvalue;
 		}
 
-		bool owner() const noexcept//same as isowner()
+		bool owner() const noexcept//same as is_owner()
 		{
 			return this->Ptr.get()!=nullptr;
 		}
-		bool isowner() const noexcept//same as owner()
+		bool is_owner() const noexcept//same as owner()
 		{
 			return this->Ptr.get()!=nullptr;
+		}
+		bool is_shared_ptr() const
+		{
+			return this->SharedPtr.operator bool();
 		}
 	};
 	//nur als parameter fuer funktionen benutzen. als member und lokale variablen immer nur als auto_ptr<T> anlegen
@@ -441,7 +445,7 @@ namespace WP
 		auto_ptr_owner( auto_ptr<T> const & must_be_owner ) = delete;
 		auto_ptr_owner( auto_ptr<T> && must_be_owner )																					// fn( WP::auto_ptr<int>(new int{5}) );
 		{
-			if( must_be_owner.owner() == false )
+			if( must_be_owner.is_owner() == false && must_be_owner.is_shared_ptr() == false)
 				throw std::invalid_argument( "WP::auto_ptr mit owner-attribut erwartet" );
 			data = std::move(must_be_owner);
 		}

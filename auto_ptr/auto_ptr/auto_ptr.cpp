@@ -540,7 +540,7 @@ namespace autoptr
 			Assert::IsTrue( p3->value != d1.value );
 		}
 		TEST_METHOD(auto_ptr_from_this_von_objekt_im_vector)
-		{	//per auto_ptr_from_this gemerkte pointer auf std::vector-elemente werden durch reallok im vector zu nullptr, obwohl die ojekte im vector am index noch vorhanden sind
+		{	//per auto_ptr_from_this gemerkte pointer auf std::vector-elemente werden durch reallok im vector zu nullptr, obwohl die ojekte im vector am index noch vorhanden sind, aber halt an anderer adresse
 			//deshalb nicht auf dynamische container anwenden, zu gefährlich für den programmablauf
 			struct Data : WP::enable_auto_ptr_from_this<Data>
 			{
@@ -579,6 +579,45 @@ namespace autoptr
 				}
 			}
 		}
+		TEST_METHOD(auto_ptr_als_owner_im_vector)
+		{	//vector mit auto_ptr funktioniert besser als enable_auto_ptr_from_this. auch ein realloc macht nichts kaputt
+			struct Data : WP::enable_auto_ptr_from_this<Data>
+			{
+				Data(int value):value(value){}
+				int value;
+			};
+			std::vector<WP::auto_ptr<Data>> container;
+			//container.reserve( 3 );
+			std::vector<WP::auto_ptr<Data>> ptrs;
+
+			int value = 0;
+			container.emplace_back( WP::auto_ptr_owner<Data>{ new Data{value} } );
+			ptrs.emplace_back( container[0] );
+			auto * p1 = &container[0];
+
+			for( value=1;value < 50; ++value )
+			{
+				container.emplace_back( WP::auto_ptr_owner<Data>{ new Data{value} } );
+				ptrs.emplace_back( container.back() );
+				WP::auto_ptr<Data> * p2 = &container[0];
+				if( p1 != p2 )
+				{	//auch wenn die objekte im container umkopiert worden sind, sind die gemerkten auto_pointer noch gültig
+					p1 = p2;
+					for( int index=0; index<value; ++index )
+						Assert::IsTrue( container[index]==ptrs[index] );
+				}
+				else
+				{	//solange nicht umkopiert wurde sind die pointer gültig
+					for( int index=0; index<=value; ++index )
+						Assert::IsTrue( container[index]==ptrs[index] );
+				}
+			}
+
+			container.clear();
+			//nach clear alle gemerkten nicht owner pointer null
+			for( auto & ptr : ptrs )
+				Assert::IsFalse( ptr );
+		}
 		TEST_METHOD(shared_weak_ptr)
 		{
 			WP::auto_ptr<int> p{ std::make_shared<int>(5) };
@@ -596,7 +635,34 @@ namespace autoptr
 			Assert::IsNull(p1.get());
 			Assert::IsNull(p2.get());
 		}
+		TEST_METHOD(uebergebe_ptr_als_owner_per_shared_ptr)
+		{
+			auto fnTakeOverOwnershipAndReturnOwner=[]( WP::auto_ptr_owner<int> ptr )->WP::auto_ptr<int>//auto_ptr_owner wirft exception, wenn ptr nicht owner ist
+			{
+				return ptr;
+			};
 
+			WP::auto_ptr<int> ptr { std::shared_ptr<int>( new int( 5 ) ) };
+			Assert::IsFalse( ptr.owner() );
+			Assert::IsTrue( ptr.is_shared_ptr() );
+			auto fnTest =[&ptr]( WP::auto_ptr<int> & ptr_shared )
+			{
+				Assert::IsFalse( ptr.is_owner() );
+				Assert::IsTrue( ptr.is_shared_ptr() );
+				Assert::IsFalse( ptr_shared.is_owner() );
+				Assert::IsTrue( ptr_shared.is_shared_ptr() );
+				Assert::IsTrue( ptr_shared==ptr );
+				(void)ptr_shared.transfer();//jetzt passiert nicht, weil shared_ptr
+				Assert::IsTrue( ptr != nullptr );
+				Assert::IsTrue( ptr_shared != nullptr );
+				Assert::IsTrue( ptr_shared == ptr );
+				ptr_shared = nullptr;
+				Assert::IsTrue( ptr_shared == nullptr );
+				Assert::IsTrue( ptr != nullptr );
+			};
+			fnTest( fnTakeOverOwnershipAndReturnOwner( ptr.transfer() ) );//egal ob transfer oder direkt uebergeben
+			fnTest( fnTakeOverOwnershipAndReturnOwner( ptr ) );
+		}
 		TEST_METHOD(uebergebe_ptr_als_owner_per_transfer)
 		{
 			auto fnTakeOverOwnershipAndReturnOwner=[]( WP::auto_ptr_owner<int> ptr )->WP::auto_ptr<int>//auto_ptr_owner wirft exception, wenn ptr nicht owner ist
@@ -605,9 +671,11 @@ namespace autoptr
 			};
 			WP::auto_ptr<int> ptr = WP::auto_ptr_owner<int>( new int( 5 ) );
 			Assert::IsTrue( ptr.owner() );
-			auto ptr_owner = fnTakeOverOwnershipAndReturnOwner( ptr.transfer() );//transfer() führt hier dazu, dass ptr den pointer behaelt bis objekt zerstoert wird
+			auto ptr_owner = fnTakeOverOwnershipAndReturnOwner( ptr.transfer() );//egal ob transfer oder direkt uebergeben
 			Assert::IsFalse( ptr.owner() );
 			Assert::IsTrue( ptr_owner.owner() );
+			Assert::IsTrue( *ptr == 5 );
+			Assert::IsTrue( *ptr_owner == 5 );
 			Assert::IsTrue( ptr_owner==ptr );
 			(void)ptr_owner.transfer();//liefert owner_ptr als returnwert. da dieses nicht verwendet wird, wird verwaltetes objekt zerstört
 			Assert::IsTrue( ptr == nullptr );
@@ -622,7 +690,7 @@ namespace autoptr
 			{
 				WP::auto_ptr<int> ptr = WP::auto_ptr_owner<int>( new int( 5 ) );
 				Assert::IsTrue( ptr.owner() );
-				auto ptr_owner = fnTakeOverOwnershipAndReturnOwner( ptr );//ptr als referenz führt hier dazu, dass ptr den pointer behaelt bis objekt zerstoert wird
+				auto ptr_owner = fnTakeOverOwnershipAndReturnOwner( ptr );//egal ob transfer oder direkt uebergeben. ptr ist nicht mehr owner. waere er es bei aufruf nicht, flöge eine exception
 				Assert::IsFalse( ptr.owner() );
 				Assert::IsTrue( ptr_owner.owner() );
 				Assert::IsTrue( *ptr == 5 );
