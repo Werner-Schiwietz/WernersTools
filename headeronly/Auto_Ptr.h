@@ -278,10 +278,14 @@ namespace WP
 			swap( temp );
 			return *this;
 		}
-		auto_ptr & operator=(std::unique_ptr<T> && ptr)
+		auto_ptr & operator=(std::unique_ptr<T> && uniqueptr)
 		{
-			return operator=( auto_ptr(std::move(ptr)) );
+			return operator=( auto_ptr(std::move(uniqueptr)) );
 		}
+		auto_ptr & operator=(std::shared_ptr<T> sharedptr )
+		{
+			return operator=( auto_ptr(sharedptr) );
+		}		
 		auto_ptr & operator=(pointer_type ptr) noexcept
 		{
 			if (this->get() == ptr)
@@ -434,26 +438,38 @@ namespace WP
 		{
 			return this->SharedPtr.operator bool();
 		}
+		bool is_smart()
+		{
+			return is_owner() || is_shared_ptr();
+		}
 	};
 	//nur als parameter fuer funktionen benutzen. als member und lokale variablen immer nur als auto_ptr<T> anlegen
 	template<typename T> class auto_ptr_owner 
 	{
 		auto_ptr<T> data;
 	public:
-		//usage: z.B. void foo( WP::auto_ptr_owner<int> );
+		//usage:	 z.B.	void foo( WP::auto_ptr_owner<int> );//foo-declaration
+							//foo( &int_value ); ATTENTION NEVER call foo with address of stack-object
+							//foo( new int{5} ); calling foo with pointer
+							//foo( std::make_unique<int>(5) ); calling foo with unique_ptr
+							//foo( std::make_shared<int>(5) ); calling foo with shared_ptr
+							//foo( WP::auto_ptr<int>(new int{6},true) ); calling foo with auto_ptr with attrib is_owner()
+							//foo( WP::auto_ptr<int>(std::make_shared<int>(7)) ); calling foo with auto_ptr with attrib is_shared_ptr() 
+							//foo( WP::auto_ptr<int>(new int{6},false) ); ATTENTION exception throwing when calling foo with auto_ptr without attrib is_shared()
+
 		auto_ptr_owner( typename auto_ptr<T>::pointer_type p ) : data( p, true ){}														// fn( new int{5} );
 		auto_ptr_owner( auto_ptr<T> const & must_be_owner ) = delete;
 		auto_ptr_owner( auto_ptr<T> && must_be_owner )																					// fn( WP::auto_ptr<int>(new int{5}) );
 		{
-			if( must_be_owner.is_owner() == false && must_be_owner.is_shared_ptr() == false)
-				throw std::invalid_argument( "WP::auto_ptr mit owner-attribut erwartet" );
+			if( must_be_owner.is_smart()==false )
+				throw std::invalid_argument( __FUNCTION__ " WP::auto_ptr mit is_smart-attribut erwartet" );
 			data = std::move(must_be_owner);
 		}
 		auto_ptr_owner( auto_ptr<T> & must_be_owner ) : auto_ptr_owner(must_be_owner.transfer()){}										// fn( ptr );//wobei ptr ein lvalue vom typ WP::auto_ptr<int> ist
 		template<typename U>auto_ptr_owner( U && r ) : auto_ptr_owner( auto_ptr<T>( std::move(r) ) ){}									// fn( std::unique_ptr<int>(new int{5}) );
 
 		operator auto_ptr<T>() { return std::move( data ); }//einmaliger aufruf, danach ist data==nullptr
-		auto_ptr<T> transfer() {return std::move( data ); }//einmaliger aufruf, danach ist data==nullptr
+		auto_ptr<T> move() {return std::move( data ); }//einmaliger aufruf, danach ist data==nullptr
 	};
 	template<typename dest_t,typename source_t> auto_ptr<dest_t> dynamic_pointer_cast( auto_ptr<source_t> const & r )
 	{

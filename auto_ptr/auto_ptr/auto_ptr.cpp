@@ -635,6 +635,40 @@ namespace autoptr
 			Assert::IsNull(p1.get());
 			Assert::IsNull(p2.get());
 		}
+		TEST_METHOD(auto_ptr_owner)
+		{
+			int _startwert = 5;
+			struct Int
+			{
+				int & startwert;
+				int value;
+				Int(int value, int & startwert):value(value),startwert(startwert){}
+				~Int(){
+					Assert::IsTrue( startwert++ == value );
+				}
+			};
+			auto foo = []( WP::auto_ptr_owner<Int> ){};
+
+			Int I{11,_startwert};
+			//foo( &I );//dont do something like this. you cant manage a stack-objekt
+
+			foo( new Int{5,_startwert} );
+			foo( std::make_unique<Int>(6,_startwert) );
+			foo( std::make_shared<Int>(7,_startwert) );
+			foo( WP::auto_ptr<Int>(new Int{8,_startwert},true) ); 
+			foo( WP::auto_ptr<Int>(std::make_shared<Int>(9,_startwert)) ); 
+
+			auto ptr = new Int{10,_startwert};
+			try
+			{
+				foo( WP::auto_ptr<Int>(ptr,false) ); 
+				Assert::Fail( L"exception erwartet, weil foo keinen owner als parameter erhaelt" );
+			}
+			catch(...){}
+			Assert::IsTrue( _startwert==10 );
+			delete ptr;
+			Assert::IsTrue( _startwert==11 );
+		}
 		TEST_METHOD(uebergebe_ptr_als_owner_per_shared_ptr)
 		{
 			auto fnTakeOverOwnershipAndReturnOwner=[]( WP::auto_ptr_owner<int> ptr )->WP::auto_ptr<int>//auto_ptr_owner wirft exception, wenn ptr nicht owner ist
@@ -662,6 +696,12 @@ namespace autoptr
 			};
 			fnTest( fnTakeOverOwnershipAndReturnOwner( ptr.transfer() ) );//egal ob transfer oder direkt uebergeben
 			fnTest( fnTakeOverOwnershipAndReturnOwner( ptr ) );
+			ptr = std::shared_ptr<int>( new int{6} );
+			fnTest( fnTakeOverOwnershipAndReturnOwner( ptr ) );
+			{
+				ptr = fnTakeOverOwnershipAndReturnOwner( std::shared_ptr<int>( new int{7} ) );
+				Assert::IsTrue( *ptr==7 );
+			}
 		}
 		TEST_METHOD(uebergebe_ptr_als_owner_per_transfer)
 		{
@@ -811,7 +851,7 @@ namespace autoptr
 
 			{
 				auto ptr1 = WP::auto_ptr_owner<int>( new int( 5 ) );
-				ptr = ptr1.transfer();
+				ptr = ptr1.move();
 				Assert::IsTrue( static_cast<WP::auto_ptr<int>>(ptr1)==nullptr );
 				Assert::IsTrue( ptr.owner() );
 				{
