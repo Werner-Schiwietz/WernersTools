@@ -159,6 +159,15 @@ namespace autoptr
 			Assert::IsTrue( nullptr!=ptr );
 			Assert::IsFalse( nullptr==ptr  );
 		}
+		TEST_METHOD(auto_ptr__inherit)
+		{
+			struct A{virtual ~A(){}};
+			struct B  : A {virtual ~B(){}};
+
+			WP::auto_ptr<A> pa = std::make_unique<A>();
+			pa = std::make_unique<B>();
+
+		}
 		TEST_METHOD(auto_ptr__compare_inherit)
 		{
 			struct A{virtual ~A(){}};
@@ -182,7 +191,7 @@ namespace autoptr
 			Assert::IsTrue( pab.get()==pb.get() );
 
 			//??
-			auto pa1 = pa.get();
+			auto pa1 = pa.get(); pa1;
 			auto pb1 = pb.get();
 			auto pab1 = pab.get();
 			Assert::IsTrue( pab1==pb1 );
@@ -300,6 +309,7 @@ namespace autoptr
 			WP::auto_ptr<int>  ptr_owner;
 			auto donothing = [](WP::auto_ptr<int> && ptr)
 			{
+				ptr;
 			};
 			auto takeownership = [&](WP::auto_ptr<int> && ptr)
 			{
@@ -566,7 +576,7 @@ namespace autoptr
 					p1 = p2;
 					for( int index=0; index<value; ++index )
 					{
-						auto x1 = container[index].auto_ptr_from_this().get();
+						auto x1 = container[index].auto_ptr_from_this().get(); x1;
 						auto x2 = ptrs[index].get();
 						Assert::IsTrue( x2==nullptr );
 						ptrs[index] = container[index].auto_ptr_from_this();
@@ -591,25 +601,33 @@ namespace autoptr
 			std::vector<WP::auto_ptr<Data>> ptrs;
 
 			int value = 0;
-			container.emplace_back( WP::auto_ptr_owner<Data>{ new Data{value} } );
+			container.emplace_back( WP::auto_ptr_owner_parameter<Data>{ new Data{value} } );
 			ptrs.emplace_back( container[0] );
 			auto * p1 = &container[0];
 
 			for( value=1;value < 50; ++value )
 			{
-				container.emplace_back( WP::auto_ptr_owner<Data>{ new Data{value} } );
+				container.emplace_back( WP::auto_ptr_owner_parameter<Data>{ new Data{value} } );
 				ptrs.emplace_back( container.back() );
 				WP::auto_ptr<Data> * p2 = &container[0];
 				if( p1 != p2 )
 				{	//auch wenn die objekte im container umkopiert worden sind, sind die gemerkten auto_pointer noch gültig
 					p1 = p2;
 					for( int index=0; index<value; ++index )
+					{
 						Assert::IsTrue( container[index]==ptrs[index] );
+						Assert::IsTrue( container[index]->value==index );
+						Assert::IsTrue( ptrs[index]->value==index );
+					}
 				}
 				else
 				{	//solange nicht umkopiert wurde sind die pointer gültig
 					for( int index=0; index<=value; ++index )
+					{
 						Assert::IsTrue( container[index]==ptrs[index] );
+						Assert::IsTrue( container[index]->value==index );
+						Assert::IsTrue( ptrs[index]->value==index );
+					}
 				}
 			}
 
@@ -635,7 +653,7 @@ namespace autoptr
 			Assert::IsNull(p1.get());
 			Assert::IsNull(p2.get());
 		}
-		TEST_METHOD(auto_ptr_owner)
+		TEST_METHOD(auto_ptr_owner_parameter)
 		{
 			int _startwert = 5;
 			struct Int
@@ -647,7 +665,7 @@ namespace autoptr
 					Assert::IsTrue( startwert++ == value );
 				}
 			};
-			auto foo = []( WP::auto_ptr_owner<Int> ){};
+			auto foo = []( WP::auto_ptr_owner_parameter<Int> ){};
 
 			Int I{11,_startwert};
 			//foo( &I );//dont do something like this. you cant manage a stack-objekt
@@ -671,7 +689,7 @@ namespace autoptr
 		}
 		TEST_METHOD(uebergebe_ptr_als_owner_per_shared_ptr)
 		{
-			auto fnTakeOverOwnershipAndReturnOwner=[]( WP::auto_ptr_owner<int> ptr )->WP::auto_ptr<int>//auto_ptr_owner wirft exception, wenn ptr nicht owner ist
+			auto fnTakeOverOwnershipAndReturnOwner=[]( WP::auto_ptr_owner_parameter<int> ptr )->WP::auto_ptr<int>//auto_ptr_owner_parameter wirft exception, wenn ptr nicht owner ist
 			{
 				return ptr;
 			};
@@ -679,7 +697,7 @@ namespace autoptr
 			WP::auto_ptr<int> ptr { std::shared_ptr<int>( new int( 5 ) ) };
 			Assert::IsFalse( ptr.owner() );
 			Assert::IsTrue( ptr.is_shared_ptr() );
-			auto fnTest =[&ptr]( WP::auto_ptr<int> & ptr_shared )
+			auto fnTest =[&ptr]( WP::auto_ptr<int> && ptr_shared )
 			{
 				Assert::IsFalse( ptr.is_owner() );
 				Assert::IsTrue( ptr.is_shared_ptr() );
@@ -705,11 +723,11 @@ namespace autoptr
 		}
 		TEST_METHOD(uebergebe_ptr_als_owner_per_transfer)
 		{
-			auto fnTakeOverOwnershipAndReturnOwner=[]( WP::auto_ptr_owner<int> ptr )->WP::auto_ptr<int>//auto_ptr_owner wirft exception, wenn ptr nicht owner ist
+			auto fnTakeOverOwnershipAndReturnOwner=[]( WP::auto_ptr_owner_parameter<int> ptr )->WP::auto_ptr<int>//auto_ptr_owner_parameter wirft exception, wenn ptr nicht owner ist
 			{
 				return ptr;
 			};
-			WP::auto_ptr<int> ptr = WP::auto_ptr_owner<int>( new int( 5 ) );
+			WP::auto_ptr<int> ptr = WP::auto_ptr_owner_parameter<int>( new int( 5 ) );
 			Assert::IsTrue( ptr.owner() );
 			auto ptr_owner = fnTakeOverOwnershipAndReturnOwner( ptr.transfer() );//egal ob transfer oder direkt uebergeben
 			Assert::IsFalse( ptr.owner() );
@@ -723,12 +741,12 @@ namespace autoptr
 		}
 		TEST_METHOD(uebergebe_ptr_als_owner_per_referenz)
 		{
-			auto fnTakeOverOwnershipAndReturnOwner=[]( WP::auto_ptr_owner<int> ptr )//auto_ptr_owner wirft exception, wenn ptr nicht owner ist
+			auto fnTakeOverOwnershipAndReturnOwner=[]( WP::auto_ptr_owner_parameter<int> ptr )//auto_ptr_owner_parameter wirft exception, wenn ptr nicht owner ist
 			{
 				return WP::auto_ptr<int>(ptr);
 			};
 			{
-				WP::auto_ptr<int> ptr = WP::auto_ptr_owner<int>( new int( 5 ) );
+				WP::auto_ptr<int> ptr = WP::auto_ptr_owner_parameter<int>( new int( 5 ) );
 				Assert::IsTrue( ptr.owner() );
 				auto ptr_owner = fnTakeOverOwnershipAndReturnOwner( ptr );//egal ob transfer oder direkt uebergeben. ptr ist nicht mehr owner. waere er es bei aufruf nicht, flöge eine exception
 				Assert::IsFalse( ptr.owner() );
@@ -743,12 +761,12 @@ namespace autoptr
 		}
 		TEST_METHOD(uebergebe_ptr_als_owner_per_move)
 		{
-			auto fnTakeOverOwnershipAndReturnOwner=[]( WP::auto_ptr_owner<int> ptr )//auto_ptr_owner wirft exception, wenn ptr nicht owner ist
+			auto fnTakeOverOwnershipAndReturnOwner=[]( WP::auto_ptr_owner_parameter<int> ptr )//auto_ptr_owner_parameter wirft exception, wenn ptr nicht owner ist
 			{
 				return WP::auto_ptr<int>(ptr);
 			};
 			{
-				WP::auto_ptr<int> ptr = WP::auto_ptr_owner<int>( new int( 5 ) );
+				WP::auto_ptr<int> ptr = WP::auto_ptr_owner_parameter<int>( new int( 5 ) );
 				Assert::IsTrue( ptr.owner() );
 				auto ptr_owner = fnTakeOverOwnershipAndReturnOwner( std::move(ptr) );//std::move führt hier zu ptr==nullptr, evtl besser transfer()
 				Assert::IsFalse( ptr.owner() );
@@ -761,7 +779,7 @@ namespace autoptr
 		}
 		TEST_METHOD(uebergebe_ptr_als_owner_per_unique_ptr)
 		{
-			auto fnTakeOverOwnershipAndReturnOwner=[]( WP::auto_ptr_owner<int> ptr )//auto_ptr_owner wirft exception, wenn ptr nicht owner ist
+			auto fnTakeOverOwnershipAndReturnOwner=[]( WP::auto_ptr_owner_parameter<int> ptr )//auto_ptr_owner_parameter wirft exception, wenn ptr nicht owner ist
 			{
 				return WP::auto_ptr<int>(ptr);
 			};
@@ -777,7 +795,7 @@ namespace autoptr
 		}
 		TEST_METHOD(uebergebe_ptr_als_owner_per_unmanged_ptr)
 		{
-			auto fnTakeOverOwnershipAndReturnOwner=[]( WP::auto_ptr_owner<int> ptr )//auto_ptr_owner wirft exception, wenn ptr nicht owner ist
+			auto fnTakeOverOwnershipAndReturnOwner=[]( WP::auto_ptr_owner_parameter<int> ptr )//auto_ptr_owner_parameter wirft exception, wenn ptr nicht owner ist
 			{
 				return WP::auto_ptr<int>(ptr);
 			};
@@ -797,7 +815,7 @@ namespace autoptr
 		}
 		TEST_METHOD(uebergebe_ptr_als_ownerless_exception)
 		{
-			auto fnTakeOverOwnershipAndReturnOwner=[]( WP::auto_ptr_owner<int> ptr )
+			auto fnTakeOverOwnershipAndReturnOwner=[]( WP::auto_ptr_owner_parameter<int> ptr )
 			{
 				return WP::auto_ptr<int>(ptr);
 			};
@@ -813,14 +831,14 @@ namespace autoptr
 			catch(std::exception &  )
 			{}
 		}
-		TEST_METHOD(auto_ptr_owner_zugriff)
+		TEST_METHOD(auto_ptr_owner_parameter_zugriff)
 		{
-			auto ptr = WP::auto_ptr_owner<int>( new int( 5 ) );
+			auto ptr = WP::auto_ptr_owner_parameter<int>( new int( 5 ) );
 			(WP::auto_ptr<int>)ptr;//cast nach auto_ptr genau einmal möglich, danach ist ptr empty
 			Assert::IsTrue( static_cast<WP::auto_ptr<int>>(ptr) == nullptr );
 			Assert::IsTrue( static_cast<WP::auto_ptr<int>>(ptr) == NULL );
 
-			ptr = WP::auto_ptr_owner<int>( new int( 6 ) );
+			ptr = WP::auto_ptr_owner_parameter<int>( new int( 6 ) );
 			int *				p1 = nullptr;
 			WP::auto_ptr<int>	p2;
 			{
@@ -839,7 +857,7 @@ namespace autoptr
 		}
 		TEST_METHOD(release_as_unique_ptr)
 		{	//release sind schlechte funktionen, weil die pointer im zugriff bleiben, die zerstörung der objekt aber nicht bemerkt wird
-			WP::auto_ptr<int> ptr = WP::auto_ptr_owner<int>( new int( 5 ) );
+			WP::auto_ptr<int> ptr = WP::auto_ptr_owner_parameter<int>( new int( 5 ) );
 			Assert::IsTrue( ptr.owner() );
 			{
 				auto p1 = ptr.release_as_unique_ptr();
@@ -850,7 +868,7 @@ namespace autoptr
 			//Assert::IsFalse( *ptr==5 );//vorsicht ptr liefert noch den bereits freigegebenen speicher
 
 			{
-				auto ptr1 = WP::auto_ptr_owner<int>( new int( 5 ) );
+				auto ptr1 = WP::auto_ptr_owner_parameter<int>( new int( 5 ) );
 				ptr = ptr1.move();
 				Assert::IsTrue( static_cast<WP::auto_ptr<int>>(ptr1)==nullptr );
 				Assert::IsTrue( ptr.owner() );
@@ -862,7 +880,7 @@ namespace autoptr
 			}
 
 			{
-				WP::auto_ptr<int> ptr1 = WP::auto_ptr_owner<int>( new int( 5 ) );
+				WP::auto_ptr<int> ptr1 = WP::auto_ptr_owner_parameter<int>( new int( 5 ) );
 				ptr = ptr1;
 				Assert::IsFalse( ptr.owner() );
 				{
@@ -871,6 +889,139 @@ namespace autoptr
 				}
 				Assert::IsTrue( *ptr==5 );
 			}
+		}
+	};
+	TEST_CLASS( UT_auto_ptr_vv )
+	{
+		TEST_METHOD(add_values)
+		{
+			WP::auto_ptr_vw<int, std::vector> vw;
+
+			vw.push_back( new int{1} );
+			vw.push_back( std::unique_ptr<int>(new int{2}) );
+			vw.push_back( std::shared_ptr<int>(new int{3}) );
+
+			int value = 0;
+			std::vector<WP::auto_ptr<int>> ptrs;
+			for(auto & ptr : vw ) //als const &
+			{
+				Assert::IsTrue( ptr.is_manager() );
+			}
+			for(auto ptr : vw ) //als kopie
+			{
+				Assert::IsFalse( ptr.is_owner() );
+			}
+
+			for(auto & ptr : vw )
+			{
+				Assert::IsTrue( ptr.is_manager() );
+				Assert::IsTrue( *ptr==++value );
+				ptrs.push_back( ptr );
+			}
+
+			value = 0;
+			for(auto & ptr : ptrs)
+			{
+				Assert::IsFalse( ptr.is_owner() );
+				Assert::IsTrue( *ptr==++value );
+			}
+
+			for(auto ptr : vw ) //als kopie
+			{
+				Assert::IsFalse( ptr.is_owner() );
+				*ptr = ++value;
+			}
+			value = vw.size();
+			for(auto ptr : vw ) //als kopie
+			{
+				Assert::IsTrue(*ptr == ++value);
+			}
+
+
+			vw.clear();
+
+			for(auto & ptr : ptrs)
+			{
+				Assert::IsTrue( ptr==nullptr || ptr.is_shared_ptr() );
+			}
+
+		}
+		TEST_METHOD(erase_value)
+		{
+			int value = 0;
+			WP::auto_ptr<int> ptr1 { new int{++value}, true};
+			WP::auto_ptr<int> ptr2 { std::make_unique<int>( ++value ) };
+			WP::auto_ptr<int> ptr3 { std::make_shared<int>( ++value ) };
+			auto Ptr2 = ptr2.get();
+			auto Ptr3 = ptr3.get(); 
+
+
+			WP::auto_ptr_vw<int, std::vector> vw;
+			vw.push_back( ptr1 );
+			vw.push_back( ptr2 );
+			vw.push_back( ptr3 ); ptr3 = nullptr;
+
+			{
+				auto rm{ vw.erase( Ptr2 ) };
+				Assert::IsTrue( rm.is_owner_or_shared() );
+				Assert::IsTrue( *rm==2 );
+			}
+			{
+				auto rm { vw.erase( Ptr2 ) };
+				Assert::IsTrue( rm==nullptr );
+			}
+			{
+				auto rm{ vw.erase( Ptr3 ) };
+				Assert::IsTrue( rm.is_owner_or_shared() );
+				Assert::IsTrue( *rm==3 );
+			}
+			{
+				auto rm = vw.erase( Ptr3 );
+				Assert::IsTrue( rm==nullptr );
+			}
+			{
+				auto rm{ vw.erase( ptr1 ) };
+				Assert::IsTrue( rm.is_owner_or_shared() );
+				Assert::IsTrue( *rm==1 );
+			}
+			{
+				auto rm = vw.erase( ptr1 );
+				Assert::IsTrue( rm==nullptr );
+			}
+		}
+		TEST_METHOD(replace_value)
+		{
+			int value = 0;
+			WP::auto_ptr<int> ptr1 { new int{++value}, true};
+			WP::auto_ptr<int> ptr2 { std::make_unique<int>( ++value ) };
+			WP::auto_ptr<int> ptr3 { std::make_shared<int>( ++value ) };
+			auto Ptr2 = ptr2.get();
+			auto Ptr3 = ptr3.get(); 
+
+
+			WP::auto_ptr_vw<int, std::vector> vw;
+			vw.push_back( ptr1 );
+			vw.push_back( ptr2 );
+			vw.push_back( ptr3 ); ptr3 = nullptr;
+
+			{
+				auto rm{ vw.replace( Ptr2, new int{++value} ) };
+				Assert::IsTrue( rm.is_owner_or_shared() );
+				Assert::IsTrue( *rm==2 );
+			}
+			{
+				auto rm{ vw.replace( Ptr3, std::make_unique<int>( ++value ) ) };
+				Assert::IsTrue( rm.is_owner_or_shared() );
+				Assert::IsTrue( *rm==3 );
+			}
+			{
+				auto rm{ vw.replace( ptr1, std::make_unique<int>( ++value ) ) };
+				Assert::IsTrue( rm.is_owner_or_shared() );
+				Assert::IsTrue( *rm==1 );
+			}
+			Assert::IsTrue( *vw.at(0)==6 );
+			Assert::IsTrue( *vw.at(1)==4 );
+			Assert::IsTrue( *vw.at(2)==5 );
 		}
 	};
 }

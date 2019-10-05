@@ -22,7 +22,7 @@
 //		A a;
 //		WP::auto_ptr<A> ptr = a.auto_ptr_from_this();//ptr wird nullptr, wenn a zerstoert wird
 //
-//als parameter in funktionen kann WP::auto_ptr_owner<T> verwendetet weerden
+//als parameter in funktionen kann WP::auto_ptr_owner_parameter<T> verwendetet weerden
 //die klasse muss im konstruktror owner werden, sonst wirft deren ctor eine std::exception
 
 
@@ -44,12 +44,12 @@ namespace WP
 			mutable std::atomic<unsigned short>	counter = 1;
 			bool								valid	= false;
 		private:
-			~ReferenzCounterShare(){}
+			~ReferenzCounterShare() {}
 			ReferenzCounterShare()=delete;
-			ReferenzCounterShare( pointer_type const & p ) : valid(p!=nullptr){}
+			ReferenzCounterShare( pointer_type const & p ) noexcept : valid(p!=nullptr){}
 			ReferenzCounterShare( ReferenzCounterShare const & ) = delete;
 		public:
-			ReferenzCounterShare* Release()
+			ReferenzCounterShare* Release() noexcept
 			{
 				if( --counter == 0 )
 					delete this;
@@ -62,14 +62,14 @@ namespace WP
 #				endif
 				return new ReferenzCounterShare( p );
 			}
-			ReferenzCounterShare* AddRef( ) const
+			ReferenzCounterShare* AddRef( ) const noexcept
 			{
 				if(this)
 					++this->counter;
 				return const_cast<ReferenzCounterShare*>(this);
 			}
 
-			void swap( ReferenzCounterShare & r )
+			void swap( ReferenzCounterShare & r ) noexcept
 			{
 				std::swap( this->valid, r.valid );
 				std::swap( this->counter, r.counter );
@@ -79,34 +79,34 @@ namespace WP
 		ReferenzCounterShare*	share	= nullptr;
 		pointer_type			pointer = nullptr;//nötig, weil dynamic_cast ggf. auch veraenderte adressen liefert, das sharedobjekt sich den pointer nicht merken kann
 												  //man könnte das ganze um template data_pointer_type erweitern, dann waeren auto_ptr<A,A*> etwas anderes als auto_ptr<A,B*>. hatte ich schon, war auch seltsam
-		~ReferenzCounter()
-		{
-			if( share )
-				share = share->Release();
-		}
-		ReferenzCounter( ReferenzCounter && r ) : ReferenzCounter()
-		{
-			swap( r );
-		}
-		ReferenzCounter& operator=( ReferenzCounter const & r )
+		ReferenzCounter& operator=( ReferenzCounter const & r ) noexcept
 		{
 			ReferenzCounter temp( r );
 			swap( temp );
 			return *this;
 		}
-		ReferenzCounter& operator=( ReferenzCounter && r )
+		ReferenzCounter& operator=( ReferenzCounter && r ) noexcept
 		{
 			ReferenzCounter temp( std::move(r) );
 			swap( temp );
 			return *this;
 		}
-		ReferenzCounter() {}
-		ReferenzCounter( ReferenzCounter const & r ) : share(r.share->AddRef()), pointer(r.pointer ) {}
+		~ReferenzCounter()
+		{
+			if( share )
+				share = share->Release();
+		}
+		ReferenzCounter() noexcept {}
+		ReferenzCounter( ReferenzCounter const & r ) noexcept : share(r.share->AddRef()), pointer(r.pointer ) {}
+		ReferenzCounter( ReferenzCounter && r ) noexcept : ReferenzCounter()
+		{
+			swap( r );
+		}
 		ReferenzCounter( pointer_type p ) 
 			: share(p ? ReferenzCounterShare::Create(p) : nullptr)
 			, pointer(p) {}
 
-		template< typename U> ReferenzCounter( ReferenzCounter<U> const & r  )
+		template< typename U> ReferenzCounter( ReferenzCounter<U> const & r  ) noexcept
 		{
 			//reinterpret_cast nötig, weil nested und ReferenzCounter<T>::ReferenzCounterShare* fuer den compiler etwas anders als ReferenzCounter<U>::ReferenzCounterShare* ist
 			this->share = reinterpret_cast<ReferenzCounterShare*>(r.share ? r.share->AddRef() : nullptr);
@@ -115,31 +115,31 @@ namespace WP
 				this->pointer = dynamic_cast<pointer_type>( r.get() );
 		}
 
-		bool valid() const
+		bool valid() const noexcept
 		{
 			return this->share && this->share->valid;
 		}
 
-		void swap( ReferenzCounter & r )
+		void swap( ReferenzCounter & r ) noexcept
 		{
 			std::swap( this->share, r.share );
 			std::swap( this->pointer, r.pointer);
 		}
-		void SetNullptr()
+		void SetNullptr() 
 		{
 			if( this->share )
 				this->share->valid = false;
 			this->pointer = nullptr;
 		}
 
-		pointer_type get() const
+		pointer_type get() const 
 		{
 			if(valid())
 				return this->pointer;
 			return nullptr;
 		}
 		//explicit
-		operator pointer_type() const
+		operator pointer_type() const 
 		{
 			return get();
 		}
@@ -158,12 +158,16 @@ namespace WP
 		mutable std::shared_ptr<T> SharedPtr;
 
 	public:
-		auto_ptr( auto_ptr const & r )
+		auto_ptr() noexcept {}
+		auto_ptr( auto_ptr const & r ) noexcept
 			: share( r.share )
 			, SharedPtr(r.SharedPtr)
 		{
 		}
-
+		auto_ptr( auto_ptr && r ) noexcept : auto_ptr()
+		{
+			swap( r );
+		}
 	public:
 		template<typename T> friend class enable_auto_ptr_from_this;
 		~auto_ptr()
@@ -171,7 +175,7 @@ namespace WP
 			if( Ptr || SharedPtr.use_count()==1 )
 				share.SetNullptr();
 		}
-		auto_ptr( pointer_type p, take_ownership autodelete ) 
+		auto_ptr( pointer_type p, take_ownership autodelete )
 			: share(p)
 			, Ptr(autodelete ? p : nullptr){}
 		//explicit
@@ -185,21 +189,16 @@ namespace WP
 			: share(sharedptr.get())
 			, SharedPtr(sharedptr)
 		{}
-		auto_ptr& Set( std::shared_ptr<T> sharedptr ) //operator= gibt mit dem anderen operatoren aerger
+		auto_ptr& Set( std::shared_ptr<T> sharedptr )  //operator= gibt mit dem anderen operatoren aerger
 		{
 			auto_ptr temp( sharedptr );
 			swap( temp );
 			return *this;
 		}
-		auto_ptr() = default;
-		auto_ptr(auto_ptr && r) : auto_ptr()
-		{
-			swap( r );
-		}
 		//auto_ptr(auto_ptr const& r) : auto_ptr(r.ownerless()){}
 		template<typename U> 
 		//explicit 
-		auto_ptr(auto_ptr<U> const & r)
+		auto_ptr(auto_ptr<U> const & r) noexcept
 			: share( nullptr )
 		{
 			static_assert( std::is_convertible<auto_ptr<U>::pointer_type,pointer_type>::value 
@@ -210,7 +209,7 @@ namespace WP
 		}
 		template<typename U> 
 		//explicit 
-		auto_ptr(auto_ptr<U> && r)//dient der konvertierung  const T = U oder T bzw U ist abgeleitet von vom Anderen, bzw. T = const U
+		auto_ptr(auto_ptr<U> && r) noexcept//dient der konvertierung  const T = U oder T bzw U ist abgeleitet von vom Anderen, bzw. T = const U
 		{	//this muss neuer owner werden, da muessen einige bedingungen erfüllt sein
 
 			//nicht nötig aber, wg is_convertible aber macht die problemfindung einfacher
@@ -248,7 +247,7 @@ namespace WP
 
 		auto_ptr & operator=(auto_ptr && r) noexcept
 		{
-			auto_ptr temp( std::move(r) );
+			auto_ptr temp{ std::move(r) };
 			this->swap( temp );
 			return *this;
 		}
@@ -256,13 +255,13 @@ namespace WP
 		{
 			return operator=(r.ownerless());
 		}
-		template<typename U>auto_ptr & operator=(auto_ptr<U> && r)
+		template<typename U>auto_ptr & operator=(auto_ptr<U> && r) noexcept
 		{
 			static_assert( std::is_base_of<U, T>::value
 						|| std::is_base_of<T, U>::value
 						, __FUNCTION__ " pointer sind nicht zuweisbar");
 
-			auto_ptr temp( r.transfer() );
+			auto_ptr temp{ r.transfer() };
 			swap( temp );
 
 			return *this;
@@ -273,35 +272,35 @@ namespace WP
 						   || std::is_base_of<T, U>::value
 						, __FUNCTION__ " pointer sind nicht zuweisbar");
 
-			auto_ptr<T> temp( r );
+			auto_ptr<T> temp{ r };
 
 			swap( temp );
 			return *this;
 		}
-		auto_ptr & operator=(std::unique_ptr<T> && uniqueptr)
+		template<typename U> auto_ptr & operator=(std::unique_ptr<U> && uniqueptr) noexcept
 		{
-			return operator=( auto_ptr(std::move(uniqueptr)) );
+			return operator=( auto_ptr<U>(std::move(uniqueptr)) );
 		}
 		auto_ptr & operator=(std::shared_ptr<T> sharedptr )
 		{
 			return operator=( auto_ptr(sharedptr) );
 		}		
-		auto_ptr & operator=(pointer_type ptr) noexcept
+		auto_ptr & operator=(pointer_type ptr)
 		{
 			if (this->get() == ptr)
 				return *this;
 			return operator=( auto_ptr(ptr) );
 		}
 
-		template<typename U> bool operator==( auto_ptr<U> const & r ) const noexcept { return this->get() == r.get(); }
-		template<typename U> bool operator!=( auto_ptr<U> const & r ) const noexcept { return !operator==(r); }
+		template<typename U> bool operator==( auto_ptr<U> const & r ) const { return this->get() == r.get(); }
+		template<typename U> bool operator!=( auto_ptr<U> const & r ) const { return !operator==(r); }
 		//mit den folgenden 4 vergleichs-op geht kein vergleich mit NULL mehr
 		//bool operator==( pointer_type r ) const noexcept { return get()==r; }//vergleicht die per get() gelieferten pointer
 		//bool operator!=( pointer_type r ) const noexcept { return get()!=r; }//vergleicht die per get() gelieferten pointer
 		//friend bool operator==( pointer_type l, auto_ptr const & r ) noexcept { return l==r.get(); }//vergleicht die per get() gelieferten pointer
 		//friend bool operator!=( pointer_type l, auto_ptr const & r ) noexcept { return l==r.get(); }//vergleicht die per get() gelieferten pointer
 
-		template<typename U> bool operator< ( auto_ptr<U> const & r ) const noexcept // vergleicht pointer, nicht den unhalt
+		template<typename U> bool operator< ( auto_ptr<U> const & r ) const noexcept // vergleicht raw-pointer (auch invalid), nicht den inhalt
 		{
 			//nicht get() da der < operator evtl. z.b. als Key in einer std::map verwendet wird. dort soll er zumindest bei der reihenfolgenpflege immer den gleichen wert liefern 
 			//und nicht nullptr, wenn das objekt nicht mehr existiert. (verwendung in CAbschnitt::_WieDuplexDrucken)
@@ -314,25 +313,25 @@ namespace WP
 			std::swap(this->Ptr,r.Ptr);
 			std::swap(this->SharedPtr,r.SharedPtr);
 		}
-		operator pointer_type() const noexcept
+		operator pointer_type() const
 		{
 			return share.get();
 		}
 
 		//std::add_lvalue_reference_t<std::remove_pointer_t<pointer_type>>& operator *() const //ohne implementierung kommt genau das gleiche raus
-		std::remove_pointer_t<pointer_type> & operator *() const noexcept//ohne implementierung kommt genau das gleiche raus, man kann aber keinen breakpoint setzen
+		std::remove_pointer_t<pointer_type> & operator *() const //ohne implementierung kommt genau das gleiche raus, man kann aber keinen breakpoint setzen
 		{
 			return *share.get();
 		}
-		pointer_type operator->() const noexcept //liefert pointer
+		pointer_type operator->() const //liefert pointer
 		{
 			return share.get();
 		}
-		pointer_type get() const noexcept //liefert pointer
+		pointer_type get() const //liefert pointer
 		{ 
 			return share.get();
 		}
-		operator bool() const noexcept
+		operator bool() const
 		{
 			return get()!=nullptr;
 		}
@@ -406,49 +405,53 @@ namespace WP
 		}
 
 		//weak wie release, this behaelt pointer, bei SharedPtr wird die strong referenz NICHT erhöht
-		auto_ptr weak() const noexcept
+		auto_ptr weak() const
 		{
 			auto_ptr retvalue( *this );
 			retvalue.SharedPtr.reset();//
 			return retvalue;
 		}
 		//transfer wie release, this behaelt pointer, verliert ggf. aber ownership. bei SharedPtr wird die strong referenz erhöht
-		auto_ptr transfer() const noexcept
+		auto_ptr transfer()
 		{
 			auto_ptr retvalue( *this );
 			retvalue.Ptr = std::move(this->Ptr);
 			return retvalue;
 		}
 		//ownerless wie transfer, this behaelt pointer und ggf. ownership. bei SharedPtr wird die strong referenz erhöht
-		auto_ptr ownerless() const noexcept
+		auto_ptr ownerless() const
 		{
 			auto_ptr retvalue( *this );
 			return retvalue;
 		}
 
-		bool owner() const noexcept//same as is_owner()
+		bool owner() const//same as is_owner() //alleiniger eigentümer
 		{
 			return this->Ptr.get()!=nullptr;
 		}
-		bool is_owner() const noexcept//same as owner()
+		bool is_owner() const//same as owner() //alleiniger eigentümer
 		{
 			return this->Ptr.get()!=nullptr;
 		}
-		bool is_shared_ptr() const
+		bool is_shared_ptr() const 
 		{
 			return this->SharedPtr.operator bool();
 		}
-		bool is_smart()
+		bool is_manager() const				//alleiniger eigentümer oder shared_pointer
+		{
+			return is_owner() || is_shared_ptr();
+		}
+		bool is_owner_or_shared() const		//alleiniger eigentümer oder shared_pointer
 		{
 			return is_owner() || is_shared_ptr();
 		}
 	};
-	//nur als parameter fuer funktionen benutzen. als member und lokale variablen immer nur als auto_ptr<T> anlegen
-	template<typename T> class auto_ptr_owner 
+	//nur als parameter fuer funktionen benutzen. member und lokale variablen immer nur als auto_ptr<T> anlegen
+	template<typename T> class auto_ptr_owner_parameter 
 	{
 		auto_ptr<T> data;
 	public:
-		//usage:	 z.B.	void foo( WP::auto_ptr_owner<int> );//foo-declaration
+		//usage:	 z.B.	void foo( WP::auto_ptr_owner_parameter<int> );//foo-declaration
 							//foo( &int_value ); ATTENTION NEVER call foo with address of stack-object
 							//foo( new int{5} ); calling foo with pointer
 							//foo( std::make_unique<int>(5) ); calling foo with unique_ptr
@@ -457,20 +460,22 @@ namespace WP
 							//foo( WP::auto_ptr<int>(std::make_shared<int>(7)) ); calling foo with auto_ptr with attrib is_shared_ptr() 
 							//foo( WP::auto_ptr<int>(new int{6},false) ); ATTENTION exception throwing when calling foo with auto_ptr without attrib is_shared()
 
-		auto_ptr_owner( typename auto_ptr<T>::pointer_type p ) : data( p, true ){}														// fn( new int{5} );
-		auto_ptr_owner( auto_ptr<T> const & must_be_owner ) = delete;
-		auto_ptr_owner( auto_ptr<T> && must_be_owner )																					// fn( WP::auto_ptr<int>(new int{5}) );
+		auto_ptr_owner_parameter( typename auto_ptr<T>::pointer_type p ) : data( p, true ){}														// fn( new int{5} );
+		auto_ptr_owner_parameter( auto_ptr<T> const & must_be_owner ) = delete;
+		auto_ptr_owner_parameter( auto_ptr<T> && must_be_owner )																					// fn( WP::auto_ptr<int>(new int{5}) );
 		{
-			if( must_be_owner.is_smart()==false )
-				throw std::invalid_argument( __FUNCTION__ " WP::auto_ptr mit is_smart-attribut erwartet" );
+			if( must_be_owner.is_manager()==false )
+				throw std::invalid_argument( __FUNCTION__ " WP::auto_ptr mit is_manager-attribut erwartet" );
 			data = std::move(must_be_owner);
 		}
-		auto_ptr_owner( auto_ptr<T> & must_be_owner ) : auto_ptr_owner(must_be_owner.transfer()){}										// fn( ptr );//wobei ptr ein lvalue vom typ WP::auto_ptr<int> ist
-		template<typename U>auto_ptr_owner( U && r ) : auto_ptr_owner( auto_ptr<T>( std::move(r) ) ){}									// fn( std::unique_ptr<int>(new int{5}) );
+		auto_ptr_owner_parameter( auto_ptr<T> & must_be_owner ) : auto_ptr_owner_parameter(must_be_owner.transfer()){}										// fn( ptr );//wobei ptr ein lvalue vom typ WP::auto_ptr<int> ist
+		template<typename U> 
+		auto_ptr_owner_parameter( U && r ) : auto_ptr_owner_parameter( auto_ptr<T>( std::move(r) ) ){}									// fn( std::unique_ptr<int>(new int{5}) );
 
 		operator auto_ptr<T>() { return std::move( data ); }//einmaliger aufruf, danach ist data==nullptr
 		auto_ptr<T> move() {return std::move( data ); }//einmaliger aufruf, danach ist data==nullptr
 	};
+
 	template<typename dest_t,typename source_t> auto_ptr<dest_t> dynamic_pointer_cast( auto_ptr<source_t> const & r )
 	{
 		return auto_ptr<dest_t> ( r );
@@ -528,5 +533,60 @@ namespace WP
 				auto_this = auto_ptr<this_t>(dynamic_cast<this_t*>(const_cast<enable_auto_ptr_from_this*>(this)));
 			return auto_this;
 		}
+	};
+
+	//usage: auto_ptr_vw<int,std::vector<WP::auto_ptr<int>>
+	template<typename T, template<typename> class container_type> class auto_ptr_vw
+	{
+	public:
+		using container_t = container_type<auto_ptr<T>>;
+		using pointer_type = typename auto_ptr<T>::pointer_type;
+		using pointer_t = pointer_type;
+
+	private:
+		container_t container;
+
+	public:
+		auto begin() const{return container.begin();}//nur als const implementiert, weil man sonst eine referenz auf den owner bekäme
+		auto end() const{return container.end();}
+		auto size() const{return container.size();}
+		auto_ptr<T> at( size_t index ) { return container.at(index); }//liefert kopie. referenz wäre owner mit evtl. fatalen folgen
+
+		auto push_back( auto_ptr_owner_parameter<T> auto_ptr_owner )
+		{
+			return container.emplace_back( auto_ptr_owner.move() );
+		}
+		void clear()
+		{
+			container.clear();
+		}
+
+		//erase liefert nullptr bei fehler oder owner objekt
+		template<typename U> auto_ptr<T> erase( auto_ptr<U> const & erasevalue )
+		{
+			auto iter = std::find( container.begin(), container.end(), erasevalue );
+			if( iter != container.end() )
+			{
+				auto retvalue = iter->transfer();
+				container.erase( iter );
+				return retvalue;
+			}
+			return nullptr;
+		}
+		auto_ptr<T> erase( pointer_t p ) { return erase( auto_ptr<T>( p ) ); }
+		
+		//replace liefert nullptr bei fehler oder owner objekt
+		template<typename U> auto_ptr<T> replace( auto_ptr<T> const & replacevalue, auto_ptr_owner_parameter<U> replacewith )
+		{
+			auto iter = std::find( container.begin(), container.end(), replacevalue );
+			if( iter != container.end() )
+			{
+				auto retvalue = iter->transfer();
+				*iter = replacewith;
+				return retvalue;
+			}
+			return nullptr;
+		}
+		template<typename U, typename V> auto_ptr<T> replace( U u, V v ) { return replace( auto_ptr<T>{u}, auto_ptr_owner_parameter<T>{v}); }
 	};
 }
