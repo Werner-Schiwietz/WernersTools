@@ -8,6 +8,9 @@ using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 #include <memory>
 
 #include <vector>
+#include <deque>
+#include <list>
+#include <forward_list>
 
 #include "..\..\headeronly\Auto_Ptr.h"
 
@@ -88,6 +91,7 @@ namespace _Immer_Rot
 			auto x = GetList();
 			std::vector<Enum> vec{GetList()};
 			std::vector<Enum> vec2{Enum::v2,Enum::v1};
+
 			for( auto iter = x.begin(); iter!=x.end(); ++iter )
 				cout << *iter << ' ';
 			for( auto e : x )
@@ -897,9 +901,9 @@ namespace autoptr
 		{
 			WP::auto_ptr_vw<int, std::vector> vw;
 
-			vw.push_back( new int{1} );
-			vw.push_back( std::unique_ptr<int>(new int{2}) );
-			vw.push_back( std::shared_ptr<int>(new int{3}) );
+			(void)vw.push_back( new int{1} );
+			(void)vw.push_back( std::unique_ptr<int>(new int{2}) );
+			(void)vw.push_back( std::shared_ptr<int>(new int{3}) );
 
 			int value = 0;
 			std::vector<WP::auto_ptr<int>> ptrs;
@@ -999,10 +1003,11 @@ namespace autoptr
 			auto Ptr3 = ptr3.get(); 
 
 
-			WP::auto_ptr_vw<int, std::vector> vw;
-			vw.push_back( ptr1 );
-			vw.push_back( ptr2 );
-			vw.push_back( ptr3 ); ptr3 = nullptr;
+			WP::auto_ptr_vw<int> vw;
+			auto p1 = vw.push_back( ptr1 );
+			auto p2 = vw.push_back( ptr2 );
+			auto p3 = vw.push_back( ptr3 ); ptr3 = nullptr;
+			p1; p2; p3;
 
 			{
 				auto rm{ vw.replace( Ptr2, new int{++value} ) };
@@ -1019,9 +1024,34 @@ namespace autoptr
 				Assert::IsTrue( rm.is_owner_or_shared() );
 				Assert::IsTrue( *rm==1 );
 			}
-			Assert::IsTrue( *vw.at(0)==6 );
-			Assert::IsTrue( *vw.at(1)==4 );
-			Assert::IsTrue( *vw.at(2)==5 );
+			Assert::IsTrue( *vw[0]==6 );
+			Assert::IsTrue( *vw[1]==4 );
+			Assert::IsTrue( *vw[2]==5 );
+		}
+		TEST_METHOD(auto_ptr_vw__container)
+		{
+			{
+				WP::auto_ptr_vw<int,std::deque> vw;
+				(void)vw.push_back( new int{5} );
+				(void)vw.erase( nullptr );
+				(void)vw.replace( nullptr, (decltype(vw)::pointer_t)nullptr );
+				(void)vw[0];
+			}
+			{
+				WP::auto_ptr_vw<int,std::list> vw;//list bedingt brauchbar
+				(void)vw.push_back( new int{5} );
+				(void)vw.erase( nullptr );
+				(void)vw.replace( nullptr, (decltype(vw)::pointer_t)nullptr );
+				//(void)vw[0];//list unterstützt operator[] nicht
+			}
+			{
+				WP::auto_ptr_vw<int,std::forward_list> vw;//forward_list unbrauchbar
+				//(void)vw.push_back( new int{5} );//forward_list unterstütz emplace_back nicht
+				//(void)vw.erase( nullptr );
+				(void)vw.replace( nullptr, (decltype(vw)::pointer_t)nullptr );
+				//(void)vw[0];
+			}
 		}
 	};
 }
+

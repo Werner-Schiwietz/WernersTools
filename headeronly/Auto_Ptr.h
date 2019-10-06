@@ -29,6 +29,10 @@
 #include <memory>
 #include <atomic>
 
+namespace std
+{
+	template <class _Ty, class _Alloc = allocator<_Ty>> class vector;
+}
 
 //#define LINE_STRING2(x) #x				//macht aus der zahl einen sting
 //#define LINE_STRING1(x) LINE_STRING2(x)	//nötig, damit __LINE__ zur Zahl wird
@@ -535,8 +539,8 @@ namespace WP
 		}
 	};
 
-	//usage: auto_ptr_vw<int,std::vector<WP::auto_ptr<int>>
-	template<typename T, template<typename> class container_type> class auto_ptr_vw
+	//usage: auto_ptr_vw<int[,std::vector|,std::deque]>
+	template<typename T, template<typename> class container_type=std::vector> class auto_ptr_vw
 	{
 	public:
 		using container_t = container_type<auto_ptr<T>>;
@@ -551,8 +555,9 @@ namespace WP
 		auto end() const{return container.end();}
 		auto size() const{return container.size();}
 		auto_ptr<T> at( size_t index ) { return container.at(index); }//liefert kopie. referenz wäre owner mit evtl. fatalen folgen
+		auto_ptr<T> operator[]( size_t index ) { return container[index]; }//liefert kopie. referenz wäre owner mit evtl. fatalen folgen
 
-		auto push_back( auto_ptr_owner_parameter<T> auto_ptr_owner )
+		auto push_back( auto_ptr_owner_parameter<T> auto_ptr_owner )//return_value ohne ref, also als kopie, sonst waere es eine refenez auf owner
 		{
 			return container.emplace_back( auto_ptr_owner.move() );
 		}
@@ -561,32 +566,30 @@ namespace WP
 			container.clear();
 		}
 
-		//erase liefert nullptr bei fehler oder owner objekt
+		//erase liefert nullptr bei fehler oder owner 
 		template<typename U> auto_ptr<T> erase( auto_ptr<U> const & erasevalue )
 		{
 			auto iter = std::find( container.begin(), container.end(), erasevalue );
-			if( iter != container.end() )
-			{
-				auto retvalue = iter->transfer();
-				container.erase( iter );
-				return retvalue;
-			}
-			return nullptr;
+			if( iter == container.end() )
+				return nullptr;
+
+			auto retvalue = iter->transfer();
+			container.erase( iter );
+			return retvalue;
 		}
 		auto_ptr<T> erase( pointer_t p ) { return erase( auto_ptr<T>( p ) ); }
 		
-		//replace liefert nullptr bei fehler oder owner objekt
+		//replace liefert nullptr bei fehler oder owner 
 		template<typename U> auto_ptr<T> replace( auto_ptr<T> const & replacevalue, auto_ptr_owner_parameter<U> replacewith )
 		{
 			auto iter = std::find( container.begin(), container.end(), replacevalue );
-			if( iter != container.end() )
-			{
-				auto retvalue = iter->transfer();
-				*iter = replacewith;
-				return retvalue;
-			}
-			return nullptr;
+			if( iter == container.end() )
+				return nullptr;
+			
+			auto retvalue = iter->transfer();
+			*iter = replacewith;
+			return retvalue;
 		}
-		template<typename U, typename V> auto_ptr<T> replace( U u, V v ) { return replace( auto_ptr<T>{u}, auto_ptr_owner_parameter<T>{v}); }
+		template<typename U, typename V> auto_ptr<T> replace( U replacevalue, V replacewith ) { return replace( auto_ptr<T>{replacevalue}, auto_ptr_owner_parameter<T>{replacewith}); }
 	};
 }
