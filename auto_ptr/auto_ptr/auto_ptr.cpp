@@ -838,7 +838,7 @@ namespace autoptr
 		TEST_METHOD(auto_ptr_owner_parameter_zugriff)
 		{
 			auto ptr = WP::auto_ptr_owner_parameter<int>( new int( 5 ) );
-			(WP::auto_ptr<int>)ptr;//cast nach auto_ptr genau einmal möglich, danach ist ptr empty
+			WP::auto_ptr<int>{ptr};//cast nach auto_ptr genau einmal möglich, danach ist ptr empty
 			Assert::IsTrue( static_cast<WP::auto_ptr<int>>(ptr) == nullptr );
 			Assert::IsTrue( static_cast<WP::auto_ptr<int>>(ptr) == NULL );
 
@@ -952,6 +952,65 @@ namespace autoptr
 				Assert::IsFalse(ptr1.is_managed());
 			}
 
+		}
+		TEST_METHOD(dtor_counter)
+		{
+			struct A
+			{
+				static int XRef( int add=0 ) { static int counter=0; return counter += add; }
+				A() { (void)XRef( 1 ); }
+				~A(){ (void)XRef( -1 ); }
+			};
+			{
+				WP::auto_ptr<A> ptr;
+				{
+					A a;
+					Assert::IsTrue( A::XRef()==1 );
+					ptr = &a;
+					Assert::IsTrue( A::XRef()==1 );
+					Assert::IsTrue( ptr==&a );
+				}
+				Assert::IsTrue( A::XRef()==0 );
+				Assert::IsTrue( ptr );//unmanaged, pointer kaputt
+
+				ptr =  std::make_unique<A>();
+				Assert::IsTrue( A::XRef()==1 );
+				Assert::IsTrue( ptr );
+				auto ptr1 = ptr;
+				Assert::IsTrue( A::XRef()==1 );
+				Assert::IsTrue( ptr );
+				ptr =  std::make_unique<A>();
+				Assert::IsTrue( A::XRef()==1 );
+				Assert::IsTrue( ptr );
+				Assert::IsTrue( !ptr1 );
+			}
+			Assert::IsTrue( A::XRef()==0 );
+		}
+		TEST_METHOD(dtor_counter_shared)
+		{
+			struct A
+			{
+				static int XRef( int add=0 ) { static int counter=0; return counter += add; }
+				A() { (void)XRef( 1 ); }
+				~A(){ (void)XRef( -1 ); }
+			};
+			{
+				WP::auto_ptr<A> ptr;
+				Assert::IsTrue( A::XRef()==0 );
+
+				ptr =  std::make_shared<A>();
+				Assert::IsTrue( A::XRef()==1 );
+				Assert::IsTrue( ptr );
+				auto ptr1 = ptr;
+				auto ptr2 = ptr;
+				Assert::IsTrue( A::XRef()==1 );
+				Assert::IsTrue( ptr );
+				ptr =  std::make_shared<A>();
+				Assert::IsTrue( A::XRef()==2 );
+				Assert::IsTrue( ptr );
+				Assert::IsTrue( ptr1 );
+			}
+			Assert::IsTrue( A::XRef()==0 );
 		}
 
 	};
