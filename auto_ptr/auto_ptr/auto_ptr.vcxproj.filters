@@ -27,4 +27,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
+  <ItemGroup>
+    <Natvis Include="..\..\headeronly\auto_ptr.natvis">
+      <Filter>Source Files</Filter>
+    </Natvis>
+  </ItemGroup>
 </Project>

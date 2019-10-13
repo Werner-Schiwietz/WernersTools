@@ -43,14 +43,23 @@ namespace WP
 	template<typename pointer_t> struct ReferenzCounter
 	{
 		using pointer_type = pointer_t;
+		using Managed=bool;
 		struct ReferenzCounterShare // gemeinsamer datenpool fuer owner und nicht owner, damit ggf. des nichtowners pointer zum nullptr werden kann
 		{
 			mutable std::atomic<unsigned short>	counter = 1;
-			bool								valid	= false;
+			struct tagValid
+			{
+				bool	valid	: 1;
+				Managed managed	: 7;//belegt erstmal den rest der bits
+
+				tagValid(bool valid) : valid{valid}, managed{false}{}
+				tagValid(bool valid,Managed managed) : valid{valid},managed{managed}{}
+				operator bool() { return valid; }
+			} valid;
 		private:
 			~ReferenzCounterShare() {}
 			ReferenzCounterShare()=delete;
-			ReferenzCounterShare( pointer_type const & p ) noexcept : valid(p!=nullptr){}
+			ReferenzCounterShare( pointer_type const & p, Managed managed ) noexcept : valid{p!=nullptr,managed}{}
 			ReferenzCounterShare( ReferenzCounterShare const & ) = delete;
 		public:
 			ReferenzCounterShare* Release() noexcept
@@ -59,12 +68,12 @@ namespace WP
 					delete this;
 				return nullptr;
 			}
-			static ReferenzCounterShare* Create( pointer_type const & p)
+			static ReferenzCounterShare* Create( pointer_type const & p, Managed managed)
 			{
 #				ifdef AUTOPTR_MEMLEAKDETECTION
 					DumpAllocStack dumpit;
 #				endif
-				return new ReferenzCounterShare( p );
+				return new ReferenzCounterShare( p, managed );
 			}
 			ReferenzCounterShare* AddRef( ) const noexcept
 			{
@@ -106,8 +115,8 @@ namespace WP
 		{
 			swap( r );
 		}
-		ReferenzCounter( pointer_type p ) 
-			: share(p ? ReferenzCounterShare::Create(p) : nullptr)
+		ReferenzCounter( pointer_type p, bool managed ) 
+			: share(p ? ReferenzCounterShare::Create(p,managed) : nullptr)
 			, pointer(p) {}
 
 		template< typename U> ReferenzCounter( ReferenzCounter<U> const & r  ) noexcept
@@ -132,7 +141,7 @@ namespace WP
 		void SetNullptr() 
 		{
 			if( this->share )
-				this->share->valid = false;
+				this->share->valid = {false};
 			this->pointer = nullptr;
 		}
 
@@ -153,6 +162,7 @@ namespace WP
 	using take_ownership=bool;
 	template<typename T> class auto_ptr
 	{
+		using Managed=bool;
 		template<typename> friend class auto_ptr;
 	public:
 		typedef typename std::remove_all_extents_t<T> * pointer_type;//ggf die [] aus T entfernen
@@ -179,18 +189,24 @@ namespace WP
 			if( Ptr || SharedPtr.use_count()==1 )
 				share.SetNullptr();
 		}
-		auto_ptr( pointer_type p, take_ownership autodelete )
-			: share(p)
+		auto_ptr( pointer_type p, take_ownership autodelete, Managed managed )
+			: share(p,managed)
 			, Ptr(autodelete ? p : nullptr){}
+
+		auto_ptr( pointer_type p, take_ownership autodelete ) : auto_ptr( p, autodelete, Managed(autodelete) ){}
+
 		//explicit
 		auto_ptr( pointer_type p ) : auto_ptr( p, take_ownership(false) ){}
+
+		auto_ptr( enable_auto_ptr_from_this<T> & r ) : auto_ptr( dynamic_cast<pointer_type>(&r), false, true ) {}
+
 		//explicit 
 		auto_ptr( std::unique_ptr<T> && Ptr ) 
-			: share(Ptr.get())
+			: share(Ptr.get(),Managed(true))
 			, Ptr(std::move(Ptr))
 		{}
 		explicit auto_ptr( std::shared_ptr<T> sharedptr ) //bei sharedpointer muss sich z.zt ggf. der aufrufer um den cast kümmern, dass kann ich sonst nicht mehr testen
-			: share(sharedptr.get())
+			: share(sharedptr.get(),Managed(true))
 			, SharedPtr(sharedptr)
 		{}
 		auto_ptr& Set( std::shared_ptr<T> sharedptr )  //operator= gibt mit dem anderen operatoren aerger
@@ -203,7 +219,7 @@ namespace WP
 		template<typename U> 
 		//explicit 
 		auto_ptr(auto_ptr<U> const & r) noexcept
-			: share( nullptr )
+			: share( nullptr,Managed(false) )
 		{
 			static_assert( std::is_convertible<auto_ptr<U>::pointer_type,pointer_type>::value 
 						   || std::is_convertible<pointer_type,auto_ptr<U>::pointer_type>::value 
@@ -344,18 +360,24 @@ namespace WP
 		//exterm gefährlich weil nicht klar ist, wie lange interner pointer gueltig ist
 		pointer_type  Ptr_release() noexcept 
 		{
+			if( this->share.share && is_owner() )
+				this->share.share->valid.managed = false;
 			return this->Ptr.release();
 		}
 		//liefert std::unique_ptr<T>, wenn owner war, sonst nullptr. ist danach nicht mehr owner, behaelt aber immer seinen pointer. der aufrufer uebernimmt damit die verantwortung. 
 		//exterm gefährlich weil nicht klar ist, wie lange interner pointer gueltig ist
 		std::unique_ptr<T> release_as_unique_ptr() noexcept
 		{	
+			if( this->share.share && is_owner() )
+				this->share.share->valid.managed = false;
 			return std::unique_ptr<T>(this->Ptr.release());
 		}
 		//liefert immer pointer, gibt ggf. ownership ab, bzw. this behaelt aber immer seinen pointer. der aufrufer uebernimmt damit ggf die verantwortung fuer die resource. 
 		//exterm gefährlich weil nicht klar ist, wie lange interner pointer gueltig ist
 		pointer_type release() noexcept
 		{	
+			if( this->share.share && is_owner() )
+				this->share.share->valid.managed = false;
 			this->Ptr.release();
 			return share.get();
 		}
@@ -429,6 +451,10 @@ namespace WP
 			return retvalue;
 		}
 
+		bool is_managed() const //liefert true, wenn der pointer verwaltet ist, also jeder auto_ptr zu nullptr wird, wenn das objekt zerstört wurde. z.I. release() und seine derivate setzt managed auf false.
+		{
+			return  operator bool() && this->share.share->valid.managed;
+		}
 		bool owner() const//same as is_owner() //alleiniger eigentümer
 		{
 			return this->Ptr.get()!=nullptr;
@@ -534,7 +560,8 @@ namespace WP
 		auto_ptr<this_t> const & auto_ptr_from_this() const//wichtig das retvalue const & ist. als rvalue wuerden die zuweisung mit transfer versucht, das klappt bei ableitung aber nicht
 		{
 			if( auto_this==nullptr )//conditionjump besser als funktionspointerjump, so kann die CPU optimieren, behauptet das internet ohne beiweise. glaube ich aber nicht. ist aber deutlich besser lesbar als mit functionspointern
-				auto_this = auto_ptr<this_t>(dynamic_cast<this_t*>(const_cast<enable_auto_ptr_from_this*>(this)));
+				//auto_this = auto_ptr<this_t>(dynamic_cast<this_t*>(const_cast<enable_auto_ptr_from_this*>(this)));
+				auto_this = auto_ptr<this_t>(*const_cast<enable_auto_ptr_from_this*>(this));
 			return auto_this;
 		}
 	};

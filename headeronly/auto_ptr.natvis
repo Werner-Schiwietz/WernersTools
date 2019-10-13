@@ -1,0 +1,18 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+  <!--
+  DefaultParameter.natvis benutzerdefinierte Watchansicht zu DefaultParameter.h
+  von Werner Schiwietz
+  kann z.B. den Projektdateien hinzugefügt werden
+  -->
+<AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
+  <Type Name="WP::auto_ptr&lt;*&gt;">
+    <DisplayString Condition="share.share==0 || share.share->valid.valid==0">nullptr</DisplayString>
+    <DisplayString Condition="SharedPtr._Ptr!=0">{{is_shared:{share.pointer} refs={SharedPtr._Rep->_Uses}}}</DisplayString>
+    <DisplayString Condition="Ptr._Mypair._Myval2!=0">{{is_owner:{share.pointer} refs={share.share->counter._Storage._Value}}}</DisplayString>
+    <DisplayString Condition="share.share->valid.managed==0">{{unmanged:{share.pointer} refs={share.share->counter._Storage._Value}}}</DisplayString>
+    <DisplayString >{{manged:{share.pointer} refs={share.share->counter._Storage._Value}}}</DisplayString>
+    <Expand>
+      <Item Name=" Value">*(pointer_type)share.pointer</Item>
+    </Expand>
+  </Type>
+</AutoVisualizer>

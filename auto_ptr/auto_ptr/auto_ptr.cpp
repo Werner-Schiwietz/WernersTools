@@ -894,14 +894,79 @@ namespace autoptr
 				Assert::IsTrue( *ptr==5 );
 			}
 		}
+		TEST_METHOD(natvis_test)
+		{
+			{
+				int i=5;
+				WP::auto_ptr<int> ptr1;//erwarte anzeige ptr1 nullptr
+				ptr1 = WP::auto_ptr<int>( &i );//erwarte anzeige ptr1 unmanged: 0x... {5} refs=1
+				Assert::IsFalse(ptr1.is_managed());
+				auto x = ptr1.release();//erwarte anzeige ptr1 unmanged: 0x... {5} refs=1
+				x;
+			}
+			{
+				WP::auto_ptr<int> ptr1;
+				ptr1 = WP::auto_ptr<int>( new int{5}, true );//erwarte anzeige ptr1 is_owner: 0x...{5} refs=1 
+				Assert::IsTrue(ptr1.is_managed());
+				auto x = ptr1.release_as_unique_ptr();//erwarte anzeige ptr1 unmanged: 0x... {5} refs=1
+				Assert::IsFalse(ptr1.is_managed());
+				Assert::IsTrue( x!=nullptr );
+			}
+			{
+				WP::auto_ptr<int> ptr1;
+				ptr1 = WP::auto_ptr<int>( std::shared_ptr<int>( new int{5} ) );//erwarte anzeige ptr1 is_shared: 0x...{5} refs=1
+				Assert::IsTrue(ptr1.is_managed());
+				auto x = ptr1.release_as_unique_ptr();//erwarte anzeige ptr1 is_shared: 0x...{5} refs=1
+				Assert::IsTrue(ptr1.is_managed());
+				Assert::IsTrue( x==nullptr );
+				auto x2 = ptr1.release();//erwarte anzeige ptr1 is_shared: 0x...{5} refs=1
+				Assert::IsTrue(ptr1.is_managed());
+				Assert::IsTrue( x2!=nullptr );
+				auto ptr2 = ptr1;//erwarte anzeige ptr1 is_shared: 0x...{5} refs=2
+				ptr2 = nullptr;
+			}
+			{
+				std::vector<std::string> vs{"Hallo","Welt"};
+				WP::auto_ptr<std::vector<std::string>> ptr1;
+				ptr1 = &vs;//erwarte anzeige ptr1 unmanged: 0x...{size=2} refs=1
+				auto x = ptr1.release_as_unique_ptr();//erwarte anzeige ptr1 unmanaged: 0x...{size=2} refs=1
+				Assert::IsFalse(ptr1.is_managed());
+				Assert::IsTrue( x==nullptr );
+			}
+			{
+				struct A : WP::enable_auto_ptr_from_this<A>{};
+				WP::auto_ptr<A> ptr1;
+				{
+					A a;
+					ptr1 = a.auto_ptr_from_this();//erwarte anzeige ptr1 manged: 0x...{...} refs=2 
+					Assert::IsTrue( ptr1==&a );
+					Assert::IsTrue(ptr1.is_managed());
+				}
+				Assert::IsTrue( ptr1==nullptr );
+			}
+			{
+				WP::auto_ptr<int> ptr1;
+				ptr1 = WP::auto_ptr<int>( new int{5}, true );//erwarte anzeige ptr1 is_owner: 0x...{5} refs=1 
+				Assert::IsTrue(ptr1.is_managed());
+				auto x = ptr1.release_as_unique_ptr();//erwarte anzeige ptr1 unmanaged: 0x...{5} refs=1
+				Assert::IsFalse(ptr1.is_managed());
+			}
+
+		}
+
 	};
-	TEST_CLASS( UT_auto_ptr_vv )
+	TEST_CLASS( UT_auto_ptr_vw )
 	{
 		TEST_METHOD(add_values)
 		{
 			WP::auto_ptr_vw<int, std::vector> vw;
 
-			(void)vw.push_back( new int{1} );
+			
+			{
+				auto && neu{vw.push_back( new int{1} )};
+				Assert::IsTrue( neu.is_owner()==false );
+				Assert::IsTrue( *neu==1 );
+			}
 			(void)vw.push_back( std::unique_ptr<int>(new int{2}) );
 			(void)vw.push_back( std::shared_ptr<int>(new int{3}) );
 
@@ -957,13 +1022,14 @@ namespace autoptr
 			WP::auto_ptr<int> ptr2 { std::make_unique<int>( ++value ) };
 			WP::auto_ptr<int> ptr3 { std::make_shared<int>( ++value ) };
 			auto Ptr2 = ptr2.get();
-			auto Ptr3 = ptr3.get(); 
+			auto Ptr3 = ptr3.get();
+			auto ptr4 = ptr1;
 
 
 			WP::auto_ptr_vw<int, std::vector> vw;
-			vw.push_back( ptr1 );
-			vw.push_back( ptr2 );
-			vw.push_back( ptr3 ); ptr3 = nullptr;
+			(void)vw.push_back( ptr1 );
+			(void)vw.push_back( ptr2 );
+			(void)vw.push_back( ptr3 ); ptr3 = nullptr;
 
 			{
 				auto rm{ vw.erase( Ptr2 ) };
@@ -975,9 +1041,15 @@ namespace autoptr
 				Assert::IsTrue( rm==nullptr );
 			}
 			{
-				auto rm{ vw.erase( Ptr3 ) };
-				Assert::IsTrue( rm.is_owner_or_shared() );
-				Assert::IsTrue( *rm==3 );
+				WP::auto_ptr<int> rm3;
+				{
+					auto rm{ vw.erase( Ptr3 ) };
+					auto rm2 = rm;
+					rm3 = rm.weak();
+					Assert::IsTrue( rm.is_owner_or_shared() );
+					Assert::IsTrue( *rm==3 );
+				}
+				Assert::IsTrue( rm3==nullptr );
 			}
 			{
 				auto rm = vw.erase( Ptr3 );
