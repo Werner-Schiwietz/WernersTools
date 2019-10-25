@@ -47,7 +47,7 @@ namespace WS
 		using index_t = index_type;
 		using types = WS::typelist<Tn...>;//optional
 		std::tuple<Tn...> values;
-		_defaultParam(Tn ... defValues) : values(std::forward<Tn>(defValues)...)
+		_defaultParam(Tn&& ... defValues) : values(std::forward<Tn>(defValues)...)
 		{
 		}
 		template<index_t index> auto& get()
