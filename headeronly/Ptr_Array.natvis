@@ -5,7 +5,7 @@
   von Werner Schiwietz
   kann z.B. den Projektdateien hinzugefügt werden
   -->
-  <Type Name="WP::ptr_array&lt;*&gt;">
+  <Type Name="WS::ptr_array&lt;*&gt;">
     <DisplayString>(elemente={elementcount} bytelen={bytelen})</DisplayString>
     <Expand>
       <ArrayItems>

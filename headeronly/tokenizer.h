@@ -4,22 +4,22 @@
 
 #include "iterator_access.h"
 
-//tokenize und tokenizer gibt ueber WP::_iterator_access zugriff auf token, ohne die daten (i.d.r. texte) umkopieren zu müssen, oder ueberhaupt ein new zu machen. 
+//tokenize und tokenizer gibt ueber WS::_iterator_access zugriff auf token, ohne die daten (i.d.r. texte) umkopieren zu müssen, oder ueberhaupt ein new zu machen. 
 //ueberspringt leere tokens. der char_type des delimiter muss zum char_type der tokens und token passen. also nicht char und wchar_t mischen
 //einfachste methode ueber tokenizer
-//	for( auto & token : WP::tokenizer(L"   hallo,dritte |, welt ", L", ;|") )
+//	for( auto & token : WS::tokenizer(L"   hallo,dritte |, welt ", L", ;|") )
 //		traceln( token );
 //gibt 'hallo\ndritte\nwelt' aus
 //
 //beispiel fuer tokenize
 //	auto tokens="hallo,dritte  ,;, ,      welt";
-//	for( auto token=WP::tokenize(tokens,", ;"); token; token=WP::tokenize(tokens,", ;", token) )
+//	for( auto token=WS::tokenize(tokens,", ;"); token; token=WS::tokenize(tokens,", ;", token) )
 //		traceln( token );
 //oder
-//	WP::_iterator_access<wchar_t const> token;
-//	while(token=WP::tokenize( L"   hallo,dritte |, welt ", L", ;|", token ) )
+//	WS::_iterator_access<wchar_t const> token;
+//	while(token=WS::tokenize( L"   hallo,dritte |, welt ", L", ;|", token ) )
 //		traceln( token );
-namespace WP
+namespace WS
 {
 	template<typename iterator_t, typename delimiter_iterator_t> _iterator_access<iterator_t> tokenize( 
 		_iterator_access<iterator_t> const & tokens, 

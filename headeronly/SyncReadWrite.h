@@ -11,14 +11,14 @@
 #	define ASSERT(x) ((void)0)
 #endif // !ASSERT
 
-//WP::SyncAccess<Datentyp,access_type> by Werner Schiwietz 2017-10-22 
+//WS::SyncAccess<Datentyp,access_type> by Werner Schiwietz 2017-10-22 
 //
-//threadsicherer zugriff auf datenobjekte per WP::SyncAccess<Datentyp,access_type>
+//threadsicherer zugriff auf datenobjekte per WS::SyncAccess<Datentyp,access_type>
 //schreibender zugriff blockiert ggf. neue read/write zugriffe, 
 //lesender zugriff sollte sich gegeseitig, auch in verschiedenen threads, nicht blockieren. 
 //lesender zugriff blockiert je nach access_type schreibenden zugriff
 //
-//access_type ist  strict_access oder thread_write (beide getestet) oder ggf. eine andere implementierung von WP::ICritical
+//access_type ist  strict_access oder thread_write (beide getestet) oder ggf. eine andere implementierung von WS::ICritical
 	//access_type unabhaengig reine lesezugriffe sollten sich gegeseitig nie blockieren
 	//strict_access: vorsicht,  wirft exception, wenn konkurrierend Zugriffe eines threads zu deadlock fuehren wuerde
 	//thread_write: im selben thread koennen mehrere WriteAccess und ReadAccess gleichzeitig existieren und jederzeit erzeugt werden 
@@ -26,7 +26,7 @@
 //
 //using
 //siehe BasisUnitTests\UT_SyncAccess.cpp
-//	WP::SyncAccess<std::vector<int,strict_access>> data;	//verwaltetes objekt anlegen. hier wird ein std::vector als verwaltetes objekt verwendet
+//	WS::SyncAccess<std::vector<int,strict_access>> data;	//verwaltetes objekt anlegen. hier wird ein std::vector als verwaltetes objekt verwendet
 //	auto writeaccess = data.WriteAccessWait();				//warten, bis schreibender zugriff erfolgen kann (bei strict_access exception, wenn man sich selbst blockiert)
 //	for( int i=4; i<30; ++i )								
 //		(*writeaccess).push_back( i );						//daten in den vector schreiben
@@ -45,7 +45,7 @@
 //		for( auto i=(*access).size(); i --> 0;)				//etwas mit den daten machen
 //			trace(v[i]);						
 
-namespace WP
+namespace WS
 {
 	#undef _INTERFACE_FUNCTION_
 	#define _INTERFACE_FUNCTION_ = 0
@@ -478,4 +478,4 @@ namespace WP
 		}
 	#endif
 	};
-}//namespace WP
+}//namespace WS

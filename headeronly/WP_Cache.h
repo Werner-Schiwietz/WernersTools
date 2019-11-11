@@ -12,7 +12,7 @@
 #include <map>
 #include <memory>
 
-namespace WP
+namespace WS
 {
 	CreateNICType(CacheDurationValidInSeconds, __time64_t);
 	//CreateNICType(CacheDurationValidInMilliSeconds, __time64_t);

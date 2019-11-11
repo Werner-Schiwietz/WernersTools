@@ -46,22 +46,22 @@ inline errno_t stringcpy_s( wchar_t *strDestination, size_t numberOfElements, co
 	return wcscpy_s( strDestination, numberOfElements, strSource );
 }
 
-inline char* stringncpy_s( WP::ptr_array<char*> &pdest, char const * psource ) 
+inline char* stringncpy_s( WS::ptr_array<char*> &pdest, char const * psource ) 
 {
 	strncpy_s( pdest, pdest.ElementCount(), psource, _TRUNCATE );
 	return pdest;
 }
-inline wchar_t* stringncpy_s( WP::ptr_array<wchar_t*> &pdest, wchar_t const * psource ) 
+inline wchar_t* stringncpy_s( WS::ptr_array<wchar_t*> &pdest, wchar_t const * psource ) 
 {
 	wcsncpy_s( pdest, pdest.ElementCount(), psource, _TRUNCATE );
 	return pdest;
 }
-inline char* stringncpy_s( WP::ptr_array<char*> &pdest, char const * psource, size_t charcount ) 
+inline char* stringncpy_s( WS::ptr_array<char*> &pdest, char const * psource, size_t charcount ) 
 {
 	strncpy_s( pdest, pdest.ElementCount(), psource, charcount );
 	return pdest;
 }
-inline wchar_t* stringncpy_s( WP::ptr_array<wchar_t*> &pdest, wchar_t const * psource, size_t charcount ) 
+inline wchar_t* stringncpy_s( WS::ptr_array<wchar_t*> &pdest, wchar_t const * psource, size_t charcount ) 
 {
 	wcsncpy_s( pdest, pdest.ElementCount(), psource, charcount );
 	return pdest;
@@ -176,7 +176,7 @@ template<size_t size> inline wchar_t* itostring_s(    int value, wchar_t (&sz)[s
 	return sz;
 }
 
-namespace WP
+namespace WS
 {
 	//wer will schon boost
 	template<typename char_t> std::basic_string<char_t> replace_all(std::basic_string<char_t> str, char_t const *from, char_t const * to)
@@ -206,12 +206,12 @@ namespace WP
 	template<typename iterator> iterator toupper( iterator first, iterator last )
 	{
 		for( auto iter=first; iter!=last; ++iter )
-			(*iter) = static_cast<puretype_t<decltype(*iter)>>( WP::toupper( *iter ) );
+			(*iter) = static_cast<puretype_t<decltype(*iter)>>( WS::toupper( *iter ) );
 		return first;
 	}
 	template<typename chartype> chartype * toupper( chartype * psz )
 	{
-		return WP::toupper( psz, psz + stringlen( psz ) );
+		return WS::toupper( psz, psz + stringlen( psz ) );
 	}
 
 	inline char tolower( char ch )
@@ -225,16 +225,16 @@ namespace WP
 	template<typename iterator> iterator tolower( iterator first, iterator last )
 	{
 		for( auto iter=first; iter!=last; ++iter )
-			(*iter) = static_cast<puretype_t<decltype(*iter)>>( WP::tolower( *iter ) );
+			(*iter) = static_cast<puretype_t<decltype(*iter)>>( WS::tolower( *iter ) );
 		return first;
 	}
 	template<typename chartype> chartype * tolower( chartype * psz )
 	{
-		return WP::tolower( psz, psz + stringlen( psz ) );
+		return WS::tolower( psz, psz + stringlen( psz ) );
 	}
 }
 
-namespace WP
+namespace WS
 {
 #	if defined(__CSTRINGT_H__)//#include <atlstr.h>
 		//template< typename BaseType, class StringTraits> auto begin( CStringT<BaseType, StringTraits> & r )

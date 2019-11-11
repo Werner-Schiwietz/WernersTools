@@ -5,7 +5,7 @@
   von Werner Schiwietz
   kann z.B. den Projektdateien hinzugefügt werden
   -->
-  <Type Name="WP::tribool">
+  <Type Name="WS::tribool">
     <DisplayString Condition="value==0xff">invalid</DisplayString>
     <DisplayString Condition="value==0">false</DisplayString>
     <DisplayString >true</DisplayString>

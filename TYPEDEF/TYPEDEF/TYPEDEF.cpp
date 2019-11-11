@@ -25,11 +25,11 @@ namespace UT_TYPEDEF
 			{
 #if				_MSC_VER >= 1921 //Visual Studio 2019 version 16.1 	
 					//ab 16.1 reicht TYPEDEF
-					TYPEDEF(IntType, int, WP::Explicit_Type_Trait_incpre, WP::Explicit_Type_Trait_equ_less);
-					TYPEDEF2(ShortType, short, WP::Explicit_Type_Trait_incpre, WP::Explicit_Type_Trait_equ_less);
+					TYPEDEF(IntType, int, WS::Explicit_Type_Trait_incpre, WS::Explicit_Type_Trait_equ_less);
+					TYPEDEF2(ShortType, short, WS::Explicit_Type_Trait_incpre, WS::Explicit_Type_Trait_equ_less);
 #else
-					TYPEDEF2(IntType, int, WP::Explicit_Type_Trait_incpre, WP::Explicit_Type_Trait_equ_less);
-					TYPEDEF2(ShortType, short, WP::Explicit_Type_Trait_incpre, WP::Explicit_Type_Trait_equ_less);
+					TYPEDEF2(IntType, int, WS::Explicit_Type_Trait_incpre, WS::Explicit_Type_Trait_equ_less);
+					TYPEDEF2(ShortType, short, WS::Explicit_Type_Trait_incpre, WS::Explicit_Type_Trait_equ_less);
 #endif
 
 				int i{ 5 };

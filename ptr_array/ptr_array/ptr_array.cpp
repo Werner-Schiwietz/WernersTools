@@ -14,8 +14,8 @@ namespace ptrarray
 		
 		TEST_METHOD(charpointer)
 		{
-			WP::ptr_array<char const *> ptr( "hallo", 5 );
-			WP::ptr_array<unsigned __int8 const*> ptr2( ptr );
+			WS::ptr_array<char const *> ptr( "hallo", 5 );
+			WS::ptr_array<unsigned __int8 const*> ptr2( ptr );
 
 			Assert::IsTrue( ptr.ElementCount()==ptr2.ElementCount());
 			Assert::IsTrue(ptr.ByteLen() == ptr2.ByteLen());
@@ -30,7 +30,7 @@ namespace ptrarray
 		}
 		TEST_METHOD(range_Exception)
 		{
-			WP::ptr_array<char *> ptr;
+			WS::ptr_array<char *> ptr;
 			try
 			{
 				++ptr;
@@ -62,7 +62,7 @@ namespace ptrarray
 			catch (...)
 			{
 			}
-			auto ptr1 = WP::ptr_array<char *>( new char[6], 6 );
+			auto ptr1 = WS::ptr_array<char *>( new char[6], 6 );
 			ptr = ptr1;
 			*ptr='a';
 			for( int i=5; i --> 0; )
@@ -85,10 +85,10 @@ namespace ptrarray
 
 		TEST_METHOD(uniqueArray)
 		{
-			WP::ptr_array<int*> ptr;
+			WS::ptr_array<int*> ptr;
 			{
 				using element_count = size_t;
-				auto memptr2 = WP::UniqueArray<int>( element_count(4) );
+				auto memptr2 = WS::UniqueArray<int>( element_count(4) );
 				Assert::IsTrue(memptr2.elemente()==4);
 				//auto memptr = memptr2;//error C2280: attempting to reference a deleted function
 				auto memptr = std::move(memptr2);
@@ -103,7 +103,7 @@ namespace ptrarray
 				ptr = memptr.get();
 				
 
-				for(WP::ptr_array<int const *> cptr = memptr.get(); cptr.ElementCount(); ++cptr)
+				for(WS::ptr_array<int const *> cptr = memptr.get(); cptr.ElementCount(); ++cptr)
 					Assert::IsTrue( *cptr == cptr.ElementCount() );
 
 				{

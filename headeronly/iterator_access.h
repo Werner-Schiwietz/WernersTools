@@ -1,6 +1,8 @@
 //#pragma once
+#ifndef __WP_ITERATOR_ACCESS__
 #define __WP_ITERATOR_ACCESS__
-//WP::iterator_access haelt zwei iteratoren und kann z.b. direkt fuer range based for benutzt werden
+
+//WS::iterator_access haelt zwei iteratoren und kann z.b. direkt fuer range based for benutzt werden
 //konsturiert aus allem was begin(T) und end(T) kann
 //zusaetzlich nullterminierte char bzw wchar_t felder
 //auch char* kann ein iterator sein
@@ -26,7 +28,7 @@
 #	define _WS_DEPECATED_(message)
 #endif
 /*//nur um breakpoints an auf shared_ptr machen zu koennen
-namespace WP
+namespace WS
 {
 	template<class _Ty> class debugshared_ptr//fuer breakpoint in dtor, zum testen
 		: public std::shared_ptr<_Ty>
@@ -48,15 +50,15 @@ namespace WP
 	};
 }
 */
-namespace WP
+namespace WS
 {
 	using std::begin;
 	using std::end;
 
 
-	template<typename iterator_t> struct _iterator_access
+	template<typename iterator_type> struct _iterator_access
 	{
-		typedef iterator_t iterator_t;
+		using iterator_t = iterator_type;
 		using value_t = std::decay_t<decltype(*std::declval<iterator_t>())>;
 		iterator_t	first;
 		iterator_t	last;//eigentlich last+1, also end nach iteratorlogik
@@ -129,12 +131,12 @@ namespace WP
 
 		auto left( size_t chars ) const
 		{
-			chars = std::min(chars,len());
+			chars = std::min(chars,len());//include <alogrithm>
 			return _iterator_access( begin(), begin()+chars );
 		}
 		auto right( size_t chars ) const
 		{
-			chars = std::min(chars,len());
+			chars = std::min(chars,len());//include <alogrithm>
 			return _iterator_access( end()-chars, end() );
 		}
 		auto find( value_t const & value )
@@ -240,7 +242,7 @@ namespace WP
 class TraceClass;
 template<typename char_t> void tracevalue( TraceClass const &t, std::remove_const_t<char_t> const & value );
 //void tracevalue( TraceClass const &t, wchar_t const & value );
-template<typename char_t> void tracevalue( TraceClass const &t, WP::_iterator_access<char_t> const & value )
+template<typename char_t> void tracevalue( TraceClass const &t, WS::_iterator_access<char_t> const & value )
 {
 	for( auto & ch : value )
 		tracevalue( t, ch );
@@ -257,24 +259,25 @@ template<> inline bool is_white_space<wchar_t>( wchar_t ch )
 	//return iswblank( ch );
 	return iswspace(ch);
 }
-template<typename iterator_t> WP::_iterator_access<iterator_t> trimleft( WP::_iterator_access<iterator_t> const & value, bool (*eater)( typename WP::_iterator_access<iterator_t>::value_t ) = is_white_space<WP::_iterator_access<iterator_t>::value_t> )
+template<typename iterator_t> WS::_iterator_access<iterator_t> trimleft( WS::_iterator_access<iterator_t> const & value, bool (*eater)( typename WS::_iterator_access<iterator_t>::value_t ) = is_white_space<WS::_iterator_access<iterator_t>::value_t> )
 {
 	auto retvalue = value;
 	while( retvalue.begin()!=retvalue.end() && eater(*retvalue.begin()) )
 		++retvalue.begin();
 	return retvalue;
 }
-template<typename iterator_t> WP::_iterator_access<iterator_t> trimright( WP::_iterator_access<iterator_t> const & value, bool (*eater)( typename WP::_iterator_access<iterator_t>::value_t ) = is_white_space<WP::_iterator_access<iterator_t>::value_t> )
+template<typename iterator_t> WS::_iterator_access<iterator_t> trimright( WS::_iterator_access<iterator_t> const & value, bool (*eater)( typename WS::_iterator_access<iterator_t>::value_t ) = is_white_space<WS::_iterator_access<iterator_t>::value_t> )
 {	
 	auto retvalue = value;
 	while( retvalue.begin()!=retvalue.end() && eater(*(retvalue.end()-1)) )
 		--retvalue.end();
 	return retvalue;
 }
-template<typename iterator_t> WP::_iterator_access<iterator_t> trim( WP::_iterator_access<iterator_t> const & value, bool (*eater)( typename WP::_iterator_access<iterator_t>::value_t ) = is_white_space<WP::_iterator_access<iterator_t>::value_t> )
+template<typename iterator_t> WS::_iterator_access<iterator_t> trim( WS::_iterator_access<iterator_t> const & value, bool (*eater)( typename WS::_iterator_access<iterator_t>::value_t ) = is_white_space<WS::_iterator_access<iterator_t>::value_t> )
 {
 	return trimright( trimleft(value,eater), eater );
 }
 
 #pragma pop_macro("max")
 #pragma pop_macro("min")
+#endif //__WP_ITERATOR_ACCESS__

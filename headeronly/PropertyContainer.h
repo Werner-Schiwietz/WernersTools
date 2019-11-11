@@ -18,7 +18,7 @@
 //			ob typeid(T).name() das leistet weiß ich nicht, wird sich zeigen. Bei compilerwechel, z.b. auf gcc, wird das sicher nicht funktionieren
 
 
-namespace WP
+namespace WS
 {
 	using PropertyID_chartype = char const;
 	using PropertyID_type = PropertyID_chartype *;
@@ -30,7 +30,7 @@ namespace WP
 	using PropertyList = std::map<PropertyID_type, nsany::any>;//vorsicht, key ist pointer, verglichen werden die adressen, nicht der inhalt
 }
 
-inline bool equPropertyID( WP::PropertyID_chartype * const & id1, WP::PropertyID_chartype * const & id2 )
+inline bool equPropertyID( WS::PropertyID_chartype * const & id1, WS::PropertyID_chartype * const & id2 )
 {
 	if( id1==nullptr || id2==nullptr )
 		return false;
@@ -55,7 +55,7 @@ inline bool equPropertyID( std::string const & id1, std::string const & id2 )
 	struct type_name \
 	{ \
 		using value_t = type; \
-		static WP::PropertyID_type PropertyID() { return #type_name; }  /*wenn vorhanden wird dieser aufruf statt typeid(T).name() benutzt*/ \
+		static WS::PropertyID_type PropertyID() { return #type_name; }  /*wenn vorhanden wird dieser aufruf statt typeid(T).name() benutzt*/ \
 		type_name() = delete; /*kein objekt dieser klasse anlegen lassen, wozu auch, stört aber auch nicht*/ \
 	};
 
@@ -73,12 +73,12 @@ inline bool equPropertyID( std::string const & id1, std::string const & id2 )
 	}
 
 
-namespace WP
+namespace WS
 {
 	namespace dont_use_this
 	{
-		DEFINE_HAS_SIGNATURE(hasMemberFunction_PropertyID, T::PropertyID, WP::PropertyID_type (*)(void) ); //hat der zu pruefende typ die funktion PropertyID mit der angegebenen signatur. hier 'static PropertyID_type(void)'. constexpr wird scheinbar nicht ausgewertet, veraendert die signatur nicht
-		//DEFINE_HAS_SIGNATURE(hasMemberFunction_PropertyID, T::PropertyID, WP::PropertyID_type (T::*)(void) const );//hat der zu pruefende typ die funktion PropertyID mit der angegebenen signatur. hier 'PropertyID_type(void) const' der Unterschied ist T::. ohne muss es eine statische methode oder funktion sein
+		DEFINE_HAS_SIGNATURE(hasMemberFunction_PropertyID, T::PropertyID, WS::PropertyID_type (*)(void) ); //hat der zu pruefende typ die funktion PropertyID mit der angegebenen signatur. hier 'static PropertyID_type(void)'. constexpr wird scheinbar nicht ausgewertet, veraendert die signatur nicht
+		//DEFINE_HAS_SIGNATURE(hasMemberFunction_PropertyID, T::PropertyID, WS::PropertyID_type (T::*)(void) const );//hat der zu pruefende typ die funktion PropertyID mit der angegebenen signatur. hier 'PropertyID_type(void) const' der Unterschied ist T::. ohne muss es eine statische methode oder funktion sein
 
 		template<typename property_t, bool =hasMemberFunction_PropertyID<property_t>::value> struct PropertyID
 		{
@@ -156,7 +156,7 @@ namespace WP
 //laden und speichern einer PropertyList
 //usage siehe BasisUnitTests\UT_PropertyContainer.cpp 
 //die benötigten ReadData und WriteData muesst ihr schon selbst bereit stellen. siehe BasisUnitTests\UT_PropertyContainer.cpp oder bbobjid.hpp
-namespace WP 
+namespace WS 
 {
 	//WriteProperty schreibt nur etwas, wenn das Property vorhanden ist. Laden koennte etwas schwierig werden
 	//also lieber anwender, benutze stattdessen WriteProperties, wenn du nicht genau weiß wie es funktioniert
@@ -198,7 +198,7 @@ namespace WP
 	{
 		template<typename stream_t, typename property_t>	bool				ReadProperty( stream_t stream, PropertyList & propertylist, PropertyID_type type_name ) 
 		{
-			if( equPropertyID(WP::PropertyID<property_t>(), type_name) )
+			if( equPropertyID(WS::PropertyID<property_t>(), type_name) )
 			{
 				property_t::value_t value;
 				ReadData( stream, value );

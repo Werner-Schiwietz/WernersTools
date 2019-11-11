@@ -3,7 +3,7 @@
 #include "char_helper.h"
 #include "headeronly\noimplicitcast.h"
 
-namespace WP
+namespace WS
 {
 	template<typename string_t=CString> class CStringTGetBufferPtr
 	{
@@ -109,7 +109,7 @@ namespace WP
 #	if _MSVC_LANG >= 201703
 	[[nodiscard]]//reuckgabewert darf nicht ignoriert werden, der tut die arbeit
 #	endif
-	auto GetBufferSetLength( string_t & str, int charsLength )//WP::GetBufferSetLength ruft CString::GetBufferSetLength und automatisch CString::ReleaseBuffer auf
+	auto GetBufferSetLength( string_t & str, int charsLength )//WS::GetBufferSetLength ruft CString::GetBufferSetLength und automatisch CString::ReleaseBuffer auf
 	{
 		return CStringTGetBufferPtr<string_t>( str, CStringTGetBufferPtr<string_t>::SetLength(charsLength) );
 	}

@@ -8,18 +8,18 @@
 #pragma warning(push,4)
 
 
-namespace WP //vorgefertigte Comparefunktionen fuer LTH-funktionalitaet
+namespace WS //vorgefertigte Comparefunktionen fuer LTH-funktionalitaet
 {
 	namespace //anonymous namespace statt static
 	{
-		std::function<WP::tribool(CString const &l, CString const &r)> LTH_CStringNoCase = [](CString const &l, CString const &r) -> WP::tribool
+		std::function<WS::tribool(CString const &l, CString const &r)> LTH_CStringNoCase = [](CString const &l, CString const &r) -> WS::tribool
 		{
 			auto erg = l.CompareNoCase( r );
 			if( erg < 0 )
 				return true;
 			else if ( erg > 0 )
 				return false;
-			return WP::tribool();
+			return WS::tribool();
 		};
 	}
 }

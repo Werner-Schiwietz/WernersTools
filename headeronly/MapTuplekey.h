@@ -3,7 +3,7 @@
 #include <map>
 #include <tuple>
 
-namespace WP
+namespace WS
 {
 	template<typename value_t,typename ... key_types > class MapTuplekey : public std::map<std::tuple<key_types...>, value_t>
 	{

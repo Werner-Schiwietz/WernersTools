@@ -5,7 +5,7 @@
   kann z.B. den Projektdateien hinzugefügt werden
   -->
 <AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
-  <Type Name="WP::_iterator_access&lt;*&gt;">
+  <Type Name="WS::_iterator_access&lt;*&gt;">
     <DisplayString Condition="first==0">uninitialized</DisplayString>
     <DisplayString Condition="first==last">empty</DisplayString>
     <DisplayString>{first,[&amp;*last-&amp;*first]} (size:{&amp;*last-&amp;*first}) </DisplayString>

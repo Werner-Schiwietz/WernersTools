@@ -8,7 +8,7 @@
   <Type Name="noimplicitcast&lt;*&gt;">
     <DisplayString>{_value}</DisplayString>
   </Type>
-  <Type Name="WP::Explicit_Type_TraitBase&lt;*&gt;">
+  <Type Name="WS::Explicit_Type_TraitBase&lt;*&gt;">
     <DisplayString>{value}</DisplayString>
   </Type>
 </AutoVisualizer>

@@ -4,7 +4,7 @@
 
 #pragma warning( push,4)
 
-namespace WP
+namespace WS
 {
 
 	template<typename T> struct bereich_t
@@ -15,11 +15,11 @@ namespace WP
 		bool is_in(T value) const { return !(value<this->lower || this->upper<value); }
 	};
 	template<typename T>bereich_t<T> bereich( T const & lower, T const & upper ){return bereich_t<T>(lower,upper);}//weil bereich(1,2) schoener als bereich_t<int>(1,2) aussieht
-	template<typename T>bool operator<( WP::bereich_t<T> const & bereich, T const & value )
+	template<typename T>bool operator<( WS::bereich_t<T> const & bereich, T const & value )
 	{
 		return bereich.upper < value;
 	}
-	template<typename T>bool operator<( T const & value, WP::bereich_t<T> const & bereich )
+	template<typename T>bool operator<( T const & value, WS::bereich_t<T> const & bereich )
 	{
 		return value < bereich.lower;
 	}

@@ -16,7 +16,7 @@
 #	define ASSERT(x) ((void)0)
 #endif // !ASSERT
 
-namespace WP
+namespace WS
 {
 	inline namespace CTIME
 	{
@@ -120,22 +120,22 @@ namespace WP
 		return std::time_t(r.GetTime());
 	}
 
-	template <> inline WP::CTIME::UTC Convert<WP::CTIME::UTC,WP::STD::UTC>( WP::STD::UTC const & r)
+	template <> inline WS::CTIME::UTC Convert<WS::CTIME::UTC,WS::STD::UTC>( WS::STD::UTC const & r)
 	{
-		return WP::CTIME::UTC( Convert<CTime>( r.toValueType() ) );
+		return WS::CTIME::UTC( Convert<CTime>( r.toValueType() ) );
 	}
-	template <> inline WP::CTIME::LocalTime Convert<WP::CTIME::LocalTime,WP::STD::LocalTime>( WP::STD::LocalTime const & r)
+	template <> inline WS::CTIME::LocalTime Convert<WS::CTIME::LocalTime,WS::STD::LocalTime>( WS::STD::LocalTime const & r)
 	{
-		return WP::CTIME::LocalTime( Convert<CTime>( r.toValueType() ) );
+		return WS::CTIME::LocalTime( Convert<CTime>( r.toValueType() ) );
 	}
 
-	template <> inline WP::STD::UTC Convert<WP::STD::UTC,WP::CTIME::UTC>( WP::CTIME::UTC const & r)
+	template <> inline WS::STD::UTC Convert<WS::STD::UTC,WS::CTIME::UTC>( WS::CTIME::UTC const & r)
 	{
-		return WP::STD::UTC( Convert<std::time_t>( r.toValueType() ) );
+		return WS::STD::UTC( Convert<std::time_t>( r.toValueType() ) );
 	}
-	template <> inline WP::STD::LocalTime Convert<WP::STD::LocalTime,WP::CTIME::LocalTime>( WP::CTIME::LocalTime const & r)
+	template <> inline WS::STD::LocalTime Convert<WS::STD::LocalTime,WS::CTIME::LocalTime>( WS::CTIME::LocalTime const & r)
 	{
-		return WP::STD::LocalTime( Convert<std::time_t>( r.toValueType() ) );
+		return WS::STD::LocalTime( Convert<std::time_t>( r.toValueType() ) );
 	}
 
 	template <> inline COleDateTime Convert<COleDateTime> ( CTime const & r )
@@ -147,37 +147,37 @@ namespace WP
 		return CTime( r.GetYear(),r.GetMonth(),r.GetDay(),r.GetHour(),r.GetMinute(),r.GetSecond() );
 	}
 
-	template <> inline COleDateTime Convert<COleDateTime> ( WP::CTIME::UTC const & r )
+	template <> inline COleDateTime Convert<COleDateTime> ( WS::CTIME::UTC const & r )
 	{
 		return Convert<COleDateTime>( r.toValueType() );
 	}
-	template <> inline COleDateTime Convert<COleDateTime> ( WP::CTIME::LocalTime const & r )
+	template <> inline COleDateTime Convert<COleDateTime> ( WS::CTIME::LocalTime const & r )
 	{
 		return Convert<COleDateTime>( r.toValueType() );
 	}
-	template <> inline COleDateTime Convert<COleDateTime> ( WP::STD::UTC const & r )
+	template <> inline COleDateTime Convert<COleDateTime> ( WS::STD::UTC const & r )
 	{
-		return Convert<COleDateTime>( Convert<WP::CTIME::UTC>(r) );
+		return Convert<COleDateTime>( Convert<WS::CTIME::UTC>(r) );
 	}
-	template <> inline COleDateTime Convert<COleDateTime> ( WP::STD::LocalTime const & r )
+	template <> inline COleDateTime Convert<COleDateTime> ( WS::STD::LocalTime const & r )
 	{
-		return Convert<COleDateTime>( Convert<WP::CTIME::LocalTime>(r) );
+		return Convert<COleDateTime>( Convert<WS::CTIME::LocalTime>(r) );
 	}
-	template <> inline WP::CTIME::UTC Convert<WP::CTIME::UTC> ( COleDateTime const & r )
+	template <> inline WS::CTIME::UTC Convert<WS::CTIME::UTC> ( COleDateTime const & r )
 	{
-		return WP::CTIME::UTC( Convert<CTime>( r ) );
+		return WS::CTIME::UTC( Convert<CTime>( r ) );
 	}
-	template <> inline WP::CTIME::LocalTime Convert<WP::CTIME::LocalTime> ( COleDateTime const & r )
+	template <> inline WS::CTIME::LocalTime Convert<WS::CTIME::LocalTime> ( COleDateTime const & r )
 	{
-		return WP::CTIME::LocalTime( Convert<CTime>( r ) );
+		return WS::CTIME::LocalTime( Convert<CTime>( r ) );
 	}
-	template <> inline WP::STD::UTC Convert<WP::STD::UTC> ( COleDateTime const & r )
+	template <> inline WS::STD::UTC Convert<WS::STD::UTC> ( COleDateTime const & r )
 	{
-		return WP::STD::UTC( Convert<std::time_t>(Convert<CTime>( r )) );
+		return WS::STD::UTC( Convert<std::time_t>(Convert<CTime>( r )) );
 	}
-	template <> inline WP::STD::LocalTime Convert<WP::STD::LocalTime> ( COleDateTime const & r )
+	template <> inline WS::STD::LocalTime Convert<WS::STD::LocalTime> ( COleDateTime const & r )
 	{
-		return WP::STD::LocalTime( Convert<std::time_t>(Convert<CTime>( r )));
+		return WS::STD::LocalTime( Convert<std::time_t>(Convert<CTime>( r )));
 	}
 	template <> inline TIMESTAMP_STRUCT Convert<TIMESTAMP_STRUCT> ( CTime const & r )
 	{

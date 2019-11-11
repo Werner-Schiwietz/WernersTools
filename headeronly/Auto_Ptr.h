@@ -1,6 +1,6 @@
 #pragma once
-//WP::auto_ptr by Werner Schiwietz 
-//WP::auto_ptr ist eine abwandlung vom std::unique_ptr
+//WS::auto_ptr by Werner Schiwietz 
+//WS::auto_ptr ist eine abwandlung vom std::unique_ptr
 //im konstruktor kann entschieden werden, ob die resource übernommen wird oder nicht. also das NICHT ist der unterschied zum std::unique_ptr
 //z.B. auto_ptr<CZotZeile>( pZeile, false ) das auto_ptr-Objekt benutzt pZeile gibt das objekt aber nicht frei. oder auto_ptr<CZotZeile>( pZeile )
 //z.B. auto_ptr<CZotZeile>( pZeile, true ) das auto_ptr-Objekt benutzt pZeile und ruft delete pZeile im destruktor auf
@@ -9,7 +9,7 @@
 //z.B. auto_ptr<char[]>( pString, true ) das auto_ptr-Objekt pString ist mit new char[x] angelegt worden und wird im dtor mit delete [] pString freigegeben
 //tests in BasisUnitTests\UT_dtor_call.cpp TEST_CLASS(UT_auto_ptr)
 //
-//wird konsequent WP::auto_ptr verwendet (also ein owner und 0-n nichtowner bzw  shared_ptr und weak_ptr) wird nicht mehr auf freigegebene pointer zugegriffen. diese sind statt dessen ggf. nullptr.
+//wird konsequent WS::auto_ptr verwendet (also ein owner und 0-n nichtowner bzw  shared_ptr und weak_ptr) wird nicht mehr auf freigegebene pointer zugegriffen. diese sind statt dessen ggf. nullptr.
 //in neuen code evtl. besser reine std::shared_pointer verwenden
 //Kopien eines auto_ptr 
 //  mit transfer(), neues objekt wird owner wenn ursprungsobjekt owner war
@@ -20,9 +20,9 @@
 //ausserdem gibt es enable_auto_ptr_from_this siehe std::enable_shared_from_this
 //		struct A : public enable_auto_ptr_from_this<A>{};
 //		A a;
-//		WP::auto_ptr<A> ptr = a.auto_ptr_from_this();//ptr wird nullptr, wenn a zerstoert wird
+//		WS::auto_ptr<A> ptr = a.auto_ptr_from_this();//ptr wird nullptr, wenn a zerstoert wird
 //
-//als parameter in funktionen kann WP::auto_ptr_owner_parameter<T> verwendetet weerden
+//als parameter in funktionen kann WS::auto_ptr_owner_parameter<T> verwendetet weerden
 //die klasse muss im konstruktror owner werden, sonst wirft deren ctor eine std::exception
 
 
@@ -38,7 +38,7 @@ namespace std
 //#define LINE_STRING1(x) LINE_STRING2(x)	//nötig, damit __LINE__ zur Zahl wird
 //#define _LINE_ LINE_STRING1(__LINE__)		//in pragma message kann _LINE_ verwendet wwerden
 
-namespace WP
+namespace WS
 {
 	template<typename pointer_t> struct ReferenzCounter
 	{
@@ -241,8 +241,8 @@ namespace WP
 						   || std::is_convertible<pointer_type,auto_ptr<U>::pointer_type>::value 
 							, __FUNCTION__ " pointer sind nicht zuweisbar");
 
-			using Tpt = WP::auto_ptr<T>::pointer_type;
-			using Upt = WP::auto_ptr<U>::pointer_type;
+			using Tpt = WS::auto_ptr<T>::pointer_type;
+			using Upt = WS::auto_ptr<U>::pointer_type;
 			using T_t = std::remove_pointer_t<Tpt>;
 			using U_t = std::remove_pointer_t<Upt>;
 			using Tpt1 = std::remove_const_t<T_t>;
@@ -481,24 +481,24 @@ namespace WP
 	{
 		auto_ptr<T> data;
 	public:
-		//usage:	 z.B.	void foo( WP::auto_ptr_owner_parameter<int> );//foo-declaration
+		//usage:	 z.B.	void foo( WS::auto_ptr_owner_parameter<int> );//foo-declaration
 							//foo( &int_value ); ATTENTION NEVER call foo with address of stack-object
 							//foo( new int{5} ); calling foo with pointer
 							//foo( std::make_unique<int>(5) ); calling foo with unique_ptr
 							//foo( std::make_shared<int>(5) ); calling foo with shared_ptr
-							//foo( WP::auto_ptr<int>(new int{6},true) ); calling foo with auto_ptr with attrib is_owner()
-							//foo( WP::auto_ptr<int>(std::make_shared<int>(7)) ); calling foo with auto_ptr with attrib is_shared_ptr() 
-							//foo( WP::auto_ptr<int>(new int{6},false) ); ATTENTION exception throwing when calling foo with auto_ptr without attrib is_shared()
+							//foo( WS::auto_ptr<int>(new int{6},true) ); calling foo with auto_ptr with attrib is_owner()
+							//foo( WS::auto_ptr<int>(std::make_shared<int>(7)) ); calling foo with auto_ptr with attrib is_shared_ptr() 
+							//foo( WS::auto_ptr<int>(new int{6},false) ); ATTENTION exception throwing when calling foo with auto_ptr without attrib is_shared()
 
 		auto_ptr_owner_parameter( typename auto_ptr<T>::pointer_type p ) : data( p, true ){}														// fn( new int{5} );
 		auto_ptr_owner_parameter( auto_ptr<T> const & must_be_owner ) = delete;
-		auto_ptr_owner_parameter( auto_ptr<T> && must_be_owner )																					// fn( WP::auto_ptr<int>(new int{5}) );
+		auto_ptr_owner_parameter( auto_ptr<T> && must_be_owner )																					// fn( WS::auto_ptr<int>(new int{5}) );
 		{
 			if( must_be_owner.is_manager()==false )
-				throw std::invalid_argument( __FUNCTION__ " WP::auto_ptr mit is_manager-attribut erwartet" );
+				throw std::invalid_argument( __FUNCTION__ " WS::auto_ptr mit is_manager-attribut erwartet" );
 			data = std::move(must_be_owner);
 		}
-		auto_ptr_owner_parameter( auto_ptr<T> & must_be_owner ) : auto_ptr_owner_parameter(must_be_owner.transfer()){}										// fn( ptr );//wobei ptr ein lvalue vom typ WP::auto_ptr<int> ist
+		auto_ptr_owner_parameter( auto_ptr<T> & must_be_owner ) : auto_ptr_owner_parameter(must_be_owner.transfer()){}										// fn( ptr );//wobei ptr ein lvalue vom typ WS::auto_ptr<int> ist
 		template<typename U> 
 		auto_ptr_owner_parameter( U && r ) : auto_ptr_owner_parameter( auto_ptr<T>( std::move(r) ) ){}									// fn( std::unique_ptr<int>(new int{5}) );
 

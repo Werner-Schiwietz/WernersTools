@@ -13,9 +13,9 @@ namespace tribool
 		
 		TEST_METHOD(tribool_compare)
 		{
-			WP::tribool v1;
-			WP::tribool vtrue(true);
-			WP::tribool vfalse(!true);
+			WS::tribool v1;
+			WS::tribool vtrue(true);
+			WS::tribool vfalse(!true);
 
 			Assert::IsFalse(v1 == vtrue);
 			Assert::IsFalse(v1 == vfalse);
@@ -43,27 +43,27 @@ namespace tribool
 		}
 		TEST_METHOD(tribool_assign)
 		{
-			WP::tribool v1;
+			WS::tribool v1;
 
 			v1 = true;
 			Assert::IsTrue(v1 == true);
 			v1 = false;
 			Assert::IsTrue(v1 == false);
 
-			v1 = WP::tribool{};
-			Assert::IsTrue(v1 == WP::tribool{});
-			Assert::IsFalse(v1 == WP::tribool{ false });
-			Assert::IsFalse(v1 == WP::tribool{ true });
+			v1 = WS::tribool{};
+			Assert::IsTrue(v1 == WS::tribool{});
+			Assert::IsFalse(v1 == WS::tribool{ false });
+			Assert::IsFalse(v1 == WS::tribool{ true });
 
-			v1 = WP::tribool{ false };
-			Assert::IsTrue(v1 == WP::tribool{ false });
-			Assert::IsFalse(v1 == WP::tribool{ true });
-			Assert::IsFalse(v1 == WP::tribool{});
+			v1 = WS::tribool{ false };
+			Assert::IsTrue(v1 == WS::tribool{ false });
+			Assert::IsFalse(v1 == WS::tribool{ true });
+			Assert::IsFalse(v1 == WS::tribool{});
 
-			v1 = WP::tribool{ true };
-			Assert::IsTrue(v1 == WP::tribool{ true });
-			Assert::IsFalse(v1 == WP::tribool{ false });
-			Assert::IsFalse(v1 == WP::tribool{});
+			v1 = WS::tribool{ true };
+			Assert::IsTrue(v1 == WS::tribool{ true });
+			Assert::IsFalse(v1 == WS::tribool{ false });
+			Assert::IsFalse(v1 == WS::tribool{});
 		}
 	};
 }

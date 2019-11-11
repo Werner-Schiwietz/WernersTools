@@ -11,30 +11,30 @@
 #include "WP_helper.h"
 
 
-namespace WP
+namespace WS
 {
 	template<bool isconst,typename T> struct _getpointertype;
 	template<typename T> struct _getpointertype<true,T>
 	{
-		typedef typename WP::puretype<T>::type const * type;
+		typedef typename WS::puretype<T>::type const * type;
 	};
 	template<typename T> struct _getpointertype<false,T>
 	{
-		typedef typename WP::puretype<T>::type * type;
+		typedef typename WS::puretype<T>::type * type;
 	};
 
 	template<bool isconst,typename T> struct _getreferenztype;
 	template<typename T> struct _getreferenztype<true,T>
 	{
-		typedef typename WP::puretype<T>::type const & type;
+		typedef typename WS::puretype<T>::type const & type;
 	};
 	template<typename T> struct _getreferenztype<false,T>
 	{
-		typedef typename WP::puretype<T>::type & type;
+		typedef typename WS::puretype<T>::type & type;
 	};
 	template<typename T> struct getreferenztype
 	{
-		typedef typename WP::_getreferenztype<WP::is_const_pointer<T>::value,T>::type type;
+		typedef typename WS::_getreferenztype<WS::is_const_pointer<T>::value,T>::type type;
 	};
 
 
@@ -150,18 +150,18 @@ namespace WP
 			}
 
 		};
-}//namespace WP
+}//namespace WS
 
 namespace std
 {
 	//std-funktionen wie z.b. std::accumulate benutzen ggf unchecked iteratoren und koennen dadurch, je nach iterator, sehr viel schneller sein
-	template<typename T> inline auto _Unchecked(typename WP::_ptrarray_iterator<T> _Iter)
+	template<typename T> inline auto _Unchecked(typename WS::_ptrarray_iterator<T> _Iter)
 	{	//ptr_array<T>::iterator::_Unchecked_type
 		return _Iter._Unchecked();
 	}
 }
 
-namespace WP
+namespace WS
 {
 	//diese klasse allokiert keinen speicher und gibt auch keinen speicher frei
 	//sie dient dem kontrollierten, ueberwachten zugriff auf speicherblöcke
@@ -297,7 +297,7 @@ namespace WP
 			, membegin( const_cast<void*>( r.memorystartpos() ) )
 		{
 
-			static_assert( WP::is_const_pointer<otherpointer>::value==false || WP::is_const_pointer<pointer_type>::value, "U const* kann nicht zu T * konvertiert werden" );
+			static_assert( WS::is_const_pointer<otherpointer>::value==false || WS::is_const_pointer<pointer_type>::value, "U const* kann nicht zu T * konvertiert werden" );
 		}
 
 		ptr_array	operator+( size_t pointer_um_N_elemente_weiter_setzen ) const
@@ -442,8 +442,8 @@ namespace WP
 	public:
 		typedef ptr_void_t																					ptr_void_type;
 		typedef element_t																					element_type;
-		typedef typename WP::_getreferenztype<WP::is_const_pointer<ptr_void_t>::value,element_t>::type 		element_ref_type;
-		typedef typename WP::_getpointertype<WP::is_const_pointer<ptr_void_t>::value,element_t>::type 		element_pointer_type;
+		typedef typename WS::_getreferenztype<WS::is_const_pointer<ptr_void_t>::value,element_t>::type 		element_ref_type;
+		typedef typename WS::_getpointertype<WS::is_const_pointer<ptr_void_t>::value,element_t>::type 		element_pointer_type;
 
 		ptr_void_type & begin_ref;
 		ptr_void_type & ptr_ref;
@@ -609,7 +609,7 @@ namespace WP
 			, bytelen( r.ByteLen() )
 			, membegin( r.memorystartpos() )
 		{
-			static_assert( WP::is_const_pointer<otherpointer>::value==false || WP::is_const_pointer<pointer_type>::value, "U const* kann nicht zu T * konvertiert werden" );
+			static_assert( WS::is_const_pointer<otherpointer>::value==false || WS::is_const_pointer<pointer_type>::value, "U const* kann nicht zu T * konvertiert werden" );
 		}
 
 		ptr_array	operator+( size_t pointer_um_anzahl_bytes_weitersetzen ) const
@@ -723,7 +723,7 @@ namespace WP
 			, bytelen( r.ByteLen() )
 			, membegin( r.memorystartpos() )
 		{
-			static_assert( WP::is_const_pointer<otherpointer>::value==false || WP::is_const_pointer<pointer_type>::value, "U const* kann nicht zu T * konvertiert werden" );
+			static_assert( WS::is_const_pointer<otherpointer>::value==false || WS::is_const_pointer<pointer_type>::value, "U const* kann nicht zu T * konvertiert werden" );
 		}
 
 

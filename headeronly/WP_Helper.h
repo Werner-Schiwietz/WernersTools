@@ -2,7 +2,7 @@
 
 #include <type_traits>
 
-namespace WP
+namespace WS
 {
 	template <typename T> struct puretype
 	{

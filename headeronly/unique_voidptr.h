@@ -2,7 +2,7 @@
 
 #include <memory>
 
-namespace WP
+namespace WS
 {
 	struct freevoidptr
 	{
@@ -13,9 +13,9 @@ namespace WP
 	};
 
 	//verwalteter speicher sollte mit der methode alloc, s.u., angelegt werden. z.zt wird speicher mit malloc/free angesprochen.
-	class unique_voidptr : public std::unique_ptr<void, WP::freevoidptr>
+	class unique_voidptr : public std::unique_ptr<void, WS::freevoidptr>
 	{
-		typedef std::unique_ptr<void, WP::freevoidptr> BaseClass;
+		typedef std::unique_ptr<void, WS::freevoidptr> BaseClass;
 	public:
 		unique_voidptr() = default;
 		unique_voidptr( void* r ) : BaseClass( std::move(r) )

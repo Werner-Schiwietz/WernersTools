@@ -2,7 +2,7 @@
 
 
 #include "Ptr_Array.h"
-namespace WP
+namespace WS
 {
 	template<typename element_t> struct UniqueArrayMemoryallocDefault 
 	{

@@ -16,7 +16,7 @@ namespace iteratroraccess
 		
 		TEST_METHOD(natvis)
 		{
-			auto beg_end = WP::iterator_access(L"hallo welt");
+			auto beg_end = WS::iterator_access(L"hallo welt");
 
 			auto ss = std::wstringstream{};
 			for( auto const & ch : beg_end )
@@ -29,8 +29,8 @@ namespace iteratroraccess
 		TEST_METHOD(from_vector_with_life_time_extender)
 		{
 			using my_type = int;
-			auto beg_end1 = WP::iterator_access(L"hallo welt");
-			auto beg_end = WP::iterator_access(std::vector<my_type>{1,2,3,4});
+			auto beg_end1 = WS::iterator_access(L"hallo welt");
+			auto beg_end = WS::iterator_access(std::vector<my_type>{1,2,3,4});
 			my_type v = 1;
 			for (auto const& value : beg_end)
 				Assert::IsTrue( value == v++ );

@@ -9,17 +9,17 @@
 
 //LTH geht die parameterpaare von links nach rechts durch, bis ein paar kleiner oder nicht kleiner meldet
 //LTH_Member bekommt zwei objekte, deren member verglichen werden sollen und eine liste von memberpointern. diese liste wird von links nach rechts abgearbeitet, bis der verwendete vergleich eine ungleichheit feststellt
-// in beiden funktionen koennen (muess aber nicht) hinter den vergleichstypen vergleichenfunktionen der form std::function<WP::tribool>(datentyp const &,datentyp const &)> uebergeben werden
-namespace WP 
+// in beiden funktionen koennen (muess aber nicht) hinter den vergleichstypen vergleichenfunktionen der form std::function<WS::tribool>(datentyp const &,datentyp const &)> uebergeben werden
+namespace WS 
 {
-	//static std::function<WP::tribool(CString const &l, CString const &r)> LTH_CStringNoCase = [](CString const &l, CString const &r)-> WP::tribool
+	//static std::function<WS::tribool(CString const &l, CString const &r)> LTH_CStringNoCase = [](CString const &l, CString const &r)-> WS::tribool
 	//{
 	//	auto erg = l.CompareNoCase( r );
 	//	if( erg < 0 )
 	//		return true;
 	//	else if ( erg > 0 )
 	//		return false;
-	//	return WP::tribool();
+	//	return WS::tribool();
 	//};
 
 	inline bool LTH(  )
@@ -32,7 +32,7 @@ namespace WP
 			return true;
 		return false;
 	}
-	template<typename CharPtrType> WP::tribool LTHCharPtr( CharPtrType const & l, CharPtrType const & r )
+	template<typename CharPtrType> WS::tribool LTHCharPtr( CharPtrType const & l, CharPtrType const & r )
 	{
 		if( l && r )
 		{
@@ -41,7 +41,7 @@ namespace WP
 				return true;
 			if( erg>0 )
 				return false;
-			return WP::tribool();//gleich
+			return WS::tribool();//gleich
 		}
 		return false;
 	}
@@ -70,32 +70,32 @@ namespace WP
 		return LTH<value_t const*>(l,r);
 	}
 
-	template<typename value_t> WP::tribool LTHCompare( value_t const & l, value_t const & r )
+	template<typename value_t> WS::tribool LTHCompare( value_t const & l, value_t const & r )
 	{
 		if( LTH(l,r) )
 			return true;
 		if( LTH(r,l) )
 			return false;
-		return WP::tribool();
+		return WS::tribool();
 	}
-	template<> inline WP::tribool LTHCompare<char const *>( char const * const & l, char const * const & r )
+	template<> inline WS::tribool LTHCompare<char const *>( char const * const & l, char const * const & r )
 	{
 		return LTHCharPtr( l, r );
 	}
-	template<> inline WP::tribool LTHCompare<wchar_t const *>( wchar_t const * const & l, wchar_t const * const & r )
+	template<> inline WS::tribool LTHCompare<wchar_t const *>( wchar_t const * const & l, wchar_t const * const & r )
 	{
 		return LTHCharPtr( l, r );
 	}
-	template<> inline WP::tribool LTHCompare<char *>( char * const & l, char * const & r )
+	template<> inline WS::tribool LTHCompare<char *>( char * const & l, char * const & r )
 	{
 		return LTHCharPtr( l, r );
 	}
-	template<> inline WP::tribool LTHCompare<wchar_t *>( wchar_t * const & l, wchar_t * const & r )
+	template<> inline WS::tribool LTHCompare<wchar_t *>( wchar_t * const & l, wchar_t * const & r )
 	{
 		return LTHCharPtr( l, r );
 	}
 
-	template<typename value_t, typename ... Args> bool LTH( value_t const & l, value_t const & r, std::function<WP::tribool( value_t const&,value_t const&)> const & less, Args const & ... args )
+	template<typename value_t, typename ... Args> bool LTH( value_t const & l, value_t const & r, std::function<WS::tribool( value_t const&,value_t const&)> const & less, Args const & ... args )
 	{
 		auto erg = less( l, r );
 		if( erg.valid() )
@@ -114,13 +114,13 @@ namespace WP
 }
 
 
-namespace WP //LTH auf objekte mit pointer auf member
+namespace WS //LTH auf objekte mit pointer auf member
 {
 	template <typename objecttype> bool LTH_Member( objecttype const & , objecttype const &  )
 	{
 		return false;
 	}
-	template <typename objecttype, typename membertype, typename ... Args> bool LTH_Member( objecttype const & l, objecttype const & r, membertype objecttype::* member, std::function<WP::tribool( membertype const&,membertype const&)> const & less, Args const & ... args )
+	template <typename objecttype, typename membertype, typename ... Args> bool LTH_Member( objecttype const & l, objecttype const & r, membertype objecttype::* member, std::function<WS::tribool( membertype const&,membertype const&)> const & less, Args const & ... args )
 	{
 		auto erg = less( l.*member, r.*member );
 		if( erg.valid() )

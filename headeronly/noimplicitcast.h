@@ -177,7 +177,7 @@ public:\
 
 class CFile;
 
-namespace WP
+namespace WS
 {
 	//Explicit_Type gibt einer fachlichkeit mit wenig aufwand einen eigenen namen, um programme lesbarer zu machen, und zuweisungen zu inhaltlich falschen werten zu verhindern
 	//z.b. 
@@ -344,7 +344,7 @@ namespace WP
 	template<typename type_t, typename value_t> struct Explicit_Type_Trait_deref//kann fuer pointer_typen sinn machen
 	{
 		using deref_t = decltype(*std::declval<value_t>());
-		//friend value_t & operator->( type_t & l )//error C2801: 'WP::operator ->' must be a non-static member
+		//friend value_t & operator->( type_t & l )//error C2801: 'WS::operator ->' must be a non-static member
 		//{
 		//	return l.toValueType();
 		//}
@@ -406,7 +406,7 @@ namespace WP
 }
 
 
-#define TYPEDEF2_BEGIN(type_name,value_type,...) struct type_name : WP::Explicit_Type<type_name,value_type,__VA_ARGS__>{typedef value_type value_t;using Explicit_Type::Explicit_Type;
+#define TYPEDEF2_BEGIN(type_name,value_type,...) struct type_name : WS::Explicit_Type<type_name,value_type,__VA_ARGS__>{typedef value_type value_t;using Explicit_Type::Explicit_Type;
 #define TYPEDEF2_END }
 #define TYPEDEF2(type_name,value_type,...) TYPEDEF2_BEGIN(type_name,value_type,##__VA_ARGS__) TYPEDEF2_END
 
@@ -416,7 +416,7 @@ namespace WP
 #	define TYPEDEF(type_name,value_type,...) TYPEDEF_BEGIN(type_name,value_type,##__VA_ARGS__) TYPEDEF_END
 #else
 //TYPEDEF2 nur nötig, weil VC den default-template Explicit_Type_Trait_all von Explicit_Type_Trait_all nicht korrekt auswertet
-#	define TYPEDEF_BEGIN(type_name,value_type) TYPEDEF2_BEGIN(type_name,value_type,WP::Explicit_Type_Trait_all)
+#	define TYPEDEF_BEGIN(type_name,value_type) TYPEDEF2_BEGIN(type_name,value_type,WS::Explicit_Type_Trait_all)
 #	define TYPEDEF(type_name,value_type) TYPEDEF_BEGIN(type_name,value_type) TYPEDEF_END
 #endif
 

@@ -1,14 +1,14 @@
 #pragma once
 
 #include <stdexcept>
-// WP::tribool kapselt die stati false, true und invalid
+// WS::tribool kapselt die stati false, true und invalid
 // invalid ist ein wert, wenn er mit dem default-ctor erzeugt wurde, bzw durch zuweisung eines invalid tribool.
 // operator bool() und ähnliche werfen std::exception, wenn wert invalid ist. vorher also ggf. mit valid() pruefen
 // vergleichsoperatoren vergleichen alle drei moeglichen werte, also keine excpetion wenn ein oder beide werte invalid sind (invalid==invlid)==(false==false)==(true==true)==true
 //
 //siehe auch UT_tribool.cpp
 
-namespace WP
+namespace WS
 {
 	class tribool//boost tribool gefaellt mir nicht
 	{

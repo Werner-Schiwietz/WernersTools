@@ -21,12 +21,12 @@ struct IWPMemFileAlloc
 	struct LockedMem
 	{
 		HANDLE						handle = NULL;
-		WP::ptr_array<void*>		ptr;
+		WS::ptr_array<void*>		ptr;
 
 		LockedMem( HANDLE handle, void* ptr, size_t bytes) 
 			: handle(handle)
 			, ptr( ptr, bytes ){}
-		LockedMem( HANDLE handle, WP::ptr_array<void*>ptr )
+		LockedMem( HANDLE handle, WS::ptr_array<void*>ptr )
 			: handle(handle)
 			, ptr( ptr){}
 
@@ -44,7 +44,7 @@ struct IWPMemFileAlloc
 			return *this;
 		}
 
-		operator WP::ptr_array<void*>()
+		operator WS::ptr_array<void*>()
 		{
 			return this->ptr;
 		}

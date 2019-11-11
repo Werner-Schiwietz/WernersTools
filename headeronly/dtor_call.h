@@ -319,7 +319,7 @@ auto CreateDtorCall(method_type method, std::shared_ptr<objekt_type> objekt_ptr,
 };
 
 
-namespace WP
+namespace WS
 {
 	//AutoResource ist der Versuch die Freigabe einer Resource direkt an die Reservierung der Resource zu haengen
 	// die Funktion LockResource legt ein Verwaltungsobjekt fuer ein Objekt von typename resource_t an.
