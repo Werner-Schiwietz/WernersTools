@@ -2,8 +2,14 @@
 
 #include "iterator_access.h"
 #include "char_helper.h"
-#include "is_in.h"
-//#include "SignatureTest.h"
+
+//ein paar hilfs-funktion zum parsen 
+//eat						//genau die items in der reihenfolge, oder das eine item
+//eat_if					//ein zeichen wenn bedingung erfüllt ist
+//eat_while					//solange wie bedingung erfüllt ist
+//eat_oneof					//ein zeichen wenn es in der liste ist
+//eat_flanked				//alles eingebettet ist z.B. "hallo" in "\"hallo\"" oder ["hallo"]
+//eat_integer				//konvertiert digits zu integer
 
 namespace WS
 {
@@ -93,6 +99,17 @@ namespace WS
 
 		return retvalue;
 	}
+	template<typename T, typename ... items_t> _iterator_access<T> eat_oneof( _iterator_access<T> & container, _iterator_access<T> items ) 
+	{
+		auto begin = container.begin();
+
+		if( container.begin()!=container.end() )
+			for( auto & item : items)
+				if( _eat_unchecked( container, item ) )
+					return _iterator_access<T> {begin,container.begin()};
+
+		return _iterator_access<T> {begin,begin};;
+	}
 
 	template<typename T> rettype_eat<T> eat_till( _iterator_access<T> & container_in, typename _iterator_access<T>::value_t const & till_item, typename _iterator_access<T>::value_t const & escape_item )
 	{
@@ -121,6 +138,62 @@ namespace WS
 		return rettype_eat<T> { container_in.begin(), container.begin(), parse_error::tillitem_not_found };
 	}
 
+
+	template<typename T> using flanked_t = typename _iterator_access<T>::value_t;
+	template<typename T> using left_t = typename _iterator_access<T>::value_t;
+	template<typename T> using right_t = typename _iterator_access<T>::value_t;
+	template<typename T> using escape_t = typename _iterator_access<T>::value_t;
+	template<typename T> auto flanked_type	( T const & item )	{ return item; }
+	template<typename T> auto left_type		( T const & item )	{ return item; }
+	template<typename T> auto right_type	( T const & item )	{ return item; }
+	template<typename T> auto escape_type	( T const & item )	{ return item; }
+
+	template<typename T> struct rettype_eat_flanked : rettype_eat<T>
+	{
+		left_t<T> left{};
+		right_t<T> right{};
+
+		auto && setLeft ( left_t<T>  value ) && { this->left =value; return std::move(*this); }
+		auto && setRight( right_t<T> value ) && { this->right=value; return std::move(*this); }
+
+		using rettype_eat::rettype_eat;
+
+		rettype_eat_flanked( rettype_eat && r) : rettype_eat(r){}
+	};
+	template<typename T> rettype_eat_flanked<T> _eat_flanked( _iterator_access<T> & container, right_t<T> const & right_item, escape_t<T> const & escape_item )
+	{
+		rettype_eat_flanked<T> retvalue = eat_till( container, right_item, escape_item );
+		eat( container, right_item );
+		return std::move(retvalue).setRight(right_item);
+	}
+	template<typename T> rettype_eat_flanked<T> eat_flanked( _iterator_access<T> & container_in, left_t<T> const & left_item, right_t<T> const & right_item, escape_t<T> const & escape_item )
+	{
+		auto container = container_in;
+		if( eat( container, left_item ) )
+		{
+			auto erg = _eat_flanked( container, right_item, escape_item ).setLeft(left_item);
+			if( erg )
+				container_in = container;
+			return erg;
+		}
+		return {container.begin(),container.begin()};
+	}
+	template<typename T> rettype_eat_flanked<T> eat_flanked( _iterator_access<T> & container, flanked_t<T> const & flank_item, escape_t<T> const & escape_item )
+	{
+		return eat_flanked( container, left_t<T>(flank_item), right_t<T>(flank_item), escape_item );
+	}
+	template<typename T> rettype_eat_flanked<T> eat_flanked( _iterator_access<T> & container_in, typename _iterator_access<T> const & till_items, escape_t<T> const & escape_item )
+	{
+		auto container = container_in;
+		if( auto erg_first_last_item = eat_oneof( container, till_items ) )
+		{
+			auto retvalue = _eat_flanked( container, *erg_first_last_item.begin(), escape_item );
+			if( retvalue )
+				container_in = container;
+			return std::move(retvalue).setLeft(*erg_first_last_item.begin());
+		}
+		return {container_in.begin(),container_in.begin()};
+	}
 
 	template<typename T, typename function_t> _iterator_access<T> _eat_if_unckecked( _iterator_access<T> & container, function_t function ) //function_t signature bool(T const &)
 	{

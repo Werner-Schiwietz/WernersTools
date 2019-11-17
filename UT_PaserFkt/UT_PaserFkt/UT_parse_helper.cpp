@@ -146,11 +146,20 @@ namespace UTPaserFkt
 			Assert::IsFalse(WS::eat_oneof( toparse, 'w', 'W' ));
 			Assert::IsTrue( len1 == toparse.len() );
 		}
-		TEST_METHOD(eat_oneof_positiv)
+		TEST_METHOD(eat_oneof_positiv1)
 		{
 			auto toparse = WS::iterator_access( "hallo" );
 			auto len1 = toparse.len();
 			auto erg = WS::eat_oneof( toparse, 'H', 'h' );
+			Assert::IsTrue(erg);
+			Assert::IsTrue(erg==WS::iterator_access( "h" ) );
+			Assert::IsTrue( len1 == toparse.len() + 1 );
+		}
+		TEST_METHOD(eat_oneof_positiv2)
+		{
+			auto toparse = WS::iterator_access( "hallo" );
+			auto len1 = toparse.len();
+			auto erg = WS::eat_oneof( toparse, WS::iterator_access("Hh") );
 			Assert::IsTrue(erg);
 			Assert::IsTrue(erg==WS::iterator_access( "h" ) );
 			Assert::IsTrue( len1 == toparse.len() + 1 );
@@ -211,6 +220,65 @@ namespace UTPaserFkt
 			Assert::IsTrue( toparse == WS::iterator_access( "', how are you" ) );
 		}
 	};
+
+	TEST_CLASS( UT_match_flanked )
+	{
+	public:
+
+		TEST_METHOD( eat_positiv1 )
+		{
+			auto toparse = WS::iterator_access( "'hallo' 'welt'" );
+			if( auto erg1=WS::eat_oneof( toparse, '"', '\'' ) )
+				if( auto erg=WS::eat_till( toparse, *erg1.begin(), '\\' ) )
+				{
+					Assert::IsTrue( WS::eat( toparse, *erg1.begin() ) );
+					Assert::IsTrue( erg==WS::iterator_access( "hallo" ) ); 
+					return;
+				}
+
+			Assert::Fail( L"tja" );
+		}
+		TEST_METHOD( eat_negativ_same_first_last )
+		{
+			auto toparse = WS::iterator_access( "'hallo welt" );
+			auto erg = WS::eat_flanked( toparse, WS::flanked_type('\''), WS::escape_type('\\') );
+			Assert::IsFalse( erg );
+			//Assert::IsTrue( erg.eaten_till_error == WS::iterator_access( "hallo" ) );
+			Assert::IsTrue( erg.error == WS::parse_error::tillitem_not_found );
+			Assert::IsTrue( toparse == WS::iterator_access( "'hallo welt" ) );
+		}
+		TEST_METHOD( eat_positiv_same_first_last )
+		{
+			auto toparse = WS::iterator_access( "'hallo' 'welt'" );
+			auto erg = WS::eat_flanked( toparse, WS::flanked_type('\''), WS::escape_type('\\') );
+			Assert::IsTrue( erg );
+			Assert::IsTrue( erg.eaten == WS::iterator_access( "hallo" ) );
+			Assert::IsTrue( erg.left == '\'' );
+			Assert::IsTrue( erg.right == '\'' );
+			Assert::IsTrue( toparse == WS::iterator_access( " 'welt'" ) );
+		}
+		TEST_METHOD( eat_positiv_different_first_last )
+		{
+			auto toparse = WS::iterator_access( "[[hallo\\]] 'welt'" );
+			auto erg = WS::eat_flanked( toparse, WS::left_type('['), WS::right_type(']'), WS::escape_type('\\') );
+			Assert::IsTrue( erg );
+			Assert::IsTrue( erg.eaten == WS::iterator_access( "[hallo\\]" ) );
+			Assert::IsTrue( erg.left == '[' );
+			Assert::IsTrue( erg.right == ']' );
+			Assert::IsTrue( toparse == WS::iterator_access( " 'welt'" ) );
+		}
+		TEST_METHOD( eat_positiv_oneof_first_last )
+		{
+			auto toparse = WS::iterator_access( "'hallo' 'welt'" );
+			auto erg = WS::eat_flanked( toparse, WS::iterator_access("\"'"), WS::escape_type('\\') );
+			Assert::IsTrue( erg );
+			Assert::IsTrue( erg.eaten == WS::iterator_access( "hallo" ) );
+			Assert::IsTrue( erg.left == '\'' );
+			Assert::IsTrue( erg.right == '\'' );
+			Assert::IsTrue( toparse == WS::iterator_access( " 'welt'" ) );
+		}
+	};
+
 	TEST_CLASS(UT_Chars)
 	{
 	public:
@@ -296,6 +364,7 @@ namespace UTPaserFkt
 				auto erg = WS::eat_integer<int>( toparse );
 				Assert::IsTrue( erg );
 				Assert::IsTrue( erg.value==123 );
+				Assert::IsTrue( toparse == WS::iterator_access( L"Hallo" ) );
 			}
 			{
 				auto toparse = WS::iterator_access( "123" );
