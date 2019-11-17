@@ -8,28 +8,97 @@ using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 #include "..\..\headeronly\parse_helper.h"
 #include "..\..\headeronly\iterator_access.h"
 
-//TODO idee compilierbar machen
-//#include "..\..\headeronly\SignatureTest.h"
-//namespace WS
-//{
-//	template<typename function_t, typename signatur_t> struct canCall;
-//	template<typename function_t,typename ret_t,typename ... args_t> struct canCall<function_t, ret_t(args_t...)> : has_signatur<ret_t(args_t...)>
-//	{
-//		static bool const value = callable<function_t>();
-//	};
-//
-//	template<typename T, typename function_t, typename signatur_t, bool> struct call;
-//	template<typename T,typename function_t,typename ,typename ret_t,typename ... args_t,bool=canCall<function_t,ret_t(args_t...)>::value> struct call<function_t,ret_t(args_t...),true>
-//	{
-//	};
-//	template<typename T,typename function_t,typename ,typename ret_t,typename ... args_t,bool =canCall<function_t,ret_t(args_t...)>::value> struct call<function_t,ret_t(args_t...),canCall<function_t,ret_t(args_t...)>::value,false>
-//	{
-//	};
-//}
+#include "..\..\headeronly\SignatureTest.h"
 
 
 namespace UTPaserFkt
 {
+	template<typename container_t
+			,typename function_t
+		, int = ( WS::canCall<function_t,bool(decltype(*std::declval<container_t>().begin()))>::value?1:0
+			    + WS::canCall<function_t,container_t(container_t&)>::value?2:0 )
+				>
+	struct _eat
+	{
+		static container_t call( container_t &container, function_t fn)
+		{
+			static_assert(false, "funktion hat falsche Signatur");
+			return container_t{};
+		}
+	};
+	template<typename container_t, typename function_t>
+	struct _eat<container_t,function_t,1>
+	{
+		static container_t call( container_t & container, function_t fn )
+		{
+			container_t retvalue{ container.begin(), container.begin()};
+			while( container.begin()!=container.end() 
+				   && fn( *container.begin() ) )
+			{
+				++retvalue.end();
+				++container.begin();
+			}
+			
+			return retvalue;
+		}
+	};
+	template<typename container_t, typename function_t>
+	struct _eat<container_t,function_t,2>
+	{
+		static container_t call( container_t &container, function_t fn)
+		{
+			return fn( container );
+		}
+	};
+
+	template<typename container_t, typename function_t>
+	static container_t eat( container_t & container, function_t fn )
+	{
+		return _eat<container_t, function_t>::call( container, fn );
+	}
+	TEST_CLASS(UT_CanCall)
+	{
+	public:
+		TEST_METHOD(CanCall_negativ1)
+		{
+			auto fn = [&]( bool ) { return false; };
+			Assert::IsFalse( WS::canCall<decltype(fn),void(bool)>::value );
+		}
+		TEST_METHOD(CanCall_positiv1)
+		{
+			auto fn = [&]( bool ) { };
+			Assert::IsTrue( WS::canCall<decltype(fn),void(bool)>::value );
+			Assert::IsTrue( WS::canCall<decltype(fn),void(int)>::value );//der int-parameter wird gecastet, keine ahnung, wie man das prüfen kann
+		}
+		TEST_METHOD( UT_test_using_callable_function )
+		{
+			{
+				auto to_parse = WS::iterator_access( "hallo welt" );
+				auto erg = eat( to_parse, []( char const & ) { return true; } );
+				Assert::IsFalse( to_parse );
+				Assert::IsTrue( erg );
+				Assert::IsTrue( erg == WS::iterator_access( "hallo welt" ) );
+			}
+			{
+				auto to_parse = WS::iterator_access( "hallo welt" );
+				auto erg = eat( to_parse, []( WS::_iterator_access<char const *> & container ) 
+				{ 
+					WS::_iterator_access<char const *> retvalue {container.begin(),container.begin()+5}; 
+					container.begin()+=5;
+					return retvalue;
+				} );
+				Assert::IsTrue( to_parse == WS::iterator_access( " welt" ) );
+				Assert::IsTrue( erg );
+				Assert::IsTrue( erg == WS::iterator_access( "hallo" ) );
+			}
+			{
+				auto to_parse = WS::iterator_access( "hallo welt" );
+				//auto erg = eat( to_parse, []( std::wstring & container ) { return std::wstring{}; } );
+			}
+		}
+
+
+	};
 	TEST_CLASS(UT_OneChar)
 	{
 	public:
@@ -64,6 +133,82 @@ namespace UTPaserFkt
 			Assert::IsTrue(WS::eat( toparse, 'o' ));
 			Assert::IsTrue( len1 == ++len+toparse.len() );
 			Assert::IsTrue( len1 == len );
+		}
+	};
+	TEST_CLASS(UT_OneOf)
+	{
+	public:
+
+		TEST_METHOD(eat_oneof_negativ)
+		{
+			auto toparse = WS::iterator_access( "hallo" );
+			auto len1 = toparse.len();
+			Assert::IsFalse(WS::eat_oneof( toparse, 'w', 'W' ));
+			Assert::IsTrue( len1 == toparse.len() );
+		}
+		TEST_METHOD(eat_oneof_positiv)
+		{
+			auto toparse = WS::iterator_access( "hallo" );
+			auto len1 = toparse.len();
+			auto erg = WS::eat_oneof( toparse, 'H', 'h' );
+			Assert::IsTrue(erg);
+			Assert::IsTrue(erg==WS::iterator_access( "h" ) );
+			Assert::IsTrue( len1 == toparse.len() + 1 );
+		}
+	};
+	TEST_CLASS(UT_till)
+	{
+	public:
+
+		TEST_METHOD(eat_till_negativ_till_end_open)
+		{
+			auto toparse = WS::iterator_access( "'hallo" );
+			char begin_end_item = '\'';
+			char escape_item = '\\';
+
+			Assert::IsTrue( eat( toparse, begin_end_item ) );
+			auto erg = eat_till( toparse, begin_end_item, escape_item );
+			Assert::IsFalse( erg );
+			Assert::IsTrue( erg==WS::parse_error::tillitem_not_found );
+			Assert::IsTrue( erg.eaten_till_error == WS::iterator_access( "hallo" ) );
+		}
+		TEST_METHOD(eat_till_negativ_till_invalid_escape)
+		{
+			auto toparse = WS::iterator_access( R"('hal\lo)" );
+			char begin_end_item = '\'';
+			char escape_item = '\\';
+
+			Assert::IsTrue( eat( toparse, begin_end_item ) );
+			auto erg = eat_till( toparse, begin_end_item, escape_item );
+			Assert::IsFalse( erg );
+			Assert::IsTrue( erg==WS::parse_error::invalid_escape_sequence);
+			Assert::IsTrue( erg.eaten_till_error == WS::iterator_access( "hal" ) );
+		}
+		TEST_METHOD(eat_till_positive)
+		{
+			auto toparse = WS::iterator_access( "'hallo welt', how are you " );
+			char begin_end_item = '\'';
+			char escape_item = '\\';
+
+			Assert::IsTrue( eat( toparse, begin_end_item ) );
+			auto erg = eat_till( toparse, begin_end_item, escape_item );
+			Assert::IsTrue( erg );
+			Assert::IsTrue( erg==WS::parse_error::none);
+			Assert::IsTrue( erg.eaten == WS::iterator_access( "hallo welt" ) );
+			Assert::IsTrue( toparse == WS::iterator_access( "', how are you " ) );
+		}
+		TEST_METHOD(eat_till_positive_with_escape)
+		{
+			auto toparse = WS::iterator_access( R"('hallo\' welt\\', how are you)" );
+			char begin_end_item = '\'';
+			char escape_item = '\\';
+
+			Assert::IsTrue( eat( toparse, begin_end_item ) );
+			auto erg = eat_till( toparse, begin_end_item, escape_item );
+			Assert::IsTrue( erg );
+			Assert::IsTrue( erg==WS::parse_error::none);
+			Assert::IsTrue( erg.eaten == WS::iterator_access( R"(hallo\' welt\\)" ) );
+			Assert::IsTrue( toparse == WS::iterator_access( "', how are you" ) );
 		}
 	};
 	TEST_CLASS(UT_Chars)
