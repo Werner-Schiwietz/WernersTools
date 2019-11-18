@@ -238,6 +238,14 @@ namespace UTPaserFkt
 
 			Assert::Fail( L"tja" );
 		}
+		TEST_METHOD( eat_positiv_empty )
+		{
+			auto toparse = WS::iterator_access( "''" );
+			auto erg = WS::eat_flanked( toparse, WS::flanked_type('\''), WS::escape_type('\\') );
+			Assert::IsTrue( erg.error == WS::parse_error::none );
+			Assert::IsTrue( erg );
+			Assert::IsTrue( toparse == WS::iterator_access( "" ) );
+		}
 		TEST_METHOD( eat_negativ_same_first_last )
 		{
 			auto toparse = WS::iterator_access( "'hallo welt" );

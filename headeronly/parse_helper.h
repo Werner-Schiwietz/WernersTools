@@ -153,6 +153,8 @@ namespace WS
 		left_t<T> left{};
 		right_t<T> right{};
 
+		operator bool(){return this->error==parse_error::none;}
+
 		auto && setLeft ( left_t<T>  value ) && { this->left =value; return std::move(*this); }
 		auto && setRight( right_t<T> value ) && { this->right=value; return std::move(*this); }
 
