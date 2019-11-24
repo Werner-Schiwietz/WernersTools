@@ -7,10 +7,12 @@
 //zusaetzlich nullterminierte char bzw wchar_t felder
 //auch char* kann ein iterator sein
 //beispiel:
-//auto ia = iterator_access(std::vector const &);
-//auto ia = iterator_access(char *begin, char * end);
-//auto ia = iterator_access(char *begin, size_t len);
-//auto ia = iterator_access( CString );//fuer die nutzung der ungeliebten MFC klasse CString muss altstr.h vor diesem header in der includereihenfolge stehen
+//auto ia = iterator_access(std::vector const &);			//der vector muss länger leben als das erzeugt _iterator_access
+//auto ia = iterator_access(std::string && );				//die lebenszeit eines rvalue wird verlängert, sonst würde mit kaputten itrerartoren gearbeitet
+//auto ia = iterator_access(T *begin, T * end);				//iteratoren
+//auto ia = iterator_access(char const *begin, size_t len);	//pointer  und länge des arrays
+//auto ia = iterator_access( coantainer_type const & );		//viele conatiner, die begin() und end() haben e.g. std::basis_string
+//auto ia = iterator_access( CString );//fuer die nutzung der MFC klasse CString muss altstr.h vor diesem header in der includereihenfolge stehen
 
 #include "char_helper.h"
 
@@ -62,14 +64,8 @@ namespace WS
 		using value_t = std::decay_t<decltype(*std::declval<iterator_t>())>;
 		iterator_t	first;
 		iterator_t	last;//eigentlich last+1, also end nach iteratorlogik
-		std::function<void(void)> rvalue_lifetime_extender;//die function wird nie aufgerufen. das shared-ptr objekt als capture parameter ist das wichtige
-		~_iterator_access()
-		{
-#ifdef _DEBUG
-			if( rvalue_lifetime_extender )
-				rvalue_lifetime_extender();
-#endif
-		};
+		std::function<void(void)> rvalue_lifetime_extender;//statt std::any. die function wird nie aufgerufen. das shared-ptr objekt als capture parameter ist das wichtige
+		~_iterator_access(){};
 		_iterator_access(){ init_member(); }
 		_iterator_access( _iterator_access const & ) = default; 
 		_iterator_access( iterator_t first, iterator_t last )				: first( first ), last( last ){}
@@ -98,6 +94,7 @@ namespace WS
 		size_t	len() const{return last-first;}
 		bool	empty() const{return first==last;}
 		operator bool() const {return empty()==false;}
+		bool operator !() const {return empty();}
 		operator iterator_t() const{ return begin();}
 
 		template<typename other_iterator_t> int cmp( _iterator_access<other_iterator_t> const & r ) const
@@ -230,7 +227,7 @@ namespace WS
 		return iterator_access( begin( r ), end( r ) );
 	}
 
-	template<class container_t> auto iterator_access( container_t && r )//lebensverlängerung fuer rvalues, damit die iteratoren nicht ins leere laufen. erster versuch war mit (std/boost)::any. waere besser, aber sind immer verfügbar
+	template<class container_t> auto iterator_access( container_t && r )//lebensverlängerung fuer rvalues, damit die iteratoren nicht ins leere laufen. erster versuch war mit (std/boost)::any. waere besser, aber sind nicht immer verfügbar C++17
 	{
 		auto as_shared_ptr = std::make_shared<container_t>( std::move( r ) );
 		return iterator_access( begin( *as_shared_ptr ), end( *as_shared_ptr ), std::function<void(void)>([as_shared_ptr](){}) );

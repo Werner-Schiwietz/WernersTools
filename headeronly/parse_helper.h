@@ -8,7 +8,7 @@
 //eat_if					//ein zeichen wenn bedingung erfüllt ist
 //eat_while					//solange wie bedingung erfüllt ist
 //eat_oneof					//ein zeichen wenn es in der liste ist
-//eat_flanked				//alles eingebettet ist z.B. "hallo" in "\"hallo\"" oder ["hallo"]
+//eat_flanked				//alles eingebettet ist z.B. \"hallo\" in "\"hallo\"" oder "hallo" in ["hallo"]
 //eat_integer				//konvertiert digits zu integer
 
 namespace WS
@@ -20,28 +20,6 @@ namespace WS
 		tillitem_not_found,
 		invalid_escape_sequence
 	};
-	template<typename T> bool _eat_unchecked( _iterator_access<T> & container, typename _iterator_access<T>::value_t const & item )
-	{
-		if( *container.begin() == item )
-		{
-			++container.begin();
-			return true;
-		}
-		return false;
-	}	
-	template<typename T, typename ... items_t> bool _eat_unchecked( _iterator_access<T> & container, typename _iterator_access<T>::value_t const & item, items_t ... items )
-	{
-		if( _eat_unchecked( container, item ) )
-			return true;
-		return _eat_unchecked( container, items ... );
-	}	
-	template<typename T> bool eat( _iterator_access<T> & container, typename _iterator_access<T>::value_t const & item )
-	{
-		if( container.begin() != container.end() )
-			return _eat_unchecked( container, item );
-		return false;
-	}
-
 	template<typename T> struct rettype_eat
 	{
 		_iterator_access<T> eaten;
@@ -52,25 +30,45 @@ namespace WS
 		operator _iterator_access<T>() { return eaten; }
 		operator parse_error() { return error; }
 
-		rettype_eat( typename _iterator_access<T>::iterator_t & begin, typename _iterator_access<T>::iterator_t & end )
+		rettype_eat( _iterator_access<T> const & alive, typename _iterator_access<T>::iterator_t & begin, typename _iterator_access<T>::iterator_t & end )
 		{
+			eaten = alive;
 			eaten.begin() = begin;
 			eaten.end() = end;
 		}
-		rettype_eat( typename _iterator_access<T>::iterator_t & begin, typename _iterator_access<T>::iterator_t & end, parse_error error ) : error(error)
+		rettype_eat( _iterator_access<T> const & alive, typename _iterator_access<T>::iterator_t & begin, typename _iterator_access<T>::iterator_t & end, parse_error error ) : error(error)
 		{
 			if( error==parse_error::none )
 			{
+				eaten = alive;
 				eaten.begin() = begin;
 				eaten.end() = end;
 			}
 			else
 			{
+				eaten_till_error = alive;
 				eaten_till_error.begin() = begin;
 				eaten_till_error.end() = end;
 			}
 		}
 	};
+
+	template<typename T> bool _eat_unchecked( _iterator_access<T> & container, typename _iterator_access<T>::value_t const & item )
+	{
+		if( *container.begin() == item )
+		{
+			++container.begin();
+			return true;
+		}
+		return false;
+	}	
+	template<typename T> bool eat( _iterator_access<T> & container, typename _iterator_access<T>::value_t const & item )
+	{
+		if( container.begin() != container.end() )
+			return _eat_unchecked( container, item );
+		return false;
+	}
+
 	//return empty or 
 	template<typename T> rettype_eat<T> eat( _iterator_access<T> & container_in, _iterator_access<T> const & items )
 	{
@@ -79,22 +77,29 @@ namespace WS
 		
 		for( auto const & item : items )
 			if( eat( container, item ) == false )
-				return rettype_eat<T>{ container_in.begin(), container.begin(), error };
+				return rettype_eat<T>{ container_in, container_in.begin(), container.begin(), error };
 			else
 				error = parse_error::incomplete;
 
 
-		rettype_eat<T> retvalue{ container_in.begin(), container.begin() };
+		rettype_eat<T> retvalue{ container_in, container_in.begin(), container.begin() };
 		container_in = container;
 		return retvalue;
 	}
 
+	template<typename T> bool _eat_oneof_unchecked( _iterator_access<T> & container ) { return false; }
+	template<typename T, typename ... items_t> bool _eat_oneof_unchecked( _iterator_access<T> & container, typename _iterator_access<T>::value_t const & item, items_t ... items )
+	{
+		if( _eat_unchecked( container, item ) )
+			return true;
+		return _eat_oneof_unchecked( container, items ... );
+	}	
 	template<typename T, typename ... items_t> _iterator_access<T> eat_oneof( _iterator_access<T> & container, items_t ... items ) 
 	{
 		_iterator_access<T> retvalue{container.begin(),container.begin()};
 
 		if( container.begin()!=container.end() )
-			if( _eat_unchecked( container, items ... ) )
+			if( _eat_oneof_unchecked( container, items ... ) )
 				retvalue.end() = container.begin();
 
 		return retvalue;
@@ -123,11 +128,11 @@ namespace WS
 				if( eat_oneof( cont_esc, till_item, escape_item ) )
 					container.begin()=cont_esc.begin();
 				else
-					return rettype_eat<T>{container_in.begin(), container.begin(), parse_error::invalid_escape_sequence};
+					return rettype_eat<T>{container_in, container_in.begin(), container.begin(), parse_error::invalid_escape_sequence};
 			}
 			else if( eat( cont_esc, till_item ) )//
 			{
-				rettype_eat<T> retvalue{container_in.begin(), container.begin()};
+				rettype_eat<T> retvalue{container_in, container_in.begin(), container.begin()};
 				container_in = container;
 				return retvalue;
 			}
@@ -135,7 +140,7 @@ namespace WS
 				++container.begin();
 		}
 
-		return rettype_eat<T> { container_in.begin(), container.begin(), parse_error::tillitem_not_found };
+		return rettype_eat<T> { container_in, container_in.begin(), container.begin(), parse_error::tillitem_not_found };
 	}
 
 
@@ -143,10 +148,10 @@ namespace WS
 	template<typename T> using left_t = typename _iterator_access<T>::value_t;
 	template<typename T> using right_t = typename _iterator_access<T>::value_t;
 	template<typename T> using escape_t = typename _iterator_access<T>::value_t;
-	template<typename T> auto flanked_type	( T const & item )	{ return item; }
-	template<typename T> auto left_type		( T const & item )	{ return item; }
-	template<typename T> auto right_type	( T const & item )	{ return item; }
-	template<typename T> auto escape_type	( T const & item )	{ return item; }
+	template<typename T> auto const & flanked_type	( T const & item )	{ return item; }
+	template<typename T> auto const & left_type		( T const & item )	{ return item; }
+	template<typename T> auto const & right_type	( T const & item )	{ return item; }
+	template<typename T> auto const & escape_type	( T const & item )	{ return item; }
 
 	template<typename T> struct rettype_eat_flanked : rettype_eat<T>
 	{
@@ -168,7 +173,7 @@ namespace WS
 		eat( container, right_item );
 		return std::move(retvalue).setRight(right_item);
 	}
-	template<typename T> rettype_eat_flanked<T> eat_flanked( _iterator_access<T> & container_in, left_t<T> const & left_item, right_t<T> const & right_item, escape_t<T> const & escape_item )
+	template<typename T> rettype_eat_flanked<T>  eat_flanked( _iterator_access<T> & container_in, left_t<T> const & left_item, right_t<T> const & right_item, escape_t<T> const & escape_item )
 	{
 		auto container = container_in;
 		if( eat( container, left_item ) )
@@ -178,13 +183,21 @@ namespace WS
 				container_in = container;
 			return erg;
 		}
-		return {container.begin(),container.begin()};
+		return {container,container.begin(),container.begin()};
 	}
-	template<typename T> rettype_eat_flanked<T> eat_flanked( _iterator_access<T> & container, flanked_t<T> const & flank_item, escape_t<T> const & escape_item )
+	template<typename T> rettype_eat_flanked<T>  eat_flanked( _iterator_access<T> && container_in, left_t<T> const & left_item, right_t<T> const & right_item, escape_t<T> const & escape_item )
+	{
+		return eat_flanked( container_in, left_item, right_item, escape_item );
+	}
+	template<typename T> rettype_eat_flanked<T>  eat_flanked( _iterator_access<T> & container, flanked_t<T> const & flank_item, escape_t<T> const & escape_item )
 	{
 		return eat_flanked( container, left_t<T>(flank_item), right_t<T>(flank_item), escape_item );
 	}
-	template<typename T> rettype_eat_flanked<T> eat_flanked( _iterator_access<T> & container_in, typename _iterator_access<T> const & till_items, escape_t<T> const & escape_item )
+	template<typename T> rettype_eat_flanked<T>  eat_flanked( _iterator_access<T> && container, flanked_t<T> const & flank_item, escape_t<T> const & escape_item )
+	{
+		return eat_flanked( container, left_t<T>(flank_item), right_t<T>(flank_item), escape_item );
+	}
+	template<typename T> rettype_eat_flanked<T>  eat_flanked( _iterator_access<T> & container_in, typename _iterator_access<T> const & till_items, escape_t<T> const & escape_item )
 	{
 		auto container = container_in;
 		if( auto erg_first_last_item = eat_oneof( container, till_items ) )
@@ -194,12 +207,83 @@ namespace WS
 				container_in = container;
 			return std::move(retvalue).setLeft(*erg_first_last_item.begin());
 		}
-		return {container_in.begin(),container_in.begin()};
+		return {container_in, container_in.begin(),container_in.begin()};
+	}
+
+	template<typename container_t, typename T> container_t make_flanked( _iterator_access<T> parse, left_t<T> left, right_t<T> right, escape_t<T> escape)
+	{
+		container_t retvalue;
+		using value_t = typename _iterator_access<T>::value_t;
+
+		retvalue += left;
+		for(;parse;)
+		{
+			auto part = eat_while( parse, [right, escape]( value_t const & value ) { return value!=right && value!=escape; } );
+			if( part )
+				retvalue += container_t( part.begin(), part.end() );
+
+			if( parse )
+			{
+				retvalue += escape;
+				retvalue += *parse.begin()++;
+			}
+		}
+		
+		return retvalue+=right;
+	}
+
+	//entfernt escape-char. macht kopie nur, wenn sie nötig ist
+	template<typename T>  _iterator_access<T> remove_escape( _iterator_access<T> parse, escape_t<T> escape)
+	{
+		using value_t = typename _iterator_access<T>::value_t;
+		using buffer_t = std::basic_string<value_t>;
+
+		_iterator_access<T>			retvalue{parse.begin(),parse.begin(),parse.rvalue_lifetime_extender};//copy rvalue_lifetime_extender
+		buffer_t					char_buffer;//nur wenn nötig umkopieren
+
+		//bei nötiger veränderung char_buffer benutzen
+		auto append =[&]( _iterator_access<T> parse )
+		{
+			if( parse.empty() )
+				return;
+			if( retvalue.empty() )
+			{
+				retvalue = parse;
+			}
+			else if( retvalue.end() == parse.begin() )
+			{
+				retvalue.end() = parse.end();
+			}
+			else 
+			{
+				if( char_buffer.empty() )
+					if( retvalue )
+						char_buffer = buffer_t{retvalue.begin(),retvalue.end()};
+				char_buffer.append( parse.begin(), parse.end() );
+			}
+		};
+
+		while(parse)
+		{
+			auto part = eat_while( parse, [escape]( value_t const & value ) { return value!=escape; } );
+			append( part );
+
+			if( parse )
+			{
+				auto b = ++parse.begin();//wg parameter reihenfolge ++ nicht als fn-parameter
+				auto e = ++parse.begin();//wg parameter reihenfolge ++ nicht als fn-parameter
+				append( iterator_access( b, e ) );
+			}
+		}
+
+		if( char_buffer.empty() )
+			return retvalue;
+		return iterator_access( std::move( char_buffer ) );
 	}
 
 	template<typename T, typename function_t> _iterator_access<T> _eat_if_unckecked( _iterator_access<T> & container, function_t function ) //function_t signature bool(T const &)
 	{
-		_iterator_access<T> retvalue{container.begin(),container.begin()};
+		_iterator_access<T> retvalue{container.begin(),container.begin(), container.rvalue_lifetime_extender};
 
 		if( function( *container.begin() ) )
 			retvalue.end() = ++container.begin();
@@ -215,7 +299,7 @@ namespace WS
 	}
 	template<typename T, typename function_t> _iterator_access<T> eat_while( _iterator_access<T> & container, function_t function ) //function_t signature bool(T const&)
 	{
-		_iterator_access<T> retvalue( container.begin(), container.begin() );
+		_iterator_access<T> retvalue( container.begin(), container.begin(), container.rvalue_lifetime_extender );
 		while( eat_if( container, function ) )
 			++retvalue.end();
 		return retvalue;
@@ -226,7 +310,7 @@ namespace WS
 		integer_t			value = integer_t{0};
 		_iterator_access<T> parsed;
 		rettype_eat_integer() {};
-		rettype_eat_integer(_iterator_access<T> & container) : parsed{container.begin(),container.begin()} {};
+		rettype_eat_integer(_iterator_access<T> & container) : parsed{container.begin(),container.begin(),container.rvalue_lifetime_extender} {};
 		operator bool() { return parsed; }
 	};
 	template<typename integer_t,typename T> rettype_eat_integer<integer_t,T> eat_integer( _iterator_access<T> & container ) noexcept(false)//wirft bei ueberlauf exception
@@ -239,11 +323,36 @@ namespace WS
 		while( auto erg=eat_if( container, (function_t)&ist_digit ) )
 		{
 			auto old = ret_value.value;
-			ret_value.value = ret_value.value*10 + *erg.begin() - char_t( '0' );
+			ret_value.value = static_cast<integer_t>(ret_value.value*10 + *erg.begin() - char_t( '0' ));
 			if( ret_value.value<old )
 				throw std::out_of_range( __FUNCTION__ " overflow" );
 			++ret_value.parsed.end();
 		}
 		return ret_value;
+	}
+	template<typename integer_t,typename T> rettype_eat_integer<integer_t,T> eat_integer( _iterator_access<T> && container ) noexcept(false)//wirft bei ueberlauf exception
+	{
+		return eat_integer<integer_t>( container );
+	}
+
+	template<typename T> auto eat_space( _iterator_access<T> & container )
+	{
+		using is_t = bool(*)(_iterator_access<T>::value_t);
+		return eat_while( container, (is_t)&WS::isspace );
+	}
+	template<typename T> struct rettype_skip
+	{
+		_iterator_access<T> eaten;
+		operator bool() { return true; }
+		operator _iterator_access<T>() { return eaten; }
+		operator parse_error() { parse_error::none; }
+
+		rettype_skip() {};
+		rettype_skip(_iterator_access<T> eaten) : eaten(eaten) {};
+	};
+	template<typename T> rettype_skip<T> skip_space( _iterator_access<T> & container )
+	{
+		using is_t = bool(*)(_iterator_access<T>::value_t);
+		return eat_space( container );
 	}
 }

@@ -10,6 +10,9 @@ using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 
 #include "..\..\headeronly\SignatureTest.h"
 
+#include <string>
+
+#pragma warning(push,4)
 
 namespace UTPaserFkt
 {
@@ -35,8 +38,7 @@ namespace UTPaserFkt
 			while( container.begin()!=container.end() 
 				   && fn( *container.begin() ) )
 			{
-				++retvalue.end();
-				++container.begin();
+				retvalue.end() = ++container.begin();
 			}
 			
 			return retvalue;
@@ -221,7 +223,7 @@ namespace UTPaserFkt
 		}
 	};
 
-	TEST_CLASS( UT_match_flanked )
+	TEST_CLASS( UT_flanked )
 	{
 	public:
 
@@ -285,6 +287,49 @@ namespace UTPaserFkt
 			Assert::IsTrue( erg.right == '\'' );
 			Assert::IsTrue( toparse == WS::iterator_access( " 'welt'" ) );
 		}
+		TEST_METHOD(make_flanked)
+		{
+			auto erg = WS::make_flanked<std::string>( WS::iterator_access("Hallo"), WS::left_type('['), WS::right_type(']'), WS::escape_type('\\') );
+			Assert::IsTrue( erg=="[Hallo]" );
+
+			erg = WS::make_flanked<std::string>( WS::iterator_access("Ha[ll]o\\Welt"), '[', ']', '\\' );
+			Assert::IsTrue( erg=="[Ha[ll\\]o\\\\Welt]" );
+
+		}
+		template<typename char_t> auto make_eat_remove_helper( char_t const * text, char_t left, char_t right, char_t escape )
+		{
+			auto flanked_out = WS::make_flanked<std::basic_string<char_t>>( WS::iterator_access(text), left,right,escape );
+			auto without_flank = WS::eat_flanked( WS::iterator_access( std::move(flanked_out) ), left,right,escape );
+			return WS::remove_escape( without_flank.eaten, escape );
+		}
+		TEST_METHOD(remove_flanked_with_change)
+		{
+			{
+				auto ursprung = R"("Hallo"\Welt)";
+				auto erg = make_eat_remove_helper( ursprung, WS::left_type( '"' ), WS::right_type( '"' ), WS::escape_type( '\\' ) );
+				Assert::IsTrue( erg ==WS::iterator_access(ursprung) );
+			}
+			{
+				auto ursprung = R"(Hallo "heile" Welt)";
+				auto erg = make_eat_remove_helper( ursprung, WS::left_type( '"' ), WS::right_type( '"' ), WS::escape_type( '\\' ) );
+				Assert::IsTrue( erg ==WS::iterator_access(ursprung) );
+			}
+		}
+		TEST_METHOD(remove_flanked_without_change)
+		{
+			{
+				{
+					auto ursprung = R"(Hallo Welt)";
+					auto erg = make_eat_remove_helper( ursprung, WS::left_type( '"' ), WS::right_type( '"' ), WS::escape_type( '\\' ) );
+					Assert::IsTrue( erg ==WS::iterator_access(ursprung) );
+				}
+				{
+					auto ursprung = R"()";
+					auto erg = make_eat_remove_helper( ursprung, WS::left_type( '"' ), WS::right_type( '"' ), WS::escape_type( '\\' ) );
+					Assert::IsTrue( erg ==WS::iterator_access(ursprung) );
+				}
+			}
+		}
 	};
 
 	TEST_CLASS(UT_Chars)
@@ -310,8 +355,7 @@ namespace UTPaserFkt
 		TEST_METHOD(eat_positiv_all)
 		{
 			auto toparse = WS::iterator_access( "hallo" );
-			auto len1 = toparse.len();
-			auto len = len1-len1;//0
+			auto len1 = toparse.len(); len1;
 			Assert::IsTrue(WS::eat( toparse, WS::iterator_access("hal") ));
 			Assert::IsTrue(WS::eat( toparse, WS::iterator_access("lo") ));
 			Assert::IsTrue( toparse.len()==0 );
@@ -340,6 +384,50 @@ namespace UTPaserFkt
 				auto toparse = WS::iterator_access( L"123Hallo" );
 				Assert::IsTrue( 3==WS::eat_while( toparse, fnIsdigit ).len() );
 				Assert::IsTrue( toparse == WS::iterator_access(L"Hallo") );
+			}
+		}
+		TEST_METHOD( skip_space )
+		{
+			{
+				auto toparse = WS::iterator_access( "   \thallo" );
+				auto erg = WS::skip_space( toparse );
+				Assert::IsTrue( toparse == WS::iterator_access("hallo") );
+				Assert::IsTrue( erg );
+				Assert::IsTrue( erg == WS::iterator_access("   \t") );
+				erg = WS::skip_space( toparse );
+				Assert::IsTrue( erg );
+				Assert::IsTrue( erg.eaten.empty() );
+			}
+			{
+				auto toparse = WS::iterator_access( L"   \thallo" );
+				auto erg = WS::skip_space( toparse );
+				Assert::IsTrue( toparse == WS::iterator_access(L"hallo") );
+				Assert::IsTrue( erg );
+				Assert::IsTrue( erg == WS::iterator_access(L"   \t") );
+				erg = WS::skip_space( toparse );
+				Assert::IsTrue( erg );
+				Assert::IsTrue( erg.eaten.empty() );
+			}
+		}
+		TEST_METHOD( eat_space )
+		{
+			{
+				auto toparse = WS::iterator_access( "   \thallo" );
+				auto erg = WS::eat_space( toparse );
+				Assert::IsTrue( toparse == WS::iterator_access("hallo") );
+				Assert::IsTrue( erg );
+				Assert::IsTrue( erg == WS::iterator_access("   \t") );
+				erg = WS::skip_space( toparse );
+				Assert::IsFalse( erg );
+			}
+			{
+				auto toparse = WS::iterator_access( L"   \thallo" );
+				auto erg = WS::eat_space( toparse );
+				Assert::IsTrue( toparse == WS::iterator_access(L"hallo") );
+				Assert::IsTrue( erg );
+				Assert::IsTrue( erg == WS::iterator_access(L"   \t") );
+				erg = WS::eat_space( toparse );
+				Assert::IsFalse( erg );
 			}
 		}
 	};
@@ -381,10 +469,17 @@ namespace UTPaserFkt
 				Assert::IsTrue( erg.value==123 );
 			}
 		}
+		TEST_METHOD( UT_eat_integer_positiv_rvalue_lifetime_extender_test )
+		{
+			{
+				auto erg = WS::eat_integer<unsigned short>( WS::iterator_access( std::wstring(L"123Hallo") ) );
+				Assert::IsTrue( erg.value == 123 );
+			}
+		}
 		TEST_METHOD( UT_eat_integer_positiv_overflow )
 		{
 			{
-				auto toparse = WS::iterator_access( L"1234" );
+				auto toparse = WS::iterator_access( std::wstring(L"1234") );//with rvalue_lifetime_extender test
 				try
 				{
 					auto erg = WS::eat_integer<__int8>( toparse );
