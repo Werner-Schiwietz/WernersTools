@@ -473,6 +473,7 @@ namespace UTPaserFkt
 		{
 			{
 				auto erg = WS::eat_integer<unsigned short>( WS::iterator_access( std::wstring(L"123Hallo") ) );
+				Assert::IsTrue( erg );
 				Assert::IsTrue( erg.value == 123 );
 			}
 		}

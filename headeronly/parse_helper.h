@@ -312,6 +312,8 @@ namespace WS
 		rettype_eat_integer() {};
 		rettype_eat_integer(_iterator_access<T> & container) : parsed{container.begin(),container.begin(),container.rvalue_lifetime_extender} {};
 		operator bool() { return parsed; }
+		bool operator !() { return !parsed; }
+		operator integer_t(){ return value; }
 	};
 	template<typename integer_t,typename T> rettype_eat_integer<integer_t,T> eat_integer( _iterator_access<T> & container ) noexcept(false)//wirft bei ueberlauf exception
 	{
