@@ -233,29 +233,26 @@ namespace WS
 	}
 
 	//entfernt escape-char. macht kopie nur, wenn sie nötig ist
-	template<typename T>  _iterator_access<T> remove_escape( _iterator_access<T> parse, escape_t<T> escape)
+	template<typename iterator_t>  _iterator_access<decltype(&*std::declval<iterator_t>())> remove_escape( _iterator_access<iterator_t> parse, escape_t<iterator_t> escape)
 	{
-		using value_t = typename _iterator_access<T>::value_t;
-		using buffer_t = std::basic_string<value_t>;
+		using retvalue_t = _iterator_access<decltype(&*std::declval<iterator_t>())>;
+		using value_t = typename _iterator_access<iterator_t>::value_t;
+		using buffer_t = std::basic_string<value_t>;//funktioniert nur, wenn 
 
-		_iterator_access<T>			retvalue{parse.begin(),parse.begin(),parse.rvalue_lifetime_extender};//copy rvalue_lifetime_extender
-		buffer_t					char_buffer;//nur wenn nötig umkopieren
+		_iterator_access<iterator_t>	retvalue{parse.begin(),parse.begin(),parse.rvalue_lifetime_extender};//copy rvalue_lifetime_extender
+		buffer_t						char_buffer;//nur wenn nötig umkopieren
 
 		//bei nötiger veränderung char_buffer benutzen
-		auto append =[&]( _iterator_access<T> parse )
+		auto append =[&]( _iterator_access<iterator_t> parse )
 		{
 			if( parse.empty() )
 				return;
 			if( retvalue.empty() )
-			{
 				retvalue = parse;
-			}
 			else if( retvalue.end() == parse.begin() )
-			{
 				retvalue.end() = parse.end();
-			}
 			else 
-			{
+			{	//veränderung -> umkopieren
 				if( char_buffer.empty() )
 					if( retvalue )
 						char_buffer = buffer_t{retvalue.begin(),retvalue.end()};
@@ -277,8 +274,18 @@ namespace WS
 		}
 
 		if( char_buffer.empty() )
-			return retvalue;
-		return iterator_access( std::move( char_buffer ) );
+		{
+			auto b = &*retvalue.begin();
+			auto e = b+retvalue.len();
+			return retvalue_t{b,e,retvalue.rvalue_lifetime_extender};
+		}
+
+		{
+			auto temp = iterator_access( std::move( char_buffer ) );//rvalue_lifetime_extender anlegen
+			auto b = &*temp.begin();
+			auto e = b+temp.len();//*temp.end() geht nicht
+			return retvalue_t{b,e,temp.rvalue_lifetime_extender};
+		}
 	}
 
 	template<typename T, typename function_t> _iterator_access<T> _eat_if_unckecked( _iterator_access<T> & container, function_t function ) //function_t signature bool(T const &)

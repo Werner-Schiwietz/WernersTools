@@ -302,6 +302,13 @@ namespace UTPaserFkt
 			auto without_flank = WS::eat_flanked( WS::iterator_access( std::move(flanked_out) ), left,right,escape );
 			return WS::remove_escape( without_flank.eaten, escape );
 		}
+		TEST_METHOD(remove_escape_LPCSTR)
+		{
+			auto erg1 = WS::remove_escape( WS::iterator_access("hallo"), '\\' );
+			Assert::IsTrue( erg1==WS::iterator_access( "hallo" ) );
+			auto erg2 = WS::remove_escape( WS::iterator_access(std::string("hallo")), '\\' );
+			Assert::IsTrue( erg2==WS::iterator_access( "hallo" ) );
+		}
 		TEST_METHOD(remove_flanked_with_change)
 		{
 			{
