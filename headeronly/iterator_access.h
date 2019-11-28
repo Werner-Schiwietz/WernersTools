@@ -75,6 +75,28 @@ namespace WS
 		_iterator_access( wchar_t * first) :_iterator_access<iterator_t>( first, stringlen(first)){}
 		_iterator_access( char const * first) : _iterator_access<iterator_t>( first, stringlen(first)){}
 		_iterator_access( wchar_t const * first) : _iterator_access<iterator_t>( first, stringlen(first)){}
+
+		_iterator_access& operator+=(_iterator_access const & r)
+		{
+			if( this->empty() )
+				*this = r;
+			else if( r.empty() == false )
+			{
+				if( this->end() != r.begin() )
+					throw std::invalid_argument( __FUNCTION__ " r.begin() != end()" );
+				else
+					this->end() = r.end();
+			}
+		}
+		_iterator_access operator+(_iterator_access const & r)
+		{
+			return _iterator_access{*this} += r;
+		}
+		_iterator_access& append(_iterator_access const & r)
+		{
+			return operator+=( r );
+		}
+
 		operator _iterator_access<iterator_t const>() const
 		{
 			return _iterator_access<iterator_t const>( *this );

@@ -96,7 +96,7 @@ namespace WS
 	}	
 	template<typename T, typename ... items_t> _iterator_access<T> eat_oneof( _iterator_access<T> & container, items_t ... items ) 
 	{
-		_iterator_access<T> retvalue{container.begin(),container.begin()};
+		_iterator_access<T> retvalue{container.begin(),container.begin(),container.rvalue_lifetime_extender};
 
 		if( container.begin()!=container.end() )
 			if( _eat_oneof_unchecked( container, items ... ) )
@@ -111,9 +111,9 @@ namespace WS
 		if( container.begin()!=container.end() )
 			for( auto & item : items)
 				if( _eat_unchecked( container, item ) )
-					return _iterator_access<T> {begin,container.begin()};
+					return _iterator_access<T> {begin,container.begin(),container.rvalue_lifetime_extender};
 
-		return _iterator_access<T> {begin,begin};;
+		return _iterator_access<T> {begin,begin,container.rvalue_lifetime_extender};
 	}
 
 	template<typename T> rettype_eat<T> eat_till( _iterator_access<T> & container_in, typename _iterator_access<T>::value_t const & till_item, typename _iterator_access<T>::value_t const & escape_item )
@@ -209,27 +209,34 @@ namespace WS
 		}
 		return {container_in, container_in.begin(),container_in.begin()};
 	}
-
+	template <typename container_t, typename value_t> container_t& append( container_t & container, value_t value )
+	{
+		return container += value;
+	}
+	template <typename container_t, typename iterator_t> container_t& append( container_t & container, iterator_t first, iterator_t last )
+	{
+		return container += container_t{first, last};
+	}
 	template<typename container_t, typename T> container_t make_flanked( _iterator_access<T> parse, left_t<T> left, right_t<T> right, escape_t<T> escape)
 	{
 		container_t retvalue;
 		using value_t = typename _iterator_access<T>::value_t;
 
-		retvalue += left;
+		append( retvalue, left );
 		for(;parse;)
 		{
 			auto part = eat_while( parse, [right, escape]( value_t const & value ) { return value!=right && value!=escape; } );
 			if( part )
-				retvalue += container_t( part.begin(), part.end() );
+				append( retvalue, part.begin(), part.end() );
 
 			if( parse )
 			{
-				retvalue += escape;
-				retvalue += *parse.begin()++;
+				append( retvalue, escape );
+				append( retvalue, *parse.begin()++ );
 			}
 		}
 		
-		return retvalue+=right;
+		return append( retvalue, right );
 	}
 
 	//entfernt escape-char. macht kopie nur, wenn sie nötig ist
@@ -302,7 +309,7 @@ namespace WS
 		if( container.begin()!=container.end() )
 			return _eat_if_unckecked( container, function );
 
-		return {container.begin(),container.begin()};
+		return {container.begin(),container.begin(),container.rvalue_lifetime_extender};
 	}
 	template<typename T, typename function_t> _iterator_access<T> eat_while( _iterator_access<T> & container, function_t function ) //function_t signature bool(T const&)
 	{
