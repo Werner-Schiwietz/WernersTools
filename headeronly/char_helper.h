@@ -178,19 +178,19 @@ template<size_t size> inline wchar_t* itostring_s(    int value, wchar_t (&sz)[s
 
 namespace WS
 {
-	bool isspace( char ch )
+	inline bool isspace( char ch )
 	{
 		return !!::isspace( ch );
 	}
-	bool isspace( char ch, _locale_t _Locale )
+	inline bool isspace( char ch, _locale_t _Locale )
 	{
 		return !!::_isspace_l( ch, _Locale );
 	}
-	bool isspace( wchar_t ch )
+	inline bool isspace( wchar_t ch )
 	{
 		return !!::iswspace( ch );
 	}
-	bool isspace( wchar_t ch, _locale_t _Locale )
+	inline bool isspace( wchar_t ch, _locale_t _Locale )
 	{
 		return !!::_iswspace_l( ch, _Locale );
 	}
