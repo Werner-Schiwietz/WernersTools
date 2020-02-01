@@ -301,7 +301,7 @@ template<enumDtor_call_Movetype eMovetype, typename function_method_type, typena
 {
 	auto operator()(function_method_type fnRelease, objekt_ptr_type object, Args ... args)
 	{
-		typedef decltype((object->*fnRelease)(args...)) methoden_type;//ist die methode auf das objekt aufrufbar? wenn nicht gibt es hier compilefehler. 
+		//typedef decltype((object->*fnRelease)(std::forward<Args>(args)...)) methoden_type;//ist die methode auf das objekt aufrufbar? wenn nicht gibt es hier compilefehler. 
 		return Dtor_call<eMovetype, std::remove_pointer_t<objekt_ptr_type>, function_method_type, Args...>(object, fnRelease, std::forward<Args>(args) ...);
 	}
 };

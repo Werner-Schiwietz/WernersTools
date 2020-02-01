@@ -87,7 +87,7 @@ namespace WS
 		return retvalue;
 	}
 
-	template<typename T> bool _eat_oneof_unchecked( _iterator_access<T> & container ) { return false; }
+	template<typename T> bool _eat_oneof_unchecked( _iterator_access<T> & ) { return false; }
 	template<typename T, typename ... items_t> bool _eat_oneof_unchecked( _iterator_access<T> & container, typename _iterator_access<T>::value_t const & item, items_t ... items )
 	{
 		if( _eat_unchecked( container, item ) )
@@ -223,21 +223,36 @@ namespace WS
 		using value_t = typename _iterator_access<T>::value_t;
 
 		append( retvalue, left );
+
 		for(;parse;)
 		{
 			auto part = eat_while( parse, [right, escape]( value_t const & value ) { return value!=right && value!=escape; } );
 			if( part )
 				append( retvalue, part.begin(), part.end() );
-
 			if( parse )
 			{
 				append( retvalue, escape );
 				append( retvalue, *parse.begin()++ );
 			}
 		}
-		
 		return append( retvalue, right );
 	}
+
+	template<typename container_t, typename T> container_t make_flanked( _iterator_access<T> parse, flanked_t<T> const & flank_item, escape_t<T> escape)
+	{
+		return make_flanked<container_t>( parse, flank_item, flank_item, escape);
+	}
+
+	template<typename iterator_t>  _iterator_access<decltype(&*std::declval<iterator_t>())> remove_flank( _iterator_access<iterator_t> parse, left_t<iterator_t> const & left_item, right_t<iterator_t> const & right_item, escape_t<iterator_t> const & escape_item )
+	{
+		return remove_escape( eat_flanked( parse, left_item, right_item, escape_item ).eaten, escape_item );
+	}
+
+	template<typename iterator_t>  _iterator_access<decltype(&*std::declval<iterator_t>())> remove_flank( _iterator_access<iterator_t> parse, flanked_t<iterator_t> const & flank_item, escape_t<iterator_t> const & escape_item )
+	{
+		return remove_escape( eat_flanked( parse, flank_item, flank_item, escape_item ), escape_item );
+	}
+
 
 	//entfernt escape-char. macht kopie nur, wenn sie nötig ist
 	template<typename iterator_t>  _iterator_access<decltype(&*std::declval<iterator_t>())> remove_escape( _iterator_access<iterator_t> parse, escape_t<iterator_t> escape)

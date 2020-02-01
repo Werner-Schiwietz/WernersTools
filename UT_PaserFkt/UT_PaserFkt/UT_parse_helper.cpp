@@ -309,10 +309,78 @@ namespace UTPaserFkt
 			auto erg2 = WS::remove_escape( WS::iterator_access(std::string("hallo")), '\\' );
 			Assert::IsTrue( erg2==WS::iterator_access( "hallo" ) );
 		}
+		TEST_METHOD(iterator_access__append)
+		{
+			auto buf = WS::iterator_access("Hallo Welt");
+			auto erg = buf.left( 1 );
+			Assert::IsTrue( erg == WS::iterator_access("H") );
+			erg += buf.mid( 1, 1 );
+			Assert::IsTrue( erg == WS::iterator_access("Ha") );
+			erg += buf.mid( 2, 2 );
+			Assert::IsTrue( erg == WS::iterator_access("Hall") );
+
+			try
+			{
+				erg += buf.mid( 5, 1 );
+				Assert::Fail( L"exception erwartet, l.end()!=r.begin()" );
+			}
+			catch(...){}
+		}
+		TEST_METHOD(remove_flank_std_string_with_change)
+		{
+			auto ursprung = std::wstring(LR"("Hallo"\Welt)");
+			auto flanke = WS::flanked_type(L'"');
+			auto escape = WS::escape_type(L'\\');
+			{
+				auto flanked = WS::make_flanked<std::basic_string<wchar_t>>( WS::iterator_access(std::wstring(ursprung)), flanke, escape );
+				auto ohne_flanke = WS::remove_flank( WS::iterator_access(flanked), flanke, flanke, escape );
+				Assert::IsTrue( WS::iterator_access(ursprung)==ohne_flanke);
+				Assert::IsTrue( has_value(ohne_flanke.rvalue_lifetime_extender) );
+			}
+		}
+
+		TEST_METHOD(remove_flank_std_string_without_change)
+		{
+			auto ursprung = std::wstring(LR"(Hallo Welt)");
+			auto flanke = WS::flanked_type(L'"');
+			auto escape = WS::escape_type(L'\\');
+			{
+				auto flanked = WS::make_flanked<std::basic_string<wchar_t>>( WS::iterator_access(std::wstring(ursprung)), flanke, escape );
+				auto ohne_flanke = WS::remove_flank( WS::iterator_access(flanked), flanke, flanke, escape );
+				Assert::IsTrue( WS::iterator_access(ursprung)==ohne_flanke);
+				Assert::IsFalse( has_value(ohne_flanke.rvalue_lifetime_extender) );
+			}
+		}
+
+		TEST_METHOD(remove_flank_LPCTSR_with_change)
+		{
+			auto ursprung = LR"("Hallo"\Welt)";
+			auto flanke = WS::flanked_type(L'"');
+			auto escape = WS::escape_type(L'\\');
+			{
+				auto flanked = WS::make_flanked<std::basic_string<wchar_t>>( WS::iterator_access(ursprung), flanke, escape );
+				auto ohne_flanke = WS::remove_flank( WS::iterator_access(flanked), flanke, flanke, escape );
+				Assert::IsTrue( WS::iterator_access(ursprung)==ohne_flanke);
+				Assert::IsTrue( has_value(ohne_flanke.rvalue_lifetime_extender) );
+			}
+		}
+
+		TEST_METHOD(remove_flank_LPCTSR_without_change)
+		{
+			auto ursprung = LR"(Hallo Welt)";
+			auto flanke = WS::flanked_type(L'"');
+			auto escape = WS::escape_type(L'\\');
+			{
+				auto flanked = WS::make_flanked<std::basic_string<wchar_t>>( WS::iterator_access(ursprung), flanke, escape );
+				auto ohne_flanke = WS::remove_flank( WS::iterator_access(flanked), flanke, flanke, escape );
+				Assert::IsTrue( WS::iterator_access(ursprung)==ohne_flanke);
+				Assert::IsFalse( has_value(ohne_flanke.rvalue_lifetime_extender) );
+			}
+		}
 		TEST_METHOD(remove_flanked_with_change)
 		{
 			{
-				auto ursprung = R"("Hallo"\Welt)";
+				auto ursprung = R"("Hallo"\Welt\)";
 				auto erg = make_eat_remove_helper( ursprung, WS::left_type( '"' ), WS::right_type( '"' ), WS::escape_type( '\\' ) );
 				Assert::IsTrue( erg ==WS::iterator_access(ursprung) );
 			}
@@ -488,6 +556,23 @@ namespace UTPaserFkt
 		{
 			{
 				auto toparse = WS::iterator_access( std::wstring(L"1234") );//with rvalue_lifetime_extender test
+				auto x = toparse;
+#pragma warning(suppress:4996)
+				auto xi = *x.GetNextEntry();
+				Assert::IsTrue( xi==L'1' );
+#pragma warning(suppress:4996)
+				xi = *x.GetNextEntry();
+				Assert::IsTrue( xi==L'2' );
+#pragma warning(suppress:4996)
+				xi = *x.GetNextEntry();
+				Assert::IsTrue( xi==L'3' );
+#pragma warning(suppress:4996)
+				xi = *x.GetNextEntry();
+				Assert::IsTrue( xi==L'4' );
+				Assert::IsTrue( x.empty() );
+//#pragma warning(suppress:4996)
+//				xi = *x.GetNextEntry();
+
 				try
 				{
 					auto erg = WS::eat_integer<__int8>( toparse );

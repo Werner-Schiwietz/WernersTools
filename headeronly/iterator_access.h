@@ -29,6 +29,18 @@
 #else
 #	define _WS_DEPECATED_(message)
 #endif
+#if _HAS_CXX17 
+#	include <any>
+	using rvalue_lifetime_extender_t = std::any;
+	template<typename container_t> rvalue_lifetime_extender_t extend( std::shared_ptr<container_t> ptr ) { return rvalue_lifetime_extender_t( ptr ); }
+	bool has_value( rvalue_lifetime_extender_t const & r ) { return r.has_value(); }
+#else
+#	include <functional> //lambda als any missbrauchen
+	using rvalue_lifetime_extender_t = std::function<void(void)>;//die function wird nie aufgerufen. das shared-ptr objekt als capture parameter ist das wichtige
+	template<typename container_t> rvalue_lifetime_extender_t extend( std::shared_ptr<container_t> ptr ) { return rvalue_lifetime_extender_t( [ptr]() {} ); }
+	bool has_value( rvalue_lifetime_extender_t const & r ) { return (bool)r; }
+#endif
+
 /*//nur um breakpoints an auf shared_ptr machen zu koennen
 namespace WS
 {
@@ -64,12 +76,12 @@ namespace WS
 		using value_t = std::decay_t<decltype(*std::declval<iterator_t>())>;
 		iterator_t	first;
 		iterator_t	last;//eigentlich last+1, also end nach iteratorlogik
-		std::function<void(void)> rvalue_lifetime_extender;//statt std::any. die function wird nie aufgerufen. das shared-ptr objekt als capture parameter ist das wichtige
+		rvalue_lifetime_extender_t rvalue_lifetime_extender;//statt std::any. die function wird nie aufgerufen. das shared-ptr objekt als capture parameter ist das wichtige
 		~_iterator_access(){};
 		_iterator_access(){ init_member(); }
 		_iterator_access( _iterator_access const & ) = default; 
 		_iterator_access( iterator_t first, iterator_t last )				: first( first ), last( last ){}
-		_iterator_access( iterator_t first, iterator_t last, std::function<void(void)> rvalue_lifetime_extender ) : first( first ), last( last ), rvalue_lifetime_extender(rvalue_lifetime_extender){}
+		_iterator_access( iterator_t first, iterator_t last, rvalue_lifetime_extender_t rvalue_lifetime_extender ) : first( first ), last( last ), rvalue_lifetime_extender(rvalue_lifetime_extender){}
 		_iterator_access( iterator_t first, size_t items )					: first( first ), last( first+items ){}
 		_iterator_access( char * first) : _iterator_access<iterator_t>( first, stringlen(first)){}
 		_iterator_access( wchar_t * first) :_iterator_access<iterator_t>( first, stringlen(first)){}
@@ -87,6 +99,7 @@ namespace WS
 				else
 					this->end() = r.end();
 			}
+			return *this;
 		}
 		_iterator_access operator+(_iterator_access const & r)
 		{
@@ -119,6 +132,10 @@ namespace WS
 		bool operator !() const {return empty();}
 		operator iterator_t() const{ return begin();}
 
+		template<typename l_iterator_t,typename r_iterator_t> static bool lth(l_iterator_t const &l, r_iterator_t const & r) 
+		{
+			return *l < *r;
+		}
 		template<typename other_iterator_t> int cmp( _iterator_access<other_iterator_t> const & r ) const
 		{
 			auto il = this->begin();
@@ -133,9 +150,9 @@ namespace WS
 				if( ir==r.end() )
 					return 1;
 
-				if( *il < *ir )
+				if( lth(il,ir) )
 					return -1;
-				if( *ir < *il )
+				if( lth(ir,il) )
 					return 1;
 				++il;++ir;
 			}
@@ -151,12 +168,20 @@ namespace WS
 		auto left( size_t chars ) const
 		{
 			chars = std::min(chars,len());//include <alogrithm>
-			return _iterator_access( begin(), begin()+chars );
+			return _iterator_access{ begin(), begin()+chars, this->rvalue_lifetime_extender };
 		}
 		auto right( size_t chars ) const
 		{
 			chars = std::min(chars,len());//include <alogrithm>
-			return _iterator_access( end()-chars, end() );
+			return _iterator_access{ end()-chars, end(), this->rvalue_lifetime_extender };
+		}
+		auto mid( size_t skipped_chars ) const
+		{
+			return right( len()-skipped_chars );
+		}
+		auto mid( size_t skipped_chars, size_t chars ) const
+		{
+			return mid( skipped_chars ).left( chars );
 		}
 		auto find( value_t const & value )
 		{
@@ -232,7 +257,7 @@ namespace WS
 
 	template<typename iterator_t, typename container_t> inline auto iterator_access( iterator_t first, iterator_t last, std::shared_ptr<container_t> && container ) { return _iterator_access<iterator_t>( first, last, std::move(container) ); }
 	template<typename iterator_t> inline auto iterator_access( iterator_t first, iterator_t last){ return _iterator_access<iterator_t>( first, last ); }
-	template<typename iterator_t> inline auto iterator_access( iterator_t first, iterator_t last, std::function<void(void)> rvalue_lifetime_extender){ return _iterator_access<iterator_t>( first, last, rvalue_lifetime_extender ); }
+	template<typename iterator_t> inline auto iterator_access( iterator_t first, iterator_t last, rvalue_lifetime_extender_t rvalue_lifetime_extender){ return _iterator_access<iterator_t>( first, last, rvalue_lifetime_extender ); }
 	template<typename iterator_t> inline auto iterator_access( iterator_t first, size_t len){ return _iterator_access<iterator_t>( first, len ); }
 	//komfort fuer nullterminierte zeichenketten
 	inline auto iterator_access( char * first){ return _iterator_access<char *>( first, stringlen(first)); }
@@ -252,7 +277,7 @@ namespace WS
 	template<class container_t> auto iterator_access( container_t && r )//lebensverlängerung fuer rvalues, damit die iteratoren nicht ins leere laufen. erster versuch war mit (std/boost)::any. waere besser, aber sind nicht immer verfügbar C++17
 	{
 		auto as_shared_ptr = std::make_shared<container_t>( std::move( r ) );
-		return iterator_access( begin( *as_shared_ptr ), end( *as_shared_ptr ), std::function<void(void)>([as_shared_ptr](){}) );
+		return iterator_access( begin( *as_shared_ptr ), end( *as_shared_ptr ), extend(as_shared_ptr) );
 	}
 
 	 template<typename char_t, size_t size> inline auto array_iterator_access( char_t (& Array)[size] ){ return _iterator_access<char_t*>( Array, size ); }

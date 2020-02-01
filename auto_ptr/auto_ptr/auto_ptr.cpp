@@ -127,6 +127,24 @@ namespace Allerei
 			new int{5};
 			new std::vector<int>{1,2,3};
 		}
+		//template<typename T> struct test_extent { int constexpr value=std::extent<T>::value; };
+		TEST_METHOD( std__extent )
+		{
+			Assert::IsTrue( std::is_array<int[3]>::value );
+			Assert::IsTrue( std::extent<int[3]>::value == 3 );
+			Assert::IsTrue( std::is_array<int[3][4]>::value );
+			Assert::IsTrue( std::extent<int[3][4]>::value == 3 );
+			Assert::IsFalse( std::extent<int[3][4]>::value == 4 );
+			Assert::IsTrue( std::extent<int[3][4], 0>::value == 3 );
+			Assert::IsTrue( std::extent<int[3][4], 1>::value == 4 );
+			Assert::IsTrue( std::extent<int[3][4], 3>::value == 0 );
+			Assert::IsFalse( std::is_array<int>::value );
+			Assert::IsTrue( std::extent<int>::value == 0 );
+			Assert::IsTrue( std::extent<int, 3>::value == 0 );
+			Assert::IsTrue( std::extent<int[]>::value == 0 );
+			Assert::IsTrue( std::is_array<int[]>::value );
+
+		}
 	};
 }
 
@@ -674,9 +692,13 @@ namespace autoptr
 			Int I{11,_startwert};
 			//foo( &I );//dont do something like this. you cant manage a stack-objekt
 
+			foo( (Int*)nullptr );
 			foo( new Int{5,_startwert} );
 			foo( std::make_unique<Int>(6,_startwert) );
+			foo( std::unique_ptr<Int>{} );
 			foo( std::make_shared<Int>(7,_startwert) );
+			foo( std::shared_ptr<Int>{} );
+			foo( WS::auto_ptr<Int>{} );
 			foo( WS::auto_ptr<Int>(new Int{8,_startwert},true) ); 
 			foo( WS::auto_ptr<Int>(std::make_shared<Int>(9,_startwert)) ); 
 

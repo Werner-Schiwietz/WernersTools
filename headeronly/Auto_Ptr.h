@@ -476,6 +476,12 @@ namespace WS
 			return is_owner() || is_shared_ptr();
 		}
 	};
+
+	template<typename T, typename ... Arg_ts> auto make_auto_ptr( Arg_ts ... args )
+	{
+		return auto_ptr<T>{ std::make_unique<T>( std::forward<Arg_ts>( args )... ) };
+	}
+
 	//nur als parameter fuer funktionen benutzen. member und lokale variablen immer nur als auto_ptr<T> anlegen
 	template<typename T> class auto_ptr_owner_parameter 
 	{
@@ -494,7 +500,7 @@ namespace WS
 		auto_ptr_owner_parameter( auto_ptr<T> const & must_be_owner ) = delete;
 		auto_ptr_owner_parameter( auto_ptr<T> && must_be_owner )																					// fn( WS::auto_ptr<int>(new int{5}) );
 		{
-			if( must_be_owner.is_manager()==false )
+			if( must_be_owner.is_manager()==false && must_be_owner!=nullptr )
 				throw std::invalid_argument( __FUNCTION__ " WS::auto_ptr mit is_manager-attribut erwartet" );
 			data = std::move(must_be_owner);
 		}
