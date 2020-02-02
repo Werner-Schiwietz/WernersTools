@@ -60,16 +60,12 @@ namespace WS
 			Locked() = default;
 			Locked(ICritical * critical, bool locked) : critical(critical),	locked(locked){}
 			Locked(Locked const & r) = delete;
-			Locked(Locked && r)
-			{
-				*this = std::move(r);
-			}
+			Locked(Locked && r) noexcept { swap( r ); }
+
 			Locked& operator=(Locked const & r) = delete;
-			Locked& operator=(Locked && r)
+			Locked& operator=(Locked && r) & noexcept
 			{
-				Locked temp;
-				temp.swap(r);
-				temp.swap(*this);
+				Locked { std::move( r ) }.swap(*this);
 				return *this;
 			}
 
@@ -88,11 +84,13 @@ namespace WS
 				{
 				}
 			}
-			operator bool ()
+			/*explicit*/ operator bool () const
 			{
 				return locked;
 			}
-			bool operator()()//functor statt operator bool
+			bool operator ! () const { return !operator bool(); }
+			bool operator==( bool value ) const { return operator bool()==value; }
+			bool operator()() const //functor statt operator bool
 			{
 				return locked;
 			}
@@ -156,12 +154,12 @@ namespace WS
 		{
 			auto locked = try_lock();
 		
-			return locked()==false;
+			return locked==false;
 		}
 	protected:
 		virtual void				release() _INTERFACE_FUNCTION_
 		{
-			ASSERT(flag._My_flag);
+			//ASSERT(flag._My_flag);
 			ASSERT( writethreadid == std::this_thread::get_id() );
 			writethreadid = threadid();
 			flag.clear();
