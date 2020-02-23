@@ -1,0 +1,38 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+  <!--
+  tree.natvis benutzerdefinierte Watchansicht zu WS::tree_t WS::node_t
+  von Werner Schiwietz
+  kann z.B. den Projektdateien hinzugefügt werden
+  -->
+<AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
+  <Type Name="WS::tree_t&lt;*&gt;::node_t">
+    <DisplayString Condition="parent==0">{{value:{value} left:{left} right:{right} parent:&lt;NULL&gt;}}</DisplayString>
+    <DisplayString >{{value:{value} left:{left} right:{right} parent:{(void*)parent}}}</DisplayString>
+    <Expand>
+      <Item Name="value">value</Item>
+      <Item Name="left">*left</Item>
+      <Item Name="right">*right</Item>
+      <Item Name="parent">*parent</Item>
+      <TreeItems>
+        <!--<Size>_Mysize</Size>-->
+        <HeadPointer>parent</HeadPointer>
+        <LeftPointer>left._Mypair._Myval2</LeftPointer>
+        <RightPointer>right._Mypair._Myval2</RightPointer>
+        <ValueNode >value</ValueNode>
+      </TreeItems>
+    </Expand>
+  </Type>
+  <Type Name="WS::tree_t&lt;*&gt;">
+    <DisplayString >{*root}</DisplayString>
+    <Expand>
+      <Item Name="root">*root</Item>
+      <!--<TreeItems>
+        --><!--<Size>_Mysize</Size>--><!--
+        <HeadPointer>root._Mypair._Myval2</HeadPointer>
+        <LeftPointer>root._Mypair._Myval2->left._Mypair._Myval2</LeftPointer>
+        <RightPointer>root._Mypair._Myval2->right._Mypair._Myval2</RightPointer>
+        <ValueNode >root->value</ValueNode>
+      </TreeItems>-->
+    </Expand>
+  </Type>
+</AutoVisualizer>

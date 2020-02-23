@@ -198,7 +198,7 @@ namespace WS
 		//explicit
 		auto_ptr( pointer_type p ) : auto_ptr( p, take_ownership(false) ){}
 
-		auto_ptr( enable_auto_ptr_from_this<T> & r ) : auto_ptr( dynamic_cast<pointer_type>(&r), false, true ) {}
+		auto_ptr( enable_auto_ptr_from_this<T> & r ) : auto_ptr( r.auto_ptr_from_this() ) {}
 
 		//explicit 
 		auto_ptr( std::unique_ptr<T> && Ptr ) 
@@ -254,6 +254,7 @@ namespace WS
 			//static_assert(std::is_array<T>::value==std::is_array<U>::value, "beides arrays oder einzelwerte");
 			static_assert( std::is_same<std::remove_const_t<T>,std::remove_const_t<U>>::value		//U kann zu const T werden
 							|| std::is_base_of<Tpt1,Upt1>::value				//oder T ist basisklasse zu U
+							|| std::is_base_of<Upt1,Tpt1>::value				//oder U ist basisklasse zu T 
 							, "U kann nicht zu T mit owneruebername werden" );
 
 			auto_ptr<U> tempU;
@@ -261,8 +262,13 @@ namespace WS
 
 			this->share = ReferenzCounter<pointer_type>( tempU.share );
 
-			//wenn es unique_ptr nicht kann, geht es halt nicht
-			this->Ptr = std::move(tempU.Ptr);
+			if( tempU.Ptr )
+			{
+				if( dynamic_cast<pointer_type>(tempU.Ptr.get()) )
+					this->Ptr = std::unique_ptr<T>( dynamic_cast<pointer_type>(tempU.Ptr.release()) );
+				//else
+				//	ASSERT( !"cast von U auf T klappt nicht");
+			}
 		}
 
 		auto_ptr & operator=(auto_ptr && r) noexcept
@@ -477,11 +483,11 @@ namespace WS
 		}
 	};
 
-	template<typename T, typename ... Arg_ts> auto make_auto_ptr( Arg_ts ... args )
+	template<typename T,typename ... Arg_ts> auto make_auto_ptr( Arg_ts ... args )
 	{
-		return auto_ptr<T>{ std::make_unique<T>( std::forward<Arg_ts>( args )... ) };
+		return auto_ptr<T>{ std::make_unique<T>(std::forward<Arg_ts>(args)...) };//make_unique kümmert sich um [] und sontige unerwartete dinge
 	}
-
+	//auto_ptr_owner_parameter hält kurzzeitig einen owner auto_ptr oder einen nullptr
 	//nur als parameter fuer funktionen benutzen. member und lokale variablen immer nur als auto_ptr<T> anlegen
 	template<typename T> class auto_ptr_owner_parameter 
 	{
@@ -489,12 +495,16 @@ namespace WS
 	public:
 		//usage:	 z.B.	void foo( WS::auto_ptr_owner_parameter<int> );//foo-declaration
 							//foo( &int_value ); ATTENTION NEVER call foo with address of stack-object
+							//foo( (int*)nullptr ); calling foo with nullptr
 							//foo( new int{5} ); calling foo with pointer
 							//foo( std::make_unique<int>(5) ); calling foo with unique_ptr
+							//foo( std::unique_ptr<int>{} ); calling foo with unique_ptr
 							//foo( std::make_shared<int>(5) ); calling foo with shared_ptr
-							//foo( WS::auto_ptr<int>(new int{6},true) ); calling foo with auto_ptr with attrib is_owner()
-							//foo( WS::auto_ptr<int>(std::make_shared<int>(7)) ); calling foo with auto_ptr with attrib is_shared_ptr() 
-							//foo( WS::auto_ptr<int>(new int{6},false) ); ATTENTION exception throwing when calling foo with auto_ptr without attrib is_shared()
+							//foo( std::shared_ptr<int>{} ); calling foo with shared_ptr
+							//foo( WS::auto_ptr<int>{} ); calling foo with auto_ptr with nullptr
+							//foo( WS::auto_ptr<int>{new int{6},true} ); calling foo with auto_ptr with attrib is_owner()
+							//foo( WS::auto_ptr<int>{std::make_shared<int>(7)} ); calling foo with auto_ptr with attrib is_shared_ptr() 
+							//foo( WS::auto_ptr<int>{new int{6},false} ); ATTENTION exception throwing when calling foo with auto_ptr without attrib is_managed()
 
 		auto_ptr_owner_parameter( typename auto_ptr<T>::pointer_type p ) : data( p, true ){}														// fn( new int{5} );
 		auto_ptr_owner_parameter( auto_ptr<T> const & must_be_owner ) = delete;
@@ -563,13 +573,28 @@ namespace WS
 			this->auto_this.share.SetNullptr();
 		}
 	public:
-		auto_ptr<this_t> const & auto_ptr_from_this() const//wichtig das retvalue const & ist. als rvalue wuerden die zuweisung mit transfer versucht, das klappt bei ableitung aber nicht
+		auto_ptr<this_t> auto_ptr_from_this()
 		{
-			if( auto_this==nullptr )//conditionjump besser als funktionspointerjump, so kann die CPU optimieren, behauptet das internet ohne beiweise. glaube ich aber nicht. ist aber deutlich besser lesbar als mit functionspointern
-				//auto_this = auto_ptr<this_t>(dynamic_cast<this_t*>(const_cast<enable_auto_ptr_from_this*>(this)));
-				auto_this = auto_ptr<this_t>(*const_cast<enable_auto_ptr_from_this*>(this));
+			if( this->auto_this==nullptr )//conditionjump besser als funktionspointerjump, so kann die CPU optimieren, behauptet das internet ohne beiweise. glaube ich aber nicht. ist aber deutlich besser lesbar als mit functionspointern
+			{
+				this->auto_this = auto_ptr<this_t>(dynamic_cast<this_t*>(this),false,auto_ptr<this_t>::Managed(true));
+			}
 			return auto_this;
 		}
+		auto_ptr<this_t const > auto_ptr_from_this() const
+		{
+			if( this->auto_this==nullptr )//conditionjump besser als funktionspointerjump, so kann die CPU optimieren, behauptet das internet ohne beiweise. glaube ich aber nicht. ist aber deutlich besser lesbar als mit functionspointern
+			{
+				//const_cast ist noetig
+				auto_this = auto_ptr<this_t>(dynamic_cast<this_t*>(const_cast<enable_auto_ptr_from_this*>(this)),false,auto_ptr<this_t>::Managed(true));
+			}
+			return auto_this;
+		}
+		//gibt nur aerger
+		//auto_ptr<this_t> operator&() const
+		//{
+		//	return auto_ptr_from_this();
+		//}
 	};
 
 	//usage: auto_ptr_vw<int[,std::vector|,std::deque]>

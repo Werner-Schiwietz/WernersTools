@@ -7,6 +7,7 @@
 #include <map>
 #include <mutex>
 
+#pragma push_macro("ASSERT")
 #ifndef ASSERT
 #	define ASSERT(x) ((void)0)
 #endif // !ASSERT
@@ -197,6 +198,7 @@ namespace WS
 		virtual void				release() _INTERFACE_FUNCTION_
 		{
 			--lock_count;
+			#pragma warning(suppress:26110)
 			this->mutex.unlock();
 		}
 	};
@@ -477,3 +479,5 @@ namespace WS
 	#endif
 	};
 }//namespace WS
+
+#pragma pop_macro("ASSERT")
