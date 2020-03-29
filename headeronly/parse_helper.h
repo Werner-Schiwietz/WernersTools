@@ -13,7 +13,7 @@
 
 namespace WS
 {
-	enum parse_error
+	enum class parse_error
 	{
 		none,
 		incomplete,

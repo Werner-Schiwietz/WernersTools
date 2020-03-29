@@ -29,11 +29,6 @@
 #include <memory>
 #include <atomic>
 
-namespace std
-{
-	template <class _Ty, class _Alloc = allocator<_Ty>> class vector;
-}
-
 //#define LINE_STRING2(x) #x				//macht aus der zahl einen sting
 //#define LINE_STRING1(x) LINE_STRING2(x)	//nötig, damit __LINE__ zur Zahl wird
 //#define _LINE_ LINE_STRING1(__LINE__)		//in pragma message kann _LINE_ verwendet wwerden
@@ -597,11 +592,20 @@ namespace WS
 		//}
 	};
 
+}
+namespace std
+{
+	//dont forget include <vector>
+	template <class _Ty, class _Alloc > class vector;
+}
+
+namespace WS
+{
 	//usage: auto_ptr_vw<int[,std::vector|,std::deque]>
-	template<typename T, template<typename> class container_type=std::vector> class auto_ptr_vw
+	template<typename T, class container_type=std::vector<auto_ptr<T>,std::allocator<auto_ptr<T>>>> class auto_ptr_vw
 	{
 	public:
-		using container_t = container_type<auto_ptr<T>>;
+		using container_t = container_type;
 		using pointer_type = typename auto_ptr<T>::pointer_type;
 		using pointer_t = pointer_type;
 
@@ -615,7 +619,7 @@ namespace WS
 		auto_ptr<T> at( size_t index ) { return container.at(index); }//liefert kopie. referenz wäre owner mit evtl. fatalen folgen
 		auto_ptr<T> operator[]( size_t index ) { return container[index]; }//liefert kopie. referenz wäre owner mit evtl. fatalen folgen
 
-		auto push_back( auto_ptr_owner_parameter<T> auto_ptr_owner )//return_value ohne ref, also als kopie, sonst waere es eine refenez auf owner
+		auto & push_back( auto_ptr_owner_parameter<T> auto_ptr_owner )//return_value ohne ref, also als kopie, sonst waere es eine refenez auf owner
 		{
 			return container.emplace_back( auto_ptr_owner.move() );
 		}

@@ -1040,12 +1040,30 @@ namespace autoptr
 	{
 		TEST_METHOD(add_values)
 		{
-			WS::auto_ptr_vw<int, std::vector> vw;
 
-			
+			{
+				WS::auto_ptr_vw<int> vw;
+				{
+					auto  neu{vw.push_back( new int{1} )};
+					Assert::IsFalse( neu.is_owner());
+					Assert::IsTrue( *neu==1 );
+				}
+				{
+					auto  & neu{vw.push_back( new int{2} )};
+					Assert::IsTrue( neu.is_owner());
+					Assert::IsTrue( *neu==2 );
+				}
+				{
+					auto  && neu{vw.push_back( new int{3} )};
+					Assert::IsTrue( neu.is_owner());
+					Assert::IsTrue( *neu==3 );
+				}
+			}
+
+			WS::auto_ptr_vw<int> vw;
 			{
 				auto && neu{vw.push_back( new int{1} )};
-				Assert::IsTrue( neu.is_owner()==false );
+				Assert::IsTrue( neu.is_owner());
 				Assert::IsTrue( *neu==1 );
 			}
 			(void)vw.push_back( std::unique_ptr<int>(new int{2}) );
@@ -1107,7 +1125,7 @@ namespace autoptr
 			auto ptr4 = ptr1;
 
 
-			WS::auto_ptr_vw<int, std::vector> vw;
+			WS::auto_ptr_vw<int> vw;
 			(void)vw.push_back( ptr1 );
 			(void)vw.push_back( ptr2 );
 			(void)vw.push_back( ptr3 ); ptr3 = nullptr;
@@ -1184,21 +1202,21 @@ namespace autoptr
 		TEST_METHOD(auto_ptr_vw__container)
 		{
 			{
-				WS::auto_ptr_vw<int,std::deque> vw;
+				WS::auto_ptr_vw<int,std::deque<WS::auto_ptr<int>>> vw;
 				(void)vw.push_back( new int{5} );
 				(void)vw.erase( nullptr );
 				(void)vw.replace( nullptr, (decltype(vw)::pointer_t)nullptr );
 				(void)vw[0];
 			}
 			{
-				WS::auto_ptr_vw<int,std::list> vw;//list bedingt brauchbar
+				WS::auto_ptr_vw<int,std::list<WS::auto_ptr<int>>> vw;//list bedingt brauchbar
 				(void)vw.push_back( new int{5} );
 				(void)vw.erase( nullptr );
 				(void)vw.replace( nullptr, (decltype(vw)::pointer_t)nullptr );
 				//(void)vw[0];//list unterstützt operator[] nicht
 			}
 			{
-				WS::auto_ptr_vw<int,std::forward_list> vw;//forward_list unbrauchbar
+				WS::auto_ptr_vw<int,std::forward_list<WS::auto_ptr<int>>> vw;//forward_list unbrauchbar
 				//(void)vw.push_back( new int{5} );//forward_list unterstütz emplace_back nicht
 				//(void)vw.erase( nullptr );
 				(void)vw.replace( nullptr, (decltype(vw)::pointer_t)nullptr );

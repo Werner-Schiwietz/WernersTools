@@ -130,6 +130,8 @@ namespace WS
 		bool	empty() const{return first==last;}
 		operator bool() const {return empty()==false;}
 		bool operator !() const {return empty();}
+		bool operator==(bool value) const {return operator bool()==value;}
+		bool operator!=(bool value) const {return operator bool()!=value;}
 		operator iterator_t() const{ return begin();}
 
 		template<typename l_iterator_t,typename r_iterator_t> static bool lth(l_iterator_t const &l, r_iterator_t const & r) 
@@ -280,7 +282,7 @@ namespace WS
 		return iterator_access( begin( *as_shared_ptr ), end( *as_shared_ptr ), extend(as_shared_ptr) );
 	}
 
-	 template<typename char_t, size_t size> inline auto array_iterator_access( char_t (& Array)[size] ){ return _iterator_access<char_t*>( Array, size ); }
+	template<typename char_t, size_t size> inline auto array_iterator_access( char_t (& Array)[size] ){ return _iterator_access<char_t*>( Array, size ); }
 }
 
 class TraceClass;

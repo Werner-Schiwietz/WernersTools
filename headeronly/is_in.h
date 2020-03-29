@@ -4,6 +4,108 @@
 
 #pragma warning( push,4)
 
+#ifndef ASSERT
+#	if !defined(_ASSERT) 
+#		define ASSERT(x) assert(x)
+#	else
+#		define ASSERT(x) _ASSERT(x)
+#	endif
+#endif
+
+namespace WS
+{
+	using std::begin;
+	using std::end;
+
+	template <typename T> struct _exist_std_begin
+	{
+	private:
+		typedef char (& yes)[1];
+		typedef char (& no)[2];
+
+		template<typename U>static yes check(decltype(begin(std::declval<U>()))*);
+		template<typename>  static no  check(...);
+	public:
+		static bool const value = sizeof(check<std::remove_reference_t<T>>(nullptr)) != sizeof(no);
+
+		template<typename T> static auto _begin( T && container )
+		{
+			return begin( container );
+		}
+		template<typename T> static auto _end( T && container )
+		{
+			return end( container );
+		}
+	};	
+}
+namespace WS
+{
+	template <typename T> struct exist_std_begin
+	{
+	private:
+		typedef char (& yes)[1];
+		typedef char (& no)[2];
+
+		template<typename U>static yes check(decltype(std::begin(std::declval<U>()))*);
+		template<typename>  static no  check(...);
+	public:
+		static bool const value = sizeof(check<std::remove_reference_t<T>>(nullptr)) != sizeof(no);
+
+		template<typename T> static auto _begin( T && container )
+		{
+			return std::begin( container );
+		}
+		template<typename T> static auto _end( T && container )
+		{
+			return std::end( container );
+		}
+	};	
+	template <typename T> struct exist_global_begin
+	{
+	private:
+		typedef char (& yes)[1];
+		typedef char (& no)[2];
+
+		template<typename U>static yes check(decltype(::begin(std::declval<U>()))*);
+		template<typename>  static no  check(...);
+	public:
+		static bool const value = sizeof(check<std::remove_reference_t<T>>(nullptr)) != sizeof(no);
+		template<typename T> static auto _begin( T && container )
+		{
+			return ::begin( container );
+		}
+		template<typename T> static auto _end( T && container )
+		{
+			return ::end( container );
+		}
+	};	
+	template <typename T> struct exist__begin
+	{
+	private:
+		typedef char (& yes)[1];
+		typedef char (& no)[2];
+
+		template<typename U>static yes check(decltype(begin(std::declval<U>()))*);
+		template<typename>  static no  check(...);
+	public:
+		static bool const value = sizeof(check<std::remove_reference_t<T>>(nullptr)) != sizeof(no);
+		template<typename T> static auto _begin( T && container )
+		{
+			return begin( container );
+		}
+		template<typename T> static auto _end( T && container )
+		{
+			return end( container );
+		}
+	};	
+	template <typename T> struct exist_begin
+	{
+		//using type = exist_std_begin<T>;
+		using type = _exist_std_begin<T>;
+		static bool const value = type::value;// | exist_global_begin<T>::value | exist__begin<T>::value;
+	};
+}
+
 namespace WS
 {
 
@@ -24,20 +126,33 @@ namespace WS
 		return value < bereich.lower;
 	}
 
-	template <typename value_t, typename container_t> bool is_in_container( value_t const & gesucht, container_t const & liste )
+	template <typename value_t, typename container_t, typename begin_end_t> bool is_in_container( value_t const & gesucht, container_t const & liste )
 	{
-		return std::find( liste.begin(), liste.end(), gesucht ) != liste.end();
+		auto b = begin_end_t::_begin(liste);
+		auto e = begin_end_t::_end(liste);
+		return std::find( b, e, gesucht ) != e;
 	}
 
-	template <typename value_t, typename container_t> bool is_in( value_t const & gesucht, container_t const & liste )
+	template <typename value_t, typename U,bool istContainer=exist_begin<U>::value> struct _is_in
 	{
-		return is_in_container( gesucht, liste );
+		bool operator()( value_t const & v, U const & constainer ) const
+		{
+			return is_in_container<value_t,U,exist_begin<U>::type>(v,constainer);
+		}
+	};
+	template <typename value_t, typename U> struct _is_in<value_t, U, false>
+	{
+		bool operator()( value_t const & v, U const & vergleichoperand ) const
+		{
+			return v==vergleichoperand;
+		}
+	};
+
+	template <typename value_t, typename U> bool is_in( value_t const & gesucht, U const & other )
+	{
+		return _is_in<value_t,U>{}( gesucht, other );
 	}
-	////wird nicht gebraucht, wird aufgeloest von  "template <typename value_t, typename container_t> bool is_in( value_t const & gesucht, container_t const & liste )"
-	//template <typename value_t> bool is_in( value_t const & gesucht, std::initializer_list<value_t> const & liste )
-	//{
-	//	return is_in_container( gesucht, liste );
-	//}
+
 	template<typename value_t, size_t size> bool is_in( value_t const & value, value_t const (&values)[size] )
 	{
 		for( auto const & item : values )
