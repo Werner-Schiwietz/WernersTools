@@ -33,6 +33,10 @@ namespace WS
 		{
 			return *this==tribool(r);
 		}
+		friend bool operator==( bool l, tribool const &r )
+		{
+			return tribool(l)==r;
+		}
 		bool operator!=( bool r )const //(invalid==invalid)==true
 		{
 			return *this!=tribool(r);
