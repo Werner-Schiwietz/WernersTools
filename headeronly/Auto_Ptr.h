@@ -9,7 +9,7 @@
 //z.B. auto_ptr<char[]>( pString, true ) das auto_ptr-Objekt pString ist mit new char[x] angelegt worden und wird im dtor mit delete [] pString freigegeben
 //tests in BasisUnitTests\UT_dtor_call.cpp TEST_CLASS(UT_auto_ptr)
 //
-//wird konsequent WS::auto_ptr verwendet (also ein owner und 0-n nichtowner bzw  shared_ptr und weak_ptr) wird nicht mehr auf freigegebene pointer zugegriffen. diese sind statt dessen ggf. nullptr.
+//wird konsequent WS::auto_ptr verwendet (also ein owner und 0-n nichtowner bzw  shared_ptr und weak_ptr) wird nicht mehr auf freigegebene, dangle pointer zugegriffen. diese sind statt dessen ggf. nullptr.
 //in neuen code evtl. besser reine std::shared_pointer verwenden
 //Kopien eines auto_ptr 
 //  mit transfer(), neues objekt wird owner wenn ursprungsobjekt owner war
@@ -22,9 +22,11 @@
 //		A a;
 //		WS::auto_ptr<A> ptr = a.auto_ptr_from_this();//ptr wird nullptr, wenn a zerstoert wird
 //
-//als parameter in funktionen kann WS::auto_ptr_owner_parameter<T> verwendetet weerden
+//als parameter in funktionen kann WS::auto_ptr_owner_parameter<T> verwendetet werden
 //die klasse muss im konstruktror owner werden, sonst wirft deren ctor eine std::exception
 
+//managed_auto_ptr
+//zuweisung und ctor nur von managed auto_ptr oder von ableitungen von enable_auto_ptr_from_this
 
 #include <memory>
 #include <atomic>
@@ -204,7 +206,7 @@ namespace WS
 			: share(sharedptr.get(),Managed(true))
 			, SharedPtr(sharedptr)
 		{}
-		auto_ptr& Set( std::shared_ptr<T> sharedptr )  //operator= gibt mit dem anderen operatoren aerger
+		auto_ptr& Set( std::shared_ptr<T> sharedptr ) & //operator= gibt mit dem anderen operatoren aerger
 		{
 			auto_ptr temp( sharedptr );
 			swap( temp );
@@ -266,17 +268,18 @@ namespace WS
 			}
 		}
 
-		auto_ptr & operator=(auto_ptr && r) noexcept
+		auto_ptr & operator=(auto_ptr && r) & noexcept
 		{
 			auto_ptr temp{ std::move(r) };
 			this->swap( temp );
 			return *this;
 		}
-		auto_ptr & operator=(auto_ptr const & r) noexcept
+		auto_ptr & operator=(auto_ptr const & r) & noexcept
 		{
+			if( this==&r)return *this;
 			return operator=(r.ownerless());
 		}
-		template<typename U>auto_ptr & operator=(auto_ptr<U> && r) noexcept
+		template<typename U>auto_ptr & operator=(auto_ptr<U> && r) & noexcept
 		{
 			static_assert( std::is_base_of<U, T>::value
 						|| std::is_base_of<T, U>::value
@@ -287,7 +290,7 @@ namespace WS
 
 			return *this;
 		}
-		template<typename U>auto_ptr & operator=(auto_ptr<U> const & r) noexcept
+		template<typename U>auto_ptr & operator=(auto_ptr<U> const & r) & noexcept
 		{
 			static_assert( std::is_base_of<U, T>::value
 						   || std::is_base_of<T, U>::value
@@ -298,15 +301,15 @@ namespace WS
 			swap( temp );
 			return *this;
 		}
-		template<typename U> auto_ptr & operator=(std::unique_ptr<U> && uniqueptr) noexcept
+		template<typename U> auto_ptr & operator=(std::unique_ptr<U> && uniqueptr) & noexcept
 		{
 			return operator=( auto_ptr<U>(std::move(uniqueptr)) );
 		}
-		auto_ptr & operator=(std::shared_ptr<T> sharedptr )
+		auto_ptr & operator=(std::shared_ptr<T> sharedptr ) &
 		{
 			return operator=( auto_ptr(sharedptr) );
 		}		
-		auto_ptr & operator=(pointer_type ptr)
+		auto_ptr & operator=(pointer_type ptr) &
 		{
 			if (this->get() == ptr)
 				return *this;
@@ -358,7 +361,7 @@ namespace WS
 		}
 
 		//liefert pointer, wenn owner war, sonst nullptr. ist danach nicht mehr owner, behaelt aber immer seinen pointer. der aufrufer uebernimmt damit die verantwortung. 
-		//exterm gefährlich weil nicht klar ist, wie lange interner pointer gueltig ist
+		//exterm gefährlich weil nicht klar ist, wie lange interner pointer gueltig ist. dangling pointer
 		pointer_type  Ptr_release() noexcept 
 		{
 			if( this->share.share && is_owner() )
@@ -366,7 +369,7 @@ namespace WS
 			return this->Ptr.release();
 		}
 		//liefert std::unique_ptr<T>, wenn owner war, sonst nullptr. ist danach nicht mehr owner, behaelt aber immer seinen pointer. der aufrufer uebernimmt damit die verantwortung. 
-		//exterm gefährlich weil nicht klar ist, wie lange interner pointer gueltig ist
+		//exterm gefährlich weil nicht klar ist, wie lange interner pointer gueltig ist. dangling pointer
 		std::unique_ptr<T> release_as_unique_ptr() noexcept
 		{	
 			if( this->share.share && is_owner() )
@@ -374,7 +377,7 @@ namespace WS
 			return std::unique_ptr<T>(this->Ptr.release());
 		}
 		//liefert immer pointer, gibt ggf. ownership ab, bzw. this behaelt aber immer seinen pointer. der aufrufer uebernimmt damit ggf die verantwortung fuer die resource. 
-		//exterm gefährlich weil nicht klar ist, wie lange interner pointer gueltig ist
+		//exterm gefährlich weil nicht klar ist, wie lange interner pointer gueltig ist. dangling pointer
 		pointer_type release() noexcept
 		{	
 			if( this->share.share && is_owner() )
@@ -431,21 +434,21 @@ namespace WS
 			return _trytransfer<U>( *this );
 		}
 
-		//weak wie release, this behaelt pointer, bei SharedPtr wird die strong referenz NICHT erhöht
+		//weak, this behaelt pointer, bei SharedPtr wird die strong referenz NICHT erhöht
 		auto_ptr weak() const
 		{
 			auto_ptr retvalue( *this );
 			retvalue.SharedPtr.reset();//
 			return retvalue;
 		}
-		//transfer wie release, this behaelt pointer, verliert ggf. aber ownership. bei SharedPtr wird die strong referenz erhöht
+		//transfer, this behaelt pointer, verliert ggf. aber ownership. bei SharedPtr wird die strong referenz erhöht
 		auto_ptr transfer()
 		{
 			auto_ptr retvalue( *this );
 			retvalue.Ptr = std::move(this->Ptr);
 			return retvalue;
 		}
-		//ownerless wie transfer, this behaelt pointer und ggf. ownership. bei SharedPtr wird die strong referenz erhöht
+		//ownerless wie transfer, this behaelt pointer und ggf. ownership. bei SharedPtr wird die strong referenz erhöht. zuweisung macht genau das gleiche
 		auto_ptr ownerless() const
 		{
 			auto_ptr retvalue( *this );
@@ -476,6 +479,68 @@ namespace WS
 		{
 			return is_owner() || is_shared_ptr();
 		}
+	};
+
+	template<typename T> class managed_auto_ptr : public auto_ptr<T>
+	{
+	public:
+		~managed_auto_ptr()
+		{
+		}
+		managed_auto_ptr( pointer_type ) = delete;
+		managed_auto_ptr() noexcept : auto_ptr() {}
+		managed_auto_ptr(std::nullptr_t) noexcept : auto_ptr() {}
+		managed_auto_ptr( managed_auto_ptr const & r ) noexcept : auto_ptr(r) 
+		{
+		}
+		managed_auto_ptr( managed_auto_ptr && r ) noexcept : auto_ptr(std::move(r)) 
+		{
+		}
+		managed_auto_ptr( auto_ptr const & r ) : auto_ptr(r) 
+		{
+			if( *this && is_managed()==false )
+				throw std::invalid_argument( __FUNCTION__ " managed auto_ptr erwartet");
+		}
+		managed_auto_ptr( auto_ptr && r ) : auto_ptr(std::move(r))
+		{
+			if( *this && is_managed()==false )
+				throw std::invalid_argument( __FUNCTION__ " managed auto_ptr erwartet");
+		}
+		template<typename U>
+		managed_auto_ptr( auto_ptr<U> const & r ) : auto_ptr(r) 
+		{
+			if( *this && is_managed()==false )
+				throw std::invalid_argument( __FUNCTION__ " managed auto_ptr erwartet");
+		}
+		template<typename U>
+		managed_auto_ptr( auto_ptr<U> && r ) : auto_ptr(std::move(r))
+		{
+			if( *this && is_managed()==false )
+				throw std::invalid_argument( __FUNCTION__ " managed auto_ptr erwartet");
+		}
+		template<typename U>
+		managed_auto_ptr( enable_auto_ptr_from_this<U> & r ) : auto_ptr( r.auto_ptr_from_this() ) {}
+		template<typename U>
+		managed_auto_ptr( enable_auto_ptr_from_this<U> * r ) : auto_ptr( r?r->auto_ptr_from_this():nullptr ) {}
+		managed_auto_ptr( std::unique_ptr<T> && Ptr ) noexcept : auto_ptr( std::move(Ptr) ) {}
+
+		explicit managed_auto_ptr( std::shared_ptr<T> sharedptr ) noexcept : auto_ptr( std::move(sharedptr) ) {}//bei sharedpointer muss sich z.zt ggf. der aufrufer um den cast kümmern, dass kann ich sonst nicht mehr testen
+		//auto_ptr(auto_ptr const& r) : auto_ptr(r.ownerless()){}
+		template<typename U> 
+		//explicit 
+		managed_auto_ptr(managed_auto_ptr<U> const & r) noexcept : auto_ptr( r ) {}
+		template<typename U> 
+		//explicit 
+		managed_auto_ptr(managed_auto_ptr<U> && r) noexcept : auto_ptr( std::move(r) ) {}//dient der konvertierung  const T = U oder T bzw U ist abgeleitet von vom Anderen, bzw. T = const U
+
+		managed_auto_ptr & operator=( managed_auto_ptr const & r) & noexcept { auto_ptr::operator=(r); return *this; }
+		managed_auto_ptr & operator=( managed_auto_ptr && r) & noexcept { auto_ptr::operator=(std::move(r)); return *this; }
+
+		template<typename U> 
+		managed_auto_ptr & operator=( enable_auto_ptr_from_this<U> * r ) & noexcept { return operator=(managed_auto_ptr(r)); }
+		template<typename U> 
+		managed_auto_ptr & operator=( enable_auto_ptr_from_this<U> & r ) & noexcept { return operator=(managed_auto_ptr(r)); }
+
 	};
 
 	template<typename T,typename ... Arg_ts> auto make_auto_ptr( Arg_ts ... args )
@@ -586,22 +651,24 @@ namespace WS
 			return auto_this;
 		}
 		//gibt nur aerger
-		//auto_ptr<this_t> operator&() const
+		//auto_ptr<this_t> operator &() const
 		//{
 		//	return auto_ptr_from_this();
 		//}
 	};
 
 }
+
+//spielerei auto_ptr_vw. you dont need it
 namespace std
 {
-	//dont forget include <vector>
-	template <class _Ty, class _Alloc > class vector;
+	template< class _Ty
+			, class _Alloc //= allocator<_Ty> 
+	> class vector;
 }
-
 namespace WS
 {
-	//usage: auto_ptr_vw<int[,std::vector|,std::deque]>
+	//usage: auto_ptr_vw<int[,std::vector|,std::deque]>//den alloator bzw zusätzliche template-parameter bekomme ich im moment nicht hin
 	template<typename T, class container_type=std::vector<auto_ptr<T>,std::allocator<auto_ptr<T>>>> class auto_ptr_vw
 	{
 	public:

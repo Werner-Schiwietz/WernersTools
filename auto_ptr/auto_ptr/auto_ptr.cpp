@@ -16,6 +16,9 @@ using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 
 #include <basetsd.h>	//INT_PTR
 
+//#include <afx.h>
+//#define new DEBUG_NEW
+
 enum Enum { v1, v2, v3 };
 
 constexpr std::initializer_list<Enum> GetList() { return { v2,v1 }; }
@@ -77,6 +80,14 @@ namespace
 		virtual int fAA()  override { return 2; }
 	};
 }
+
+struct ctor_counter
+{
+	static int counter;
+	ctor_counter(){++counter;}
+	~ctor_counter(){--counter;}
+};
+int ctor_counter::counter = 0;
 
 namespace _Immer_Rot
 {
@@ -150,6 +161,91 @@ namespace Allerei
 
 namespace autoptr
 {
+	TEST_CLASS(UT_managed_auto_ptr)
+	{
+		TEST_METHOD(managed_auto_ptr_nullptr)
+		{
+			WS::managed_auto_ptr<int> ptr;
+			ptr = WS::managed_auto_ptr<int>{nullptr};
+			ptr = WS::auto_ptr<int>{};
+			ptr = WS::auto_ptr<int>{nullptr};
+			ptr = nullptr;
+		}
+		TEST_METHOD(managed_auto_ptr_owner)
+		{
+			WS::managed_auto_ptr<int> ptr;
+			ptr = std::make_unique<int>(5);
+			Assert::IsTrue(ptr);
+			ptr = ptr;
+			Assert::IsTrue(ptr);
+			auto autoptr = WS::auto_ptr<int>{std::make_unique<int>(6)};
+			ptr = autoptr;
+			try
+			{	
+				int i=7;
+				//ptr = &i;//error C2280: 'WS::managed_auto_ptr<int>::managed_auto_ptr(int *)': attempting to reference a deleted function
+				ptr = WS::auto_ptr<int>{&i};
+				Assert::Fail(L"exception erwartet");
+			}
+			catch(...)
+			{}
+		}
+		TEST_METHOD(managed_auto_ptr_auto_ptr_from_this)
+		{
+			class A : public WS::enable_auto_ptr_from_this<A>
+			{};
+			class B : public A
+			{};
+			class AA : public WS::enable_auto_ptr_from_this<AA>{};
+
+			WS::managed_auto_ptr<A> Aptr;
+			WS::managed_auto_ptr<B> Bptr;
+
+			{
+				A a;
+				B b;
+
+				Aptr = a;
+				Assert::IsTrue(Aptr);
+				Aptr = nullptr;
+				Assert::IsFalse(Aptr);
+				Aptr = &a;
+				Assert::IsTrue(Aptr);
+				Aptr = (A*)nullptr;
+				Assert::IsFalse(Aptr);
+
+				Aptr = b;
+				Assert::IsTrue(Aptr);
+				Aptr = nullptr;
+				Assert::IsFalse(Aptr);
+				Aptr = &b;
+				Assert::IsTrue(Aptr);
+
+				Bptr = a;
+				Assert::IsFalse(Bptr);
+				Bptr = &a;
+				Assert::IsFalse(Bptr);
+
+				Bptr = b;
+				Assert::IsTrue(Bptr);
+				Bptr = nullptr;
+				Assert::IsFalse(Bptr);
+				Bptr = &b;
+				Assert::IsTrue(Bptr);
+				Assert::IsTrue(Aptr);
+
+				AA aa;
+				WS::managed_auto_ptr<AA> AAptr;
+				//AAptr = a;//sollte compilefehler geben
+				//AAptr = b;//sollte compilefehler geben
+				//Aptr = aa;//sollte compilefehler geben
+				//Bptr = aa;//sollte compilefehler geben
+			}
+
+			Assert::IsFalse(Aptr);
+			Assert::IsFalse(Bptr);
+		}
+	};
 	TEST_CLASS(autoptr)
 	{
 	public:
@@ -1201,6 +1297,19 @@ namespace autoptr
 		}
 		TEST_METHOD(auto_ptr_vw__container)
 		{
+			{
+				auto init_counter = ctor_counter::counter;
+				{
+
+					WS::auto_ptr_vw<ctor_counter,std::deque<WS::auto_ptr<ctor_counter>>> vw;
+					(void)vw.push_back( new ctor_counter{} );
+					Assert::IsTrue(init_counter+1==ctor_counter::counter);
+					(void)vw.erase( nullptr );
+					(void)vw.replace( nullptr, (decltype(vw)::pointer_t)nullptr );
+					(void)vw[0];
+				}
+				Assert::IsTrue(init_counter==ctor_counter::counter, L"memory leak detected");
+			}		
 			{
 				WS::auto_ptr_vw<int,std::deque<WS::auto_ptr<int>>> vw;
 				(void)vw.push_back( new int{5} );
