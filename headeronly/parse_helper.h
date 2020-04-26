@@ -70,7 +70,7 @@ namespace WS
 	}
 
 	//return empty or 
-	template<typename T> rettype_eat<T> eat( _iterator_access<T> & container_in, _iterator_access<T> const & items )
+	template<typename T, typename U> rettype_eat<T> eat( _iterator_access<T> & container_in, _iterator_access<U> const & items )
 	{
 		auto container = container_in;
 		auto error = parse_error::none;

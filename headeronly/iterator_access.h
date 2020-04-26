@@ -255,7 +255,58 @@ namespace WS
 			last = first;
 		}
 	};
+	template<typename _iterator_access_t,typename buffer_t=std::basic_string<_iterator_access_t::value_t>> struct appender
+	{
+		_iterator_access_t	value;
+		buffer_t			buffer;
 
+		appender(){}
+		appender(_iterator_access_t value):value(value){}
+		void append( _iterator_access_t toadd )//per copy, keine & oder && const &
+		{
+			if( toadd.empty() )
+				return;
+			if( this->value.empty() )
+				this->value = toadd;
+			else if( this->value.end() == toadd.begin() )
+				this->value.end() = toadd.end();
+			else 
+			{	//veränderung -> umkopieren
+				usebuffer();
+				this->buffer.append( toadd.begin(), toadd.end() );
+			}
+		}
+		void append( typename _iterator_access_t::value_t addone )
+		{
+			usebuffer();
+			this->buffer += addone;		
+		}
+		WS::_iterator_access<typename _iterator_access_t::value_t const*> get()
+		{
+			using ret_t = WS::_iterator_access<typename _iterator_access_t::value_t const*>;
+			if( this->buffer.empty() )
+			{
+				auto b = &*this->value.begin();
+				auto e = b+this->value.len();
+				return ret_t{b,e,this->value.rvalue_lifetime_extender};//error C2440: '<function-style-cast>': cannot convert from 'initializer list' to '_iterator_access'
+			}
+
+			{
+				auto temp = iterator_access( std::move( this->buffer ) );//rvalue_lifetime_extender anlegen
+				auto b = &*temp.begin();
+				auto e = b+temp.len();//*temp.end() geht nicht
+				return ret_t{b,e,temp.rvalue_lifetime_extender};
+			}
+		}
+	protected:
+		void usebuffer()
+		{
+			if( this->buffer.empty() )
+				if( this->value )
+					this->buffer = buffer_t{this->value.begin(),this->value.end()};
+		}
+
+	};
 
 	template<typename iterator_t, typename container_t> inline auto iterator_access( iterator_t first, iterator_t last, std::shared_ptr<container_t> && container ) { return _iterator_access<iterator_t>( first, last, std::move(container) ); }
 	template<typename iterator_t> inline auto iterator_access( iterator_t first, iterator_t last){ return _iterator_access<iterator_t>( first, last ); }

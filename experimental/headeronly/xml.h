@@ -8,7 +8,29 @@ namespace WS { namespace XML
 {
 	template<typename char_t> constexpr char_t _open(){return '<';}
 	template<typename char_t> constexpr char_t _close(){return '>';}
+	template<typename char_t> constexpr char_t _assign(){return '=';}
+	template<typename char_t> constexpr char_t _ampersand(){return '&';}
+	template<typename char_t> constexpr char_t _semicolon(){return ';';}
+	template<typename char_t> constexpr char_t _doppelteshochkomma(){return '"';}
+	template<typename char_t> constexpr char_t _hochkomma(){return '\'';}
+	template<typename char_t> constexpr char_t _doppelkreuz(){return '#';}
 
+
+	template<typename char_t> constexpr char_t _lt(){return '<';}
+	template<typename iterator_access_t> constexpr iterator_access_t _lt_ref(){return iterator_access("lt"); }
+	template<> _iterator_access<wchar_t const *> _lt_ref<_iterator_access<wchar_t const *>>(){return iterator_access(L"lt"); }
+	template<typename char_t> constexpr char_t _gt(){return '>';}
+	template<typename iterator_access_t> constexpr iterator_access_t _gt_ref(){return iterator_access("gt"); }
+	template<> _iterator_access<wchar_t const *> _gt_ref<_iterator_access<wchar_t const *>>(){return iterator_access(L"gt"); }
+	template<typename char_t> constexpr char_t _amp(){return '&';}
+	template<typename iterator_access_t> constexpr iterator_access_t _amp_ref(){return iterator_access("amp"); }
+	template<> _iterator_access<wchar_t const *> _amp_ref<_iterator_access<wchar_t const *>>(){return iterator_access(L"amp"); }
+	template<typename char_t> constexpr char_t _quot(){return '"';}
+	template<typename iterator_access_t> constexpr iterator_access_t _quot_ref(){return iterator_access("quot"); }
+	template<> _iterator_access<wchar_t const *> _quot_ref<_iterator_access<wchar_t const *>>(){return iterator_access(L"quot"); }
+	template<typename char_t> constexpr char_t _apos(){return '\'';}
+	template<typename iterator_access_t> constexpr iterator_access_t _apos_ref(){return iterator_access("apos"); }
+	template<> _iterator_access<wchar_t const *> _apos_ref<_iterator_access<wchar_t const *>>(){return iterator_access(L"apos"); }
 
 
 	template<typename char_t> constexpr auto const & whitespace()
@@ -322,11 +344,11 @@ namespace WS { namespace XML
 
 	template<typename char_t> bool _is_name_firstchar(char_t ch)
 	{
-		return is_in( ch, char_t('_'),char_t(':')) | _is_letter(ch);
+		return _is_letter(ch) | is_in( ch, char_t('_'),char_t(':')) ;
 	}
 	template<typename char_t> bool _is_name_char(char_t ch)
 	{
-		return is_in( ch, char_t('.'),char_t('-'), char_t('_'),char_t(':')) | _is_letter(ch) | _is_digit(ch) | _is_combiningchar(ch) | _is_extender(ch);
+		return _is_name_firstchar(ch) | _is_digit(ch) | is_in( ch, char_t('.'),char_t('-')) | _is_combiningchar(ch) | _is_extender(ch);
 	}
 }}
 
@@ -418,6 +440,65 @@ namespace WS { namespace XML
 		return eat_complex( container_in, prolog_begin_tag<char_t>(), prolog_end_tag<char_t>() );
 	}
 
+	template<typename iterator_t> struct entityReferenz_eated
+	{
+		using char_t = typename _iterator_access<iterator_t>::value_t;
+		char_t							value = 0;
+		_iterator_access<iterator_t>	eated;
+
+		operator bool(){return value!=0;}
+		bool operator !(){return value==0;}
+	};
+	template<typename iterator_t> entityReferenz_eated<iterator_t> eat_entityReferenz( _iterator_access<iterator_t> & container_in )
+	{
+		using char_t = _iterator_access<iterator_t>::value_t;
+		char_t return_char = 0;
+
+		auto eat_numeric = [&](_iterator_access<iterator_t> & container_in )->bool
+		{
+			auto container = container_in;
+			if( eat( container, _doppelkreuz<char_t>() ) )
+			{
+				bool eatonevalue=false;
+				while( auto digit = std::isdigit(*container.begin()) )
+				{
+					return_char = return_char*10 + digit -'0';
+					eatonevalue = true;
+				}
+				return eatonevalue; 
+			}
+			return false;
+		};
+
+
+		auto container = container_in;
+		if( eat( container, _ampersand<char_t>() ) )
+		{
+			if( eat( container, _lt_ref<_iterator_access<char_t const *>>() ) )
+				return_char = _lt<char_t>();
+			else if( eat( container, _gt_ref<_iterator_access<char_t const *>>() ) )
+				return_char = _gt<char_t>();
+			else if( eat( container, _amp_ref<_iterator_access<char_t const *>>() ) )
+				return_char = _amp<char_t>();
+			else if( eat( container, _quot_ref<_iterator_access<char_t const *>>() ) )
+				return_char = _quot<char_t>();
+			else if( eat( container, _apos_ref<_iterator_access<char_t const *>>() ) )
+				return_char = _apos<char_t>();
+			else if( eat_numeric(container) )
+			{}
+			else
+				return {};//fehler
+
+			if( eat( container, _semicolon<char_t>() ) )
+			{
+				entityReferenz_eated<iterator_t> ret_value{ return_char };
+				ret_value.eated = _iterator_access<iterator_t>( container_in.begin(), container.begin() );
+				container_in = container;
+				return ret_value;
+			}
+		}
+		return {};//fehler
+	}
 
 	template<typename iterator_t> bool eat_whitespace( _iterator_access<iterator_t> & container_in )
 	{
@@ -435,9 +516,8 @@ namespace WS { namespace XML
 
 	template<typename iterator_t> bool _eat_basechar( _iterator_access<iterator_t> & container_in )
 	{
-
-
 	}
+	//tag-name
 	template<typename iterator_t> _iterator_access<iterator_t> eat_name( _iterator_access<iterator_t> & container_in )
 	{
 		using char_t = _iterator_access<iterator_t>::value_t;
@@ -449,5 +529,74 @@ namespace WS { namespace XML
 		}
 		return retvalue;
 	}
+	//attributname
+	template<typename iterator_t> _iterator_access<iterator_t> eat_token( _iterator_access<iterator_t> & container_in )
+	{
+		using char_t = _iterator_access<iterator_t>::value_t;
+		auto retvalue = _iterator_access<iterator_t>(container_in.begin(),container_in.begin());
+		retvalue.end() = container_in.begin();
+		retvalue.append( eat_while(container_in, _is_name_char<char_t>) );
+		return retvalue;
+	}
+	//attributvalue
+	template<typename iterator_access_t > _iterator_access<typename iterator_access_t::value_t const *> eat_attributvalue( iterator_access_t & container_in )
+	{
+		using char_t = iterator_access_t::value_t;
+		using ret_t = _iterator_access<typename iterator_access_t::value_t const *>;
+		auto container = container_in;
 
+		if( auto opening= eat_oneof(container,_doppelteshochkomma<char_t>(), _hochkomma<char_t>() ) )
+		{
+			WS::appender<iterator_access_t> retvalue;
+			//todo excape also 
+			while( auto erg = eat_while(container, [&](char_t ch){return !WS::is_in(ch,*opening.begin(),_open<char_t>(),_ampersand<char_t>()); }) )
+			{
+				retvalue.append( erg );
+				if( eat_oneof(container,opening) )
+				{
+					container_in=container;
+					return retvalue.get();
+				}
+				if( auto referenz = eat_entityReferenz( container ) )
+				{
+					retvalue.append( referenz.value );
+				}
+				else
+					break;//fehler
+			}
+		}
+		return ret_t{ &*container_in.begin(),&*container_in.begin() };
+	}
+	template<typename iterator_t> struct attribut
+	{
+		_iterator_access<iterator_t> name;
+		_iterator_access<iterator_t> value;
+	};
+	template<typename iterator_t> struct attribut_eated : attribut<iterator_t>
+	{
+		enum class enumError{none,missing_assign,missing_value} errorcode = enumError::none;
+
+		bool error() const { return errorcode != enumError::none; }
+	};
+	template<typename iterator_t> attribut_eated<iterator_t> eat_attibut( _iterator_access<iterator_t> & container_in )
+	{
+		using char_t = _iterator_access<iterator_t>::value_t;
+		attribut_eated<iterator_t> retvalue;
+
+		auto container = container_in;
+		if( retvalue.name = eat_token(container) )
+		{
+			retvalue.errorcode=attribut_eated<iterator_t>::enumError::missing_assign;
+			eat_whitespace(container);
+			if( eat( container, _assign<char_t>() ) )
+			{
+				retvalue.errorcode=attribut_eated<iterator_t>::enumError::missing_value;
+				eat_whitespace(container);
+				if( retvalue.value = eat_(container) )
+
+			}
+
+		}
+
+	}
 }}

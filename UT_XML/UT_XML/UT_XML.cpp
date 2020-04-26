@@ -133,5 +133,70 @@ namespace UT_XML
             Assert::IsFalse( erg.error() );
 
 		}
+        TEST_METHOD(eat_attributvalue)
+        {
+            {
+                auto erg = WS::XML::eat_attributvalue( WS::iterator_access("hallo") );
+                Assert::IsFalse( erg );
+            }
+            {
+                auto value = R"#(Hallo Welt)#";
+                
+                {
+                    auto toparse = WS::iterator_access( std::string{'"'} + value + '"' );
+                    auto erg = WS::XML::eat_attributvalue( toparse );
+                    Assert::IsTrue( erg );
+                    Assert::IsTrue( erg ==WS::iterator_access(value) );
+                }
+                {
+                    auto toparse = WS::iterator_access( std::string{'\''} + value + '\'' );
+                    auto erg = WS::XML::eat_attributvalue( toparse );
+                    Assert::IsTrue( erg );
+                    Assert::IsTrue( erg ==WS::iterator_access(value) );
+                }
+            }
+        }
+        TEST_METHOD(eat_attributvalue_withescape)
+        {
+            auto value = R"#(0 &lt; 1 ist wahr )#";
+
+            {
+                auto toparse = WS::iterator_access( std::string{'"'} + value + '"' );
+                auto erg = WS::XML::eat_attributvalue( toparse );
+                Assert::IsTrue( erg );
+                Assert::IsTrue( erg ==WS::iterator_access(R"#(0 < 1 ist wahr )#") );
+            }
+        }
+        TEST_METHOD(appender_without_copy)
+        {
+            auto value = WS::iterator_access("<hallo welt>");
+            auto value_org = value;
+            decltype(value) value_erg;
+            {
+                Assert::IsTrue(WS::eat(value, '<'));
+                auto new_value = WS::appender<decltype(value)>( WS::eat(value, WS::iterator_access("hallo")).eaten );
+                new_value.append( WS::eat_oneof(value, ' ') );
+                new_value.append( WS::eat(value, WS::iterator_access("welt")).eaten );
+                value_erg = new_value.get();
+            }
+
+            Assert::IsTrue( value_erg == WS::iterator_access("hallo welt") );
+        }
+        TEST_METHOD(appender_with_copy)
+        {
+            auto value = WS::iterator_access("<hallo welt>");
+            auto value_org = value;
+            decltype(value) value_erg;
+            {
+                Assert::IsTrue(WS::eat(value, '<'));
+                auto new_value = WS::appender<decltype(value)>( WS::eat(value, WS::iterator_access("hallo")).eaten );
+                WS::eat_oneof(value, ' ');
+                new_value.append( WS::eat(value, WS::iterator_access("welt")).eaten );
+                value_erg = new_value.get();
+            }
+
+            Assert::IsTrue( value_erg == WS::iterator_access("hallowelt") );
+        }
+
 	};
 }
