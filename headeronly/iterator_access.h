@@ -266,7 +266,10 @@ namespace WS
 		{
 			if( toadd.empty() )
 				return;
-			if( this->value.empty() )
+
+			if( this->buffer.empty()==false )
+				this->buffer.append( toadd.begin(), toadd.end() );
+			else if( this->value.empty() )
 				this->value = toadd;
 			else if( this->value.end() == toadd.begin() )
 				this->value.end() = toadd.end();
@@ -281,20 +284,21 @@ namespace WS
 			usebuffer();
 			this->buffer += addone;		
 		}
-		WS::_iterator_access<typename _iterator_access_t::value_t const*> get()
+		WS::_iterator_access<typename _iterator_access_t::value_t const*> move()//kann einmal abgeholt werden, danach ist ggf das ergebnis leer. grund: ggf wird der buffer per move ins ergebnis geschoben.
 		{
 			using ret_t = WS::_iterator_access<typename _iterator_access_t::value_t const*>;
+			ret_t retvalue;
 			if( this->buffer.empty() )
 			{
 				auto b = &*this->value.begin();
 				auto e = b+this->value.len();
-				return ret_t{b,e,this->value.rvalue_lifetime_extender};//error C2440: '<function-style-cast>': cannot convert from 'initializer list' to '_iterator_access'
+				return ret_t{b,e,this->value.rvalue_lifetime_extender};
 			}
-
 			{
 				auto temp = iterator_access( std::move( this->buffer ) );//rvalue_lifetime_extender anlegen
 				auto b = &*temp.begin();
 				auto e = b+temp.len();//*temp.end() geht nicht
+				
 				return ret_t{b,e,temp.rvalue_lifetime_extender};
 			}
 		}
@@ -303,7 +307,10 @@ namespace WS
 		{
 			if( this->buffer.empty() )
 				if( this->value )
+				{
 					this->buffer = buffer_t{this->value.begin(),this->value.end()};
+					this->value.end() = this->value.begin();//value leeren
+				}
 		}
 
 	};

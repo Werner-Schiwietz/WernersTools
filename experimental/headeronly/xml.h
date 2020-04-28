@@ -555,7 +555,7 @@ namespace WS { namespace XML
 				if( eat_oneof(container,opening) )
 				{
 					container_in=container;
-					return retvalue.get();
+					return retvalue.move();
 				}
 				if( auto referenz = eat_entityReferenz( container ) )
 				{

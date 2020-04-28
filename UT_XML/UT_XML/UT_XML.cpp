@@ -177,7 +177,9 @@ namespace UT_XML
                 auto new_value = WS::appender<decltype(value)>( WS::eat(value, WS::iterator_access("hallo")).eaten );
                 new_value.append( WS::eat_oneof(value, ' ') );
                 new_value.append( WS::eat(value, WS::iterator_access("welt")).eaten );
-                value_erg = new_value.get();
+                value_erg = new_value.move();
+                auto secondcallvalueisempty = new_value.move();
+                Assert::IsTrue(value_erg==secondcallvalueisempty);//ohne umkopieren bleibt ergebnis nach move erhalten
             }
 
             Assert::IsTrue( value_erg == WS::iterator_access("hallo welt") );
@@ -192,7 +194,9 @@ namespace UT_XML
                 auto new_value = WS::appender<decltype(value)>( WS::eat(value, WS::iterator_access("hallo")).eaten );
                 WS::eat_oneof(value, ' ');
                 new_value.append( WS::eat(value, WS::iterator_access("welt")).eaten );
-                value_erg = new_value.get();
+                value_erg = new_value.move();
+                auto secondcallvalueisempty = new_value.move();
+                Assert::IsTrue(secondcallvalueisempty.empty());
             }
 
             Assert::IsTrue( value_erg == WS::iterator_access("hallowelt") );
