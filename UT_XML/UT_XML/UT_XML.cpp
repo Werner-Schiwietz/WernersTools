@@ -158,13 +158,24 @@ namespace UT_XML
         }
         TEST_METHOD(eat_attributvalue_withescape)
         {
-            auto value = R"#(0 &lt; 1 ist wahr )#";
+            auto value = R"#(0 &lt; 1 ist gleich 1 &gt; 0)#";
 
             {
                 auto toparse = WS::iterator_access( std::string{'"'} + value + '"' );
                 auto erg = WS::XML::eat_attributvalue( toparse );
                 Assert::IsTrue( erg );
-                Assert::IsTrue( erg ==WS::iterator_access(R"#(0 < 1 ist wahr )#") );
+                Assert::IsTrue( erg ==WS::iterator_access(R"#(0 < 1 ist gleich 1 > 0)#") );
+            }
+        }
+        TEST_METHOD(eat_attributvalue_withescape_and_closer)
+        {
+            auto value = R"#(0 &lt; 1 ist gleich 1 > 0)#";
+
+            {
+                auto toparse = WS::iterator_access( std::string{'"'} + value + '"' );
+                auto erg = WS::XML::eat_attributvalue( toparse );
+                Assert::IsTrue( erg );
+                Assert::IsTrue( erg == WS::iterator_access(R"#(0 < 1 ist gleich 1 > 0)#") );
             }
         }
         TEST_METHOD(appender_without_copy)
@@ -201,6 +212,18 @@ namespace UT_XML
 
             Assert::IsTrue( value_erg == WS::iterator_access("hallowelt") );
         }
+        TEST_METHOD(eat_attribut)
+        {
+            
+            auto toparse = WS::iterator_access(LR"#(name = "0 &lt; 1 ist gleich 1 > 0")#");
 
+            {
+                auto erg = WS::XML::eat_attribut( toparse );
+                Assert::IsTrue( erg );
+                Assert::IsTrue( erg.name == WS::iterator_access(LR"#(name)#") );
+                Assert::IsTrue( erg.value == WS::iterator_access(LR"#(0 < 1 ist gleich 1 > 0)#") );
+            }
+
+        }
 	};
 }

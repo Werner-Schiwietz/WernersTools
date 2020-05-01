@@ -522,6 +522,8 @@ namespace WS { namespace XML
 	{
 		using char_t = _iterator_access<iterator_t>::value_t;
 		auto retvalue = _iterator_access<iterator_t>(container_in.begin(),container_in.begin());
+
+		//im Mom nur mit wchar_t
 		if( eat_if(container_in,_is_name_firstchar<char_t> ))
 		{
 			retvalue.end() = container_in.begin();
@@ -535,37 +537,67 @@ namespace WS { namespace XML
 		using char_t = _iterator_access<iterator_t>::value_t;
 		auto retvalue = _iterator_access<iterator_t>(container_in.begin(),container_in.begin());
 		retvalue.end() = container_in.begin();
+
+		//im Mom nur mit wchar_t
 		retvalue.append( eat_while(container_in, _is_name_char<char_t>) );
 		return retvalue;
 	}
 	//attributvalue
-	template<typename iterator_access_t > _iterator_access<typename iterator_access_t::value_t const *> eat_attributvalue( iterator_access_t & container_in )
+	template<typename iterator_access_t > struct attributvalue_eated
+	{
+		enum enumError{none,opener_missing,closer_missing,invalid_ampersand};
+		using value_t = _iterator_access<typename iterator_access_t::value_t const *>;
+		value_t				value;//wegen möglichem umkopieren anderer datentyp
+
+		iterator_access_t	first_close_in_value;//ungewöhnlich aber gültig erstes > im text
+		iterator_access_t	error_position;
+		enumError			error = enumError::none;
+		operator bool() const { return this->error==enumError::none; }
+		bool operator !() const { return !operator bool(); }
+
+		operator value_t() const {return value;}
+	};
+	template<typename iterator_access_t > attributvalue_eated<iterator_access_t> eat_attributvalue( iterator_access_t & container_in )
 	{
 		using char_t = iterator_access_t::value_t;
-		using ret_t = _iterator_access<typename iterator_access_t::value_t const *>;
+		using ret_t = attributvalue_eated<iterator_access_t>;
 		auto container = container_in;
-
+		ret_t retvalue;
+		retvalue.error = attributvalue_eated<iterator_access_t>::enumError::opener_missing;
 		if( auto opening= eat_oneof(container,_doppelteshochkomma<char_t>(), _hochkomma<char_t>() ) )
 		{
-			WS::appender<iterator_access_t> retvalue;
-			//todo excape also 
-			while( auto erg = eat_while(container, [&](char_t ch){return !WS::is_in(ch,*opening.begin(),_open<char_t>(),_ampersand<char_t>()); }) )
+			WS::appender<iterator_access_t> value;
+			retvalue.error = attributvalue_eated<iterator_access_t>::enumError::closer_missing;
+			//lesen, bis der opener, '@' als opener einer referenz oder '>' als vermutete fehlerposition,  
+			while( auto erg = eat_while(container, [&](char_t ch){return !WS::is_in(ch,*opening.begin(),_open<char_t>(),_ampersand<char_t>(),_close<char_t>()); }) )
 			{
-				retvalue.append( erg );
+				value.append( erg );
 				if( eat_oneof(container,opening) )
 				{
 					container_in=container;
-					return retvalue.move();
+					retvalue.value = value.move();
+					retvalue.error = attributvalue_eated<iterator_access_t>::enumError::none;
+					return retvalue;
 				}
-				if( auto referenz = eat_entityReferenz( container ) )
+				if( auto erg2 = eat_oneof(container,_close<char_t>()) )
+				{	//kein fehler, aber unerwartet
+					if(retvalue.first_close_in_value.empty())
+						retvalue.first_close_in_value=erg2;
+					value.append( erg2 );
+				}
+				else if( auto referenz = eat_entityReferenz( container ) )
 				{
-					retvalue.append( referenz.value );
+					value.append( referenz.value );
 				}
 				else
+				{
+					retvalue.error_position = container;
+					retvalue.error = attributvalue_eated<iterator_access_t>::enumError::invalid_ampersand;
 					break;//fehler
+				}
 			}
 		}
-		return ret_t{ &*container_in.begin(),&*container_in.begin() };
+		return retvalue;
 	}
 	template<typename iterator_t> struct attribut
 	{
@@ -574,29 +606,44 @@ namespace WS { namespace XML
 	};
 	template<typename iterator_t> struct attribut_eated : attribut<iterator_t>
 	{
-		enum class enumError{none,missing_assign,missing_value} errorcode = enumError::none;
+		enum class enumError{none,name_missing,assign_missing,value_missing,value_parseerror} errorcode = enumError::none;
 
 		bool error() const { return errorcode != enumError::none; }
+		operator bool() const { return !error(); }
+		bool operator !() const { return error(); }
 	};
-	template<typename iterator_t> attribut_eated<iterator_t> eat_attibut( _iterator_access<iterator_t> & container_in )
+	template<typename iterator_t> attribut_eated<iterator_t> eat_attribut( _iterator_access<iterator_t> & container_in )
 	{
 		using char_t = _iterator_access<iterator_t>::value_t;
 		attribut_eated<iterator_t> retvalue;
 
 		auto container = container_in;
+		retvalue.errorcode = attribut_eated<iterator_t>::enumError::name_missing;
 		if( retvalue.name = eat_token(container) )
 		{
-			retvalue.errorcode=attribut_eated<iterator_t>::enumError::missing_assign;
+			retvalue.errorcode = attribut_eated<iterator_t>::enumError::assign_missing;
 			eat_whitespace(container);
 			if( eat( container, _assign<char_t>() ) )
 			{
-				retvalue.errorcode=attribut_eated<iterator_t>::enumError::missing_value;
+				retvalue.errorcode = attribut_eated<iterator_t>::enumError::value_missing;
 				eat_whitespace(container);
-				if( retvalue.value = eat_(container) )
-
+				if( auto attribut_value = eat_attributvalue(container) )
+				{
+					retvalue.errorcode = attribut_eated<iterator_t>::enumError::none;
+					retvalue.value = attribut_value;
+				}
+				else
+				{	//fehler beim parsen
+					switch(attribut_value.error)
+					{
+					case decltype(attribut_value)::enumError::opener_missing:
+						break;
+					default:
+						retvalue.errorcode = attribut_eated<iterator_t>::enumError::value_parseerror;
+					}
+				}
 			}
-
 		}
-
+		return retvalue;
 	}
 }}
