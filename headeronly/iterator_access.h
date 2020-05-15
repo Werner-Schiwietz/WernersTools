@@ -66,10 +66,8 @@ namespace WS
 */
 namespace WS
 {
-	using std::begin;
-	using std::end;
-
-
+	nullptr_t begin(nullptr_t);//sonst gibt es ohne include <atlstr.h> compilerfehler bei using ::WS::begin;
+	nullptr_t end(nullptr_t);
 	template<typename iterator_type> struct _iterator_access
 	{
 		using iterator_t = iterator_type;
@@ -327,15 +325,30 @@ namespace WS
 	//komfort fuer klassen die begin() unterstützen
 	template<class container_t> inline auto iterator_access( container_t const & r )
 	{
+		using ::std::begin;
+		using ::std::end;
+		using ::WS::begin;
+		using ::WS::end;
+
 		return iterator_access( begin(r), end(r) );
 	}
 	template<class container_t> inline auto iterator_access( container_t & r )
 	{
+		using ::std::begin;
+		using ::std::end;
+		using ::WS::begin;
+		using ::WS::end;
+
 		return iterator_access( begin( r ), end( r ) );
 	}
 
 	template<class container_t> auto iterator_access( container_t && r )//lebensverlängerung fuer rvalues, damit die iteratoren nicht ins leere laufen. erster versuch war mit (std/boost)::any. waere besser, aber sind nicht immer verfügbar C++17
 	{
+		using ::std::begin;
+		using ::std::end;
+		using ::WS::begin;
+		using ::WS::end;
+
 		auto as_shared_ptr = std::make_shared<container_t>( std::move( r ) );
 		return iterator_access( begin( *as_shared_ptr ), end( *as_shared_ptr ), extend(as_shared_ptr) );
 	}

@@ -8,13 +8,13 @@ namespace WS { namespace XML
 {
 	template<typename char_t> constexpr char_t _open(){return '<';}
 	template<typename char_t> constexpr char_t _close(){return '>';}
+	template<typename char_t> constexpr char_t _space(){return ' ';}
 	template<typename char_t> constexpr char_t _assign(){return '=';}
 	template<typename char_t> constexpr char_t _ampersand(){return '&';}
 	template<typename char_t> constexpr char_t _semicolon(){return ';';}
 	template<typename char_t> constexpr char_t _doppelteshochkomma(){return '"';}
 	template<typename char_t> constexpr char_t _hochkomma(){return '\'';}
 	template<typename char_t> constexpr char_t _doppelkreuz(){return '#';}
-
 
 	template<typename char_t> constexpr char_t _lt(){return '<';}
 	template<typename iterator_access_t> constexpr iterator_access_t _lt_ref(){return iterator_access("lt"); }
@@ -608,9 +608,9 @@ namespace WS { namespace XML
 	{
 		enum class enumError{none,name_missing,assign_missing,value_missing,value_parseerror} errorcode = enumError::none;
 
-		bool error() const { return errorcode != enumError::none; }
-		operator bool() const { return !error(); }
-		bool operator !() const { return error(); }
+		operator bool() const { return errorcode == enumError::none; }//das attibut wurde geladen, oder false es war nichts da
+		bool operator !() const { return !operator bool(); }
+		bool error() const { return !WS::is_in(this->errorcode, enumError::none, enumError::name_missing); }//attribut konnte nur teilweise geparsed werden
 	};
 	template<typename iterator_t> attribut_eated<iterator_t> eat_attribut( _iterator_access<iterator_t> & container_in )
 	{

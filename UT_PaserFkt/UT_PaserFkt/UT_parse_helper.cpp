@@ -18,8 +18,8 @@ namespace UTPaserFkt
 {
 	template<typename container_t
 			,typename function_t
-		, int = ( WS::canCall<function_t,bool(decltype(*std::declval<container_t>().begin()))>::value?1:0
-			    + WS::canCall<function_t,container_t(container_t&)>::value?2:0 )
+			, int = ( WS::canCall<function_t,bool(decltype(*std::declval<container_t>().begin()))>::value?1:0
+				    + WS::canCall<function_t,container_t(container_t&)>::value?2:0 )
 				>
 	struct _eat
 	{
