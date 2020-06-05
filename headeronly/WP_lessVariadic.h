@@ -2,35 +2,28 @@
 
 #include "tribool.h"
 #include "char_helper.h"
+#include "SignatureTest.h"
 
 #include <functional>
 
 #pragma warning(push,4)
 
-//LTH geht die parameterpaare von links nach rechts durch, bis ein paar kleiner oder nicht kleiner meldet
-//LTH_Member bekommt zwei objekte, deren member verglichen werden sollen und eine liste von memberpointern. diese liste wird von links nach rechts abgearbeitet, bis der verwendete vergleich eine ungleichheit feststellt
-// in beiden funktionen koennen (muess aber nicht) hinter den vergleichstypen vergleichenfunktionen der form std::function<WS::tribool>(datentyp const &,datentyp const &)> uebergeben werden
-namespace WS 
+//LTH geht die parameterpaare von links nach rechts durch und liefert true wenn l<r ist oder false wenn r<l ist und false, wenn alle paramter ohne ergebnis abgearbeitet sind
+//LTH_Member bekommt zwei objekte deren member verglichen werden sollen und eine liste von memberpointern. diese liste wird von links nach rechts abgearbeitet
+//	in beiden funktionen koennen (muess aber nicht) hinter den zu vergleichenden werten eine vergleichsfunktion/functor angegeben werden 
+//	es sind drei versionen möglich. 
+//		bool(T,T) liefert true, wenn l<r
+//		int(T,T) liefert kleiner 0 wenn l<r größer 0 wenn r<l und 0 wenn l==r
+//		WS::tribool(T,T) liefert kleiner true wenn l<r false wenn r<l und invalid wenn l==r
+namespace WS
 {
-	//static std::function<WS::tribool(CString const &l, CString const &r)> LTH_CStringNoCase = [](CString const &l, CString const &r)-> WS::tribool
-	//{
-	//	auto erg = l.CompareNoCase( r );
-	//	if( erg < 0 )
-	//		return true;
-	//	else if ( erg > 0 )
-	//		return false;
-	//	return WS::tribool();
-	//};
-
-	inline bool LTH(  )
-	{
-		return false;
-	}
-	template<typename value_t> bool LTH( value_t const & l, value_t const & r )
+	template<typename value_t> WS::tribool LTHCompare( value_t const & l, value_t const & r )
 	{
 		if( l < r )
 			return true;
-		return false;
+		if( r < l )
+			return false;
+		return WS::tribool();
 	}
 	template<typename CharPtrType> WS::tribool LTHCharPtr( CharPtrType const & l, CharPtrType const & r )
 	{
@@ -45,39 +38,7 @@ namespace WS
 		}
 		return false;
 	}
-	template<> inline bool LTH<char const *>( char const * const & l, char const * const & r )
-	{
-		return LTHCharPtr( l, r )==true;//false und invalide liefern false
-	}
-	template<> inline bool LTH<wchar_t const *>( wchar_t const * const & l, wchar_t const * const & r )
-	{
-		return LTHCharPtr( l, r )==true;//false und invalide liefern false
-	}
 
-	template<typename value_t, size_t size_l, size_t size_r> inline bool LTH( value_t const (& l)[size_l], value_t const (& r)[size_r] )
-	{
-		static_assert( std::is_same<value_t,char>::value || std::is_same<value_t,wchar_t>::value, "LTH nur auf 0-terminiertes char-array geprueft" );
-		return LTH<value_t const*>(l,r);
-	}
-	template<typename value_t, size_t size_r> inline bool LTH( value_t const * const & l, value_t const (& r)[size_r] )
-	{
-		static_assert( std::is_same<value_t,char>::value || std::is_same<value_t,wchar_t>::value, "LTH nur auf 0-terminiertes char-array geprueft" );
-		return LTH<value_t const*>(l,r);
-	}
-	template<typename value_t, size_t size_l> inline bool LTH( value_t const (& l)[size_l], value_t const * const & r )
-	{
-		static_assert( std::is_same<value_t,char>::value || std::is_same<value_t,wchar_t>::value, "LTH nur auf 0-terminiertes char-array geprueft" );
-		return LTH<value_t const*>(l,r);
-	}
-
-	template<typename value_t> WS::tribool LTHCompare( value_t const & l, value_t const & r )
-	{
-		if( LTH(l,r) )
-			return true;
-		if( LTH(r,l) )
-			return false;
-		return WS::tribool();
-	}
 	template<> inline WS::tribool LTHCompare<char const *>( char const * const & l, char const * const & r )
 	{
 		return LTHCharPtr( l, r );
@@ -94,25 +55,51 @@ namespace WS
 	{
 		return LTHCharPtr( l, r );
 	}
+}
 
-	template<typename value_t, typename ... Args> bool LTH( value_t const & l, value_t const & r, std::function<WS::tribool( value_t const&,value_t const&)> const & less, Args const & ... args )
+namespace WS
+{
+	inline bool LTH(  )
+	{
+		return false;
+	}
+
+	template<typename value_t, typename less_t, typename std::enable_if_t<WS::canCall<less_t,bool(value_t,value_t)>::value,int>			= 5,typename ... args_t> bool LTH( value_t const & l, value_t const & r, less_t less, args_t && ... args  )
+	{
+		if( less( l, r ) )
+			return true;
+		if( less( r, l ) )
+			return false;
+
+		return WS::LTH( std::forward<args_t>(args) ... );
+	}
+	template<typename value_t, typename less_t, typename std::enable_if_t<WS::canCall<less_t,WS::tribool(value_t,value_t)>::value,int>	= 4,typename ... args_t> bool LTH( value_t const & l, value_t const & r, less_t less, args_t && ... args  )
 	{
 		auto erg = less( l, r );
 		if( erg.valid() )
 			return erg;
 
-		return LTH( args ... );
+		return WS::LTH( std::forward<args_t>(args) ... );
 	}
-	template<typename value_t, typename ... Args> bool LTH( value_t const & l, value_t const & r, Args const & ... args )
+	template<typename value_t, typename less_t, typename std::enable_if_t<WS::canCall<less_t,int(value_t,value_t)>::value,int>			= 3,typename ... args_t> bool LTH( value_t const & l, value_t const & r, less_t less, args_t && ... args  )
 	{
-		auto erg = LTHCompare( l, r );
+		auto erg = less( l, r );
+		if(erg < 0 )
+			return true;
+		if(erg > 0 )
+			return false;
+
+		return WS::LTH( std::forward<args_t>(args) ... );
+	}
+	template<typename value_t, typename ... args_t> bool LTH( value_t const & l, value_t const & r, args_t && ... args )
+	{
+		auto erg = WS::LTHCompare( l, r );
 		if( erg.valid() )
 			return erg;
 
-		return LTH( args ... );
+		return WS::LTH( std::forward<args_t>(args) ... );
 	}
 }
-
 
 namespace WS //LTH auf objekte mit pointer auf member
 {
@@ -120,21 +107,41 @@ namespace WS //LTH auf objekte mit pointer auf member
 	{
 		return false;
 	}
-	template <typename objecttype, typename membertype, typename ... Args> bool LTH_Member( objecttype const & l, objecttype const & r, membertype objecttype::* member, std::function<WS::tribool( membertype const&,membertype const&)> const & less, Args const & ... args )
+	template<typename objecttype, typename membertype, typename less_t, typename std::enable_if_t<WS::canCall<less_t,bool(membertype,membertype)>::value,int>			= 5,typename ... args_t> bool LTH_Member( objecttype const & l, objecttype const & r, membertype objecttype::* member, less_t less, args_t && ... args  )
+	{
+		if(less( l.*member, r.*member ) )
+			return true;
+		if(less( r.*member, l.*member ) )
+			return false;
+
+		return LTH_Member( l, r, std::forward<args_t>(args) ... );
+	}
+	template<typename objecttype, typename membertype, typename less_t, typename std::enable_if_t<WS::canCall<less_t,WS::tribool(membertype,membertype)>::value,int>	= 4,typename ... args_t> bool LTH_Member( objecttype const & l, objecttype const & r, membertype objecttype::* member, less_t less, args_t && ... args  )
 	{
 		auto erg = less( l.*member, r.*member );
 		if( erg.valid() )
 			return erg;
 
-		return LTH_Member( l, r, args ... );
+		return LTH_Member( l, r, std::forward<args_t>(args) ... );
 	}
-	template <typename objecttype, typename membertype, typename ... Args> bool LTH_Member( objecttype const & l, objecttype const & r, membertype objecttype::* member, Args const & ... args )
+	template<typename objecttype, typename membertype, typename less_t, typename std::enable_if_t<WS::canCall<less_t,int(membertype,membertype)>::value,int>			= 3,typename ... args_t> bool LTH_Member( objecttype const & l, objecttype const & r, membertype objecttype::* member, less_t less, args_t && ... args  )
+	{
+		auto erg = less( l.*member, r.*member );
+		if( erg < 0 )
+			return true;
+		if( erg > 0 )
+			return false;
+
+		return LTH_Member( l, r, std::forward<args_t>(args) ... );
+	}
+
+	template <typename objecttype, typename membertype, typename ... args_t> bool LTH_Member( objecttype const & l, objecttype const & r, membertype objecttype::* member, args_t && ... args )
 	{
 		auto erg = LTHCompare( l.*member, r.*member );
 		if( erg.valid() )
 			return erg;
 
-		return LTH_Member( l, r, args ... );
+		return LTH_Member( l, r, std::forward<args_t>(args) ... );
 	}
 }
 #pragma warning(pop)
