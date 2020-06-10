@@ -167,6 +167,7 @@
     <ClCompile Include="UT_LTH.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\headeronly\WP_lessVariadic.h" />
     <ClInclude Include="pch.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
