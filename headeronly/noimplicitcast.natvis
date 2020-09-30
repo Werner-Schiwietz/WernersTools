@@ -6,7 +6,7 @@
   -->
 <AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
   <Type Name="noimplicitcast&lt;*&gt;">
-    <DisplayString>{_value}</DisplayString>
+    <DisplayString>{value}</DisplayString>
   </Type>
   <Type Name="WS::Explicit_Type_TraitBase&lt;*&gt;">
     <DisplayString>{value}</DisplayString>

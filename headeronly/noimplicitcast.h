@@ -44,81 +44,81 @@
 template <typename T, int typeidentifier=0> class noimplicitcast
 {
 public:
-	typedef T value_type;
-	value_type _value;
+	using value_type = T;
+	value_type value;
 
 	noimplicitcast(){}
 
 	noimplicitcast( const noimplicitcast& rhs ){
-		_value=rhs._value;}
+		this->value=rhs.value;}
 
 	noimplicitcast( noimplicitcast&& rhs ){
-		_value=std::move(rhs._value);}
+		this->value=std::move(rhs.value);}
 
 	explicit noimplicitcast( const value_type& value ){
-		_value=value;}
+		this->value=value;}
 
 	explicit noimplicitcast( value_type&& value ){
-		_value=std::move(value);}
+		this->value=std::move(value);}
 
 	//seit vc14 zuweisungs-op nötig
 	noimplicitcast& operator=( noimplicitcast const & r )
 	{
-		_value = r._value;
+		this->value = r.value;
 		return *this;
 	}
 	noimplicitcast& operator=( noimplicitcast && r )
 	{
-		_value = std::move(r._value);
+		this->value = std::move(r.value);
 		return *this;
 	}
 
 	explicit operator value_type const &()const{
-		return _value;}
+		return this->value;}
 	explicit operator value_type &(){
-		return _value;}
+		return this->value;}
 	value_type const & toValueType() const
 	{
-		return _value;
+		return this->value;
 	}
 	value_type & toValueType() 
 	{
-		return _value;
+		return this->value;
 	}
 
 	bool operator==( const noimplicitcast& rhs )const
 	{
-		return _value==rhs._value;
+		return this->value==rhs.value;
 	}
 	bool operator!=( const noimplicitcast& rhs )const
 	{
-		return _value!=rhs._value;
+		return this->value!=rhs.value;
 	}
 	bool operator<( const noimplicitcast& rhs )const
 	{
-		return _value < rhs._value;
+		return this->value < rhs.value;
 	}
 	bool operator>( const noimplicitcast& rhs )const
 	{
-		return _value > rhs._value;
+		return this->value > rhs.value;
 	}
 	bool operator<=( const noimplicitcast& rhs )const
 	{
-		return _value <= rhs._value;
+		return this->value <= rhs.value;
 	}
 	bool operator>=( const noimplicitcast& rhs )const
 	{
-		return _value >= rhs._value;
+		return this->value >= rhs.value;
 	}
 
-	noimplicitcast operator+( noimplicitcast const &r ){ return noimplicitcast (_value+r._value);}
-	noimplicitcast operator-( noimplicitcast const &r ){ return noimplicitcast (_value-r._value);}
-	noimplicitcast operator*( noimplicitcast const &r ){ return noimplicitcast (_value*r._value);}
-	noimplicitcast operator/( noimplicitcast const &r ){ return noimplicitcast (_value/r._value);}
-	noimplicitcast& operator+=( noimplicitcast const &r ){ _value+=r._value;return *this;}
-	noimplicitcast& operator-=( noimplicitcast const &r ){ _value-=r._value;return *this;}
-	noimplicitcast& operator*=( noimplicitcast const &r ){ _value*=r._value;return *this;}
-	noimplicitcast& operator/=( noimplicitcast const &r ){ _value/=r._value;return *this;}
+	noimplicitcast operator+( noimplicitcast const &r ){ return noimplicitcast (this->value+r.value);}
+	noimplicitcast operator-( noimplicitcast const &r ){ return noimplicitcast (this->value-r.value);}
+	noimplicitcast operator*( noimplicitcast const &r ){ return noimplicitcast (this->value*r.value);}
+	noimplicitcast operator/( noimplicitcast const &r ){ return noimplicitcast (this->value/r.value);}
+	noimplicitcast& operator+=( noimplicitcast const &r ){ this->value+=r.value;return *this;}
+	noimplicitcast& operator-=( noimplicitcast const &r ){ this->value-=r.value;return *this;}
+	noimplicitcast& operator*=( noimplicitcast const &r ){ this->value*=r.value;return *this;}
+	noimplicitcast& operator/=( noimplicitcast const &r ){ this->value/=r.value;return *this;}
 };
 
 template<typename value_t> struct True_tester
@@ -132,38 +132,39 @@ public:\
 	classname() = default;\
 	explicit classname(type value,bool testit=true) : noimplicitcast(value) {if(testit)tester_obj(value);}\
 	classname(classname const &) = default;\
-	classname(classname && r) : noimplicitcast( std::move(r._value) ){}\
-	classname& operator=( classname const & ) = default;\
-	classname& operator=( classname &&  r){ _value = std::move(r._value); return *this;}\
-	bool	TestValue(type value){return tester_obj(value);}\
-	bool	TestValue(){return tester_obj(_value);}
+	classname(classname && r) : noimplicitcast( std::move(r.value) ){}\
+	classname& operator=( classname const & ) & = default;\
+	classname operator=( classname &&  r){ classname{std::move(r.value)}.swap(*this); return std::move(*this);}\
+	void swap(classname & r){std::swap(this->value, r.value);}\
+	bool	TestValue(type val){return tester_obj(val);}\
+	bool	TestValue(){return tester_obj(this->value);}
 #define CreateNICTypeBegin( classname, type ) CreateNICTypeTestedBegin( classname, type, True_tester<type>() )
 #define CreateNICTypeEnd }
 #define NICPlusPlusOperatoren( classname, type ) \
-	classname& operator++( ){ TestValue(++_value);return *this;}\
-	classname  operator++(int){ classname retvalue=*this;return operator++();}
+	classname& operator++( )&{ TestValue(++this->value);return *this;}\
+	classname  operator++(int){ classname retvalue=*this;operator++();return retvalue;}
 #define NICPlusOperatoren( classname, type ) \
-	classname  operator+ ( classname const &r )const{ return classname (_value+r._value);}\
-	classname& operator+=( classname const &r ){ _value+=r._value;TestValue();return *this;}
+	classname  operator+ ( classname const &r )const{ return classname (this->value+r.value);}\
+	classname& operator+=( classname const &r )&{ this->value+=r.value;TestValue();return *this;}
 #define NICMinusMinusOperatoren( classname, type ) \
-	classname& operator--( ){ TestValue(--_value);return *this;}\
-	classname  operator--(int){ classname retvalue=*this;return operator--();}
+	classname& operator--( )&{ TestValue(--this->value);return *this;}\
+	classname  operator--(int){ classname retvalue=*this;operator--();return retvalue;}
 #define NICMinusOperatoren( classname, type ) \
-	classname  operator- ( classname const &r )const{ return classname (_value-r._value);}\
-	classname& operator-=( classname const &r ){ _value-=r._value;TestValue();return *this;}
+	classname  operator- ( classname const &r )const{ return classname (this->value-r.value);}\
+	classname& operator-=( classname const &r )&{ this->value-=r.value;TestValue();return *this;}
 #define NICMalOperatoren( classname, type ) \
-	classname  operator* ( classname const &r )const{ return classname (_value*r._value);}\
-	classname& operator*=( classname const &r ){ _value*=r._value;return *this;}
+	classname  operator* ( classname const &r )const{ return classname (this->value*r.value);}\
+	classname& operator*=( classname const &r )&{ this->value*=r.value;return *this;}
 #define NICMalOperatorenType( classname, type ) \
-	template<typename T>classname  operator* ( T const &r )const{ return classname (_value*r);}\
-	template<typename T>classname& operator*=( T const &r ){ _value*=r;TestValue();return *this;}
+	template<typename T>classname  operator* ( T const &r )const{ return classname (this->value*r);}\
+	template<typename T>classname& operator*=( T const &r )&{ this->value*=r;TestValue();return *this;}
 #define NICGeteiltOperatoren( classname, type ) \
-	classname  operator/ ( classname const &r )const{ return classname (_value/r._value);}\
-	classname& operator/=( classname const &r ){ _value/=r._value;TestValue();return *this;}
+	classname  operator/ ( classname const &r )const{ return classname (this->value/r.value);}\
+	classname& operator/=( classname const &r )&{ this->value/=r.value;TestValue();return *this;}
 #define NICGeteiltOperatorenType( classname, type ) \
-	classname::value_type  operator/ ( classname const &r )const{ return _value/r._value;}\
-	template<typename T>classname operator/ ( T const &r )const{ return classname(_value/r);}\
-	template<typename T>classname& operator/=( T const &r ){ _value/=r;TestValue();return *this;}
+	classname::value_type  operator/ ( classname const &r )const{ return this->value/r.value;}\
+	template<typename T>classname operator/ ( T const &r )const{ return classname(this->value/r);}\
+	template<typename T>classname& operator/=( T const &r )&{ this->value/=r;TestValue();return *this;}
 #define NICRechenOperatorenNormal( classname, type )\
 	NICPlusPlusOperatoren( classname, type ) \
 	NICMinusMinusOperatoren( classname, type ) \

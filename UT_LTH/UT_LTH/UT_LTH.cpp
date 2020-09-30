@@ -280,6 +280,7 @@ namespace UT_LTH
 			};
 
 			Assert::IsTrue( WS::LTH( string{"hallo"}, string{"hallo"}				) == false );
+			Assert::IsTrue( WS::LTH( string{"hallo"}, string{"hallo"}		).equal() == true );
 			Assert::IsTrue( WS::LTH( string{"hallo"}, string{"hallo"}, gth_stdfn	) == false );
 			Assert::IsTrue( WS::LTH( string{"hallo"}, string{"hallo"}, gth			) == false );
 			Assert::IsTrue( WS::LTH( string{"hallo"}, string{"hallo"}, gth_functor{}) == false );
@@ -396,6 +397,18 @@ namespace UT_LTH
 			};
 			auto gth_fn = std::function<WS::tribool(string const&,string const &)>{[](string const &l, string const &r)->WS::tribool{if(r<l) return true;if(l<r) return false;return {};}};
 			auto gth_lambda = [&](string const&l,string const &r)->bool{return r<l;};
+
+			if( auto erg = WS::LTH( string{"hallo"}, string{"hallo"} )  )
+			{
+				Assert::Fail();
+			}
+			else if( erg.equal() )
+			{
+			}
+			else
+			{
+				Assert::Fail();
+			}
 
 			{
 				Assert::IsTrue( WS::LTH( string{"hallo"}, string{"hallo"}		) == false );

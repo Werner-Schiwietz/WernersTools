@@ -335,11 +335,21 @@ namespace SignatureTemplate
 			{
 				using fn_t = bool( fo3::* )(int const &);
 				using fn_t2 = decltype((fn_t)&fo3::operator());
-				Assert::IsFalse(std::is_same<fn_t, fn_t2>::value);
+
+				auto x = fn_t{};
+				auto y = fn_t2{};
+				Assert::IsTrue(std::is_same<fn_t, fn_t2>::value);
 			}
 
 			Assert::IsTrue( defines_functor_operator<fo1, bool( int const & )>::value );
 			Assert::IsTrue( defines_functor_operator<fo2, bool( int const & )>::value );
+
+			bool f1 = fo3{}( int(1));
+			int f2 = fo3{}( int(1));
+			int f3 = fo3{}( bool(true));
+			Assert::IsFalse( WS::is_callable<fo3,bool( int const & )>::value);
+			Assert::IsTrue( WS::is_callable<fo3,int( int const & )>::value);//cast int auf bool
+			Assert::IsTrue( WS::is_callable<fo3,int( bool const & )>::value);
 			Assert::IsFalse( defines_functor_operator<fo3, bool( int const & )>::value );
 
 		}

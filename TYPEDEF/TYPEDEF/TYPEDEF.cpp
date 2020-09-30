@@ -6,6 +6,23 @@ using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 #include "..\..\headeronly\noimplicitcast.h"
 
 
+namespace UT_CreateNICType
+{
+	CreateNICCalcNormalType(IntType,int);
+	TEST_CLASS(UTCreateNICType)
+	{
+	public:
+		TEST_METHOD(TestMethod1)
+		{
+			auto i = IntType{5};
+			Assert::IsTrue(i++==IntType{5});
+			Assert::IsTrue(++i==IntType{7});
+			Assert::IsTrue(--i==IntType{6});
+			Assert::IsTrue(i--==IntType{6});
+			Assert::IsTrue(i==IntType{5});
+		}
+	};
+}
 namespace UT_TYPEDEF
 {
 	TEST_CLASS(TYPEDEF)

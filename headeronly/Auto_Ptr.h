@@ -498,7 +498,7 @@ namespace WS
 		~managed_auto_ptr()
 		{
 		}
-		managed_auto_ptr( pointer_type ) = delete;
+		//managed_auto_ptr( pointer_type ) = delete;
 		managed_auto_ptr() noexcept : auto_ptr() {}
 		managed_auto_ptr(std::nullptr_t) noexcept : auto_ptr() {}
 		managed_auto_ptr( managed_auto_ptr const & r ) noexcept : auto_ptr(r) 
@@ -532,7 +532,11 @@ namespace WS
 		template<typename U>
 		managed_auto_ptr( enable_auto_ptr_from_this<U> & r ) : auto_ptr( r.auto_ptr_from_this() ) {}
 		template<typename U>
+		managed_auto_ptr( enable_auto_ptr_from_this<U> const & r ) : auto_ptr( r.auto_ptr_from_this() ) {}
+		template<typename U>
 		managed_auto_ptr( enable_auto_ptr_from_this<U> * r ) : auto_ptr( r?r->auto_ptr_from_this():nullptr ) {}
+		template<typename U>
+		managed_auto_ptr( enable_auto_ptr_from_this<U> const * r ) : auto_ptr( r?r->auto_ptr_from_this():nullptr ) {}
 		managed_auto_ptr( std::unique_ptr<T> && Ptr ) noexcept : auto_ptr( std::move(Ptr) ) {}
 
 		explicit managed_auto_ptr( std::shared_ptr<T> sharedptr ) noexcept : auto_ptr( std::move(sharedptr) ) {}//bei sharedpointer muss sich z.zt ggf. der aufrufer um den cast kümmern, dass kann ich sonst nicht mehr testen
@@ -550,7 +554,11 @@ namespace WS
 		template<typename U> 
 		managed_auto_ptr & operator=( enable_auto_ptr_from_this<U> * r ) & noexcept { return operator=(managed_auto_ptr(r)); }
 		template<typename U> 
+		managed_auto_ptr & operator=( enable_auto_ptr_from_this<U> const* r ) & noexcept { return operator=(managed_auto_ptr(r)); }
+		template<typename U> 
 		managed_auto_ptr & operator=( enable_auto_ptr_from_this<U> & r ) & noexcept { return operator=(managed_auto_ptr(r)); }
+		template<typename U> 
+		managed_auto_ptr & operator=( enable_auto_ptr_from_this<U> const & r ) & noexcept { return operator=(managed_auto_ptr(r)); }
 
 	};
 

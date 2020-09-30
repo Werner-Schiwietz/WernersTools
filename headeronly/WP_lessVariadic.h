@@ -54,7 +54,7 @@ namespace WS	//std-compare-funktion für LTH. kann spezialisiert werden
 			return true;
 		if( r < l )
 			return false;
-		return WS::tribool();
+		return WS::tribool{};
 	}
 	template<typename value_t, size_t size > tribool LTHCompare( value_t const (& l)[size], value_t const (& r)[size] )
 	{
@@ -67,7 +67,7 @@ namespace WS	//std-compare-funktion für LTH. kann spezialisiert werden
 		if( *iter_r++ < *iter_l++ )
 			return false;
 		}
-		return WS::tribool();
+		return WS::tribool{};
 	}
 	template<typename CharPtrType> tribool LTHCharPtr( CharPtrType const & l, CharPtrType const & r )
 	{
@@ -78,7 +78,7 @@ namespace WS	//std-compare-funktion für LTH. kann spezialisiert werden
 				return true;
 			if( erg>0 )
 				return false;
-			return WS::tribool();//gleich
+			return WS::tribool{};//gleich
 		}
 		return false;
 	}
@@ -95,15 +95,27 @@ namespace WS	//std-compare-funktion für LTH. kann spezialisiert werden
 
 namespace WS
 {
-	inline bool LTH(  )
+	struct LTH_ret_t
 	{
-		return false;
+		LTH_ret_t( bool value) : erg(value){}
+		LTH_ret_t( tribool value) : erg(value){}
+
+		bool lowerthan() const { return this->erg==true; }
+		bool equal() const { return this->erg.valid()==false; }
+
+		operator bool() const { return lowerthan(); }
+	private:
+		WS::tribool erg ;
+	};
+	inline LTH_ret_t LTH(  )
+	{
+		return WS::tribool{};//equal
 	}
 
 	template<typename value_t
 		, typename less_t, typename std::enable_if<LTH_Helper::is_callable<less_t,bool(value_t const &,value_t const &)>::value,int>::type = 5//SFINEA nur mit type kann das übersetztwerden und type gibt es nur, wenn 3.parameter callable ist
 		, typename ... args_t> 
-	bool LTH( value_t const & l, value_t const & r, less_t less, args_t && ... args  )
+	LTH_ret_t LTH( value_t const & l, value_t const & r, less_t less, args_t && ... args  )
 	{
 		if( less( l, r ) )
 			return true;
@@ -115,7 +127,7 @@ namespace WS
 	template<typename value_t
 		, typename less_t, typename std::enable_if<LTH_Helper::is_callable<less_t,tribool(value_t const &,value_t const &)>::value,int>::type = 4//SFINEA 
 		, typename ... args_t> 
-	bool LTH( value_t const & l, value_t const & r, less_t less, args_t && ... args  )
+	LTH_ret_t LTH( value_t const & l, value_t const & r, less_t less, args_t && ... args  )
 	{
 		auto erg = less( l, r );
 		if( erg.valid() )
@@ -126,7 +138,7 @@ namespace WS
 	template<typename value_t
 		, typename less_t, typename std::enable_if<LTH_Helper::is_callable<less_t,int(value_t const &,value_t const &)>::value,int>::type = 3//SFINEA 
 		, typename ... args_t> 
-	bool LTH( value_t const & l, value_t const & r, less_t less, args_t && ... args  )
+	LTH_ret_t LTH( value_t const & l, value_t const & r, less_t less, args_t && ... args  )
 	{
 		auto erg = less( l, r );
 		if(erg < 0 )
@@ -138,7 +150,7 @@ namespace WS
 	}
 	template<typename value_t
 		, typename ... args_t> 
-	bool LTH( value_t const & l, value_t const & r, args_t && ... args )
+	LTH_ret_t LTH( value_t const & l, value_t const & r, args_t && ... args )
 	{
 		auto erg = WS::LTHCompare( l, r );
 		if( erg.valid() )
@@ -150,14 +162,14 @@ namespace WS
 
 namespace WS //LTH auf objekte mit pointer auf member using WS::LTH_Member(objekt1,objekt2, &objekt_type::member1[, comparer], &objekt_type::member2[, comparer][, ...])
 {
-	template <typename objecttype> bool LTH_Member( objecttype const & , objecttype const &  )
+	template <typename objecttype> LTH_ret_t LTH_Member( objecttype const & , objecttype const &  )
 	{
-		return false;
+		return WS::tribool{};//equal
 	}
 	template<typename objecttype, typename membertype, typename less_t
 		, typename std::enable_if<LTH_Helper::is_callable<less_t,bool(membertype const &,membertype const &)>::value,int>::type = 5//SFINEA 
 		, typename ... args_t> 
-	bool LTH_Member( objecttype const & l, objecttype const & r, membertype objecttype::* member, less_t less, args_t && ... args  )
+	LTH_ret_t LTH_Member( objecttype const & l, objecttype const & r, membertype objecttype::* member, less_t less, args_t && ... args  )
 	{
 		if(less( l.*member, r.*member ) )
 			return true;
@@ -169,7 +181,7 @@ namespace WS //LTH auf objekte mit pointer auf member using WS::LTH_Member(objek
 	template<typename objecttype, typename membertype
 		, typename less_t, typename std::enable_if<LTH_Helper::is_callable<less_t,tribool(membertype const &,membertype const &)>::value,int>::type = 4//SFINEA 
 		, typename ... args_t> 
-	bool LTH_Member( objecttype const & l, objecttype const & r, membertype objecttype::* member, less_t less, args_t && ... args  )
+	LTH_ret_t LTH_Member( objecttype const & l, objecttype const & r, membertype objecttype::* member, less_t less, args_t && ... args  )
 	{
 		auto erg = less( l.*member, r.*member );
 		if( erg.valid() )
@@ -180,7 +192,7 @@ namespace WS //LTH auf objekte mit pointer auf member using WS::LTH_Member(objek
 	template<typename objecttype, typename membertype
 		, typename less_t, typename std::enable_if<LTH_Helper::is_callable<less_t,int(membertype const &,membertype const &)>::value,int>::type = 3//SFINEA 
 		, typename ... args_t> 
-	bool LTH_Member( objecttype const & l, objecttype const & r, membertype objecttype::* member, less_t less, args_t && ... args  )
+	LTH_ret_t LTH_Member( objecttype const & l, objecttype const & r, membertype objecttype::* member, less_t less, args_t && ... args  )
 	{
 		auto erg = less( l.*member, r.*member );
 		if( erg < 0 )
@@ -193,7 +205,7 @@ namespace WS //LTH auf objekte mit pointer auf member using WS::LTH_Member(objek
 
 	template <typename objecttype, typename membertype
 		, typename ... args_t> 
-	bool LTH_Member( objecttype const & l, objecttype const & r, membertype objecttype::* member, args_t && ... args )
+	LTH_ret_t LTH_Member( objecttype const & l, objecttype const & r, membertype objecttype::* member, args_t && ... args )
 	{
 		auto erg = LTHCompare( l.*member, r.*member );
 		if( erg.valid() )

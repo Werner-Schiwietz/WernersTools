@@ -235,7 +235,42 @@ namespace autoptr
 				Assert::IsTrue(Aptr);
 
 				AA aa;
+				AA const & constaa = aa;
+				AA *paa = &aa;
+				AA const * constpaa = &aa;constpaa;
 				WS::managed_auto_ptr<AA> AAptr;
+				AAptr  = aa;
+
+				auto constAAptr = WS::managed_auto_ptr<AA const>{ aa };
+				constAAptr = &aa;
+				Assert::IsTrue( constpaa == constAAptr );
+				Assert::IsTrue( constAAptr == constpaa );
+				constAAptr = paa;
+				Assert::IsTrue( constpaa == constAAptr );
+				Assert::IsTrue( constAAptr == constpaa );
+				constAAptr = constpaa;
+				Assert::IsTrue( constpaa == constAAptr );
+				Assert::IsTrue( constAAptr == constpaa );
+				constAAptr = WS::managed_auto_ptr<AA const>{aa};
+				Assert::IsTrue( constpaa == constAAptr );
+				Assert::IsTrue( constAAptr == constpaa );
+				constAAptr = WS::managed_auto_ptr<AA const>{&aa};
+				Assert::IsTrue( constpaa == constAAptr );
+				Assert::IsTrue( constAAptr == constpaa );
+				constAAptr = WS::managed_auto_ptr<AA const>{constaa};
+				Assert::IsTrue( constpaa == constAAptr );
+				Assert::IsTrue( constAAptr == constpaa );
+				constAAptr = WS::managed_auto_ptr<AA const>{&constaa};
+				Assert::IsTrue( constpaa == constAAptr );
+				Assert::IsTrue( constAAptr == constpaa );
+				constAAptr = WS::managed_auto_ptr<AA const>{constpaa};
+				Assert::IsTrue( constpaa == constAAptr );
+				Assert::IsTrue( constAAptr == constpaa );
+
+				//AAptr = constAAptr;//error C2682: cannot use 'dynamic_cast' to convert from 'const autoptr::UT_managed_auto_ptr::managed_auto_ptr_auto_ptr_from_this::AA *' to 'autoptr::UT_managed_auto_ptr::managed_auto_ptr_auto_ptr_from_this::AA *'
+				//AAptr = constpaa;//static_assert "wenn U const ist muss T auch const sein"
+
+
 				//AAptr = a;//sollte compilefehler geben
 				//AAptr = b;//sollte compilefehler geben
 				//Aptr = aa;//sollte compilefehler geben
