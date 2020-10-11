@@ -10,22 +10,40 @@ using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 
 namespace UTsharedextended
 {
+	struct A
+	{
+		using value_t = int;
+		~A(){value=0xdddd'dddd;}
+		A(){}
+		A(A const & r):value(r.value){}
+		A(value_t value):value(value){}
+
+		operator value_t&		() &		{return value;} 
+		operator value_t const &() const &	{return value;}
+		operator value_t		() &&		{return value;} 
+
+		value_t value{};
+	};
+
+	struct op_value
+	{
+		int i={};
+		char const *p = {};
+	};
+	struct op_pointer : op_value
+	{
+		op_value * operator->(){ return this;}
+	};
+	struct op_deref : op_value
+	{
+		op_value & operator*(){ return *this;}
+	};
+	struct op_deref_pointer : op_deref, op_pointer
+	{
+	};
+
 	TEST_CLASS(UT_sharedextended)
 	{
-		struct A
-		{
-			using value_t = int;
-			~A(){value=0xdddd'dddd;}
-			A(){}
-			A(A const & r):value(r.value){}
-			A(value_t value):value(value){}
-
-			operator value_t&		() &		{return value;} 
-			operator value_t const &() const &	{return value;}
-			operator value_t		() &&		{return value;} 
-
-			value_t value{};
-		};
 		A getA7()
 		{
 			return A{7};
@@ -148,7 +166,7 @@ namespace UTsharedextended
 				static_assert( WS::is_dereferenceable_v<CString> == true );
 				auto str_data = *str;
 				Assert::IsTrue( str_data==L'h');
-				static_assert( WS::is_pointer_v<CString> == false);
+				static_assert( WS::is_pointerable_v<CString> == false);
 				//auto str_dataptr = str.operator->();//error C2039: '->': is not a member of 'ATL::CStringT<wchar_t,ATL::StrTraitATL<wchar_t,ATL::ChTraitsCRT<wchar_t>>>'
 
 				auto x = stdex::make_shared(str);//lv
@@ -197,10 +215,60 @@ namespace UTsharedextended
 			++(*pi).i;
 			Assert::IsTrue( v1.i == 5 );
 
-			static_assert(WS::is_pointer<op_pointer>::value == true );
-			static_assert(WS::is_pointer<op_deref>::value == false );
-			static_assert(WS::is_pointer<op_deref_pointer>::value == true );
+			static_assert(WS::is_pointerable<op_pointer>::value == true );
+			static_assert(WS::is_pointerable<op_deref>::value == false );
+			static_assert(WS::is_pointerable<op_deref_pointer>::value == true );
+
+		}
+	};
+	TEST_CLASS(UT_IsDeref_IsPointer)
+	{
+		TEST_METHOD(UT_IsDeref)
+		{
+			Assert::IsTrue( WS::is_dereferenceable<char*>::value == true );
+
+			Assert::IsTrue( WS::is_dereferenceable<char>::value == false );
+
+			Assert::IsTrue( WS::is_dereferenceable<std::unique_ptr<char>>::value == true );
+
+			Assert::IsTrue( WS::is_dereferenceable<std::shared_ptr<char>>::value == true );
+
+			Assert::IsTrue( WS::is_dereferenceable<CString>::value == true );
+
+			Assert::IsTrue( WS::is_dereferenceable<op_value>::value == false );
+			Assert::IsTrue( WS::is_dereferenceable<op_deref>::value == true );
+			Assert::IsTrue( WS::is_dereferenceable<op_pointer>::value == false );
+			Assert::IsTrue( WS::is_dereferenceable<op_deref_pointer>::value == true );
+
+		}
+		TEST_METHOD(UT_IsPointer)
+		{
+			Assert::IsTrue( WS::is_pointerable<char*>::value == true );
+			Assert::IsTrue( std::is_pointer<char*>::value == true );
+
+			Assert::IsTrue( WS::is_pointerable<char>::value == false );
+			Assert::IsTrue( std::is_pointer<char>::value == false );
+
+			Assert::IsTrue( WS::is_pointerable<std::unique_ptr<char>>::value == true );
+			Assert::IsTrue( std::is_pointer<std::unique_ptr<char>>::value == false );
+
+			Assert::IsTrue( WS::is_pointerable<std::shared_ptr<char>>::value == true );
+			Assert::IsTrue( std::is_pointer<std::shared_ptr<char>>::value == false );
+
+			Assert::IsTrue( WS::is_pointerable<CString>::value == false );
+			Assert::IsTrue( std::is_pointer<CString>::value == false );
+
+			Assert::IsTrue( WS::is_pointerable<op_value>::value == false );
+			Assert::IsTrue( WS::is_pointerable<op_deref>::value == false );
+			Assert::IsTrue( WS::is_pointerable<op_pointer>::value == true );
+			Assert::IsTrue( WS::is_pointerable<op_deref_pointer>::value == true );
+
+			Assert::IsTrue( std::is_pointer<op_value>::value == false );
+			Assert::IsTrue( std::is_pointer<op_deref>::value == false );
+			Assert::IsTrue( std::is_pointer<op_pointer>::value == false );
+			Assert::IsTrue( std::is_pointer<op_deref_pointer>::value == false );
 
 		}
 	};
 }
+
