@@ -1,12 +1,41 @@
 #include "pch.h"
 #include "CppUnitTest.h"
 
-#include <atlstr.h>
 
 using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 
+#include <vector>
+#include <set>
+
 #include "..\..\headeronly\stdex_make_shared.h"
 #include "..\..\headeronly\is_deref_is_pointer.h"
+
+#include <atlstr.h>
+
+//template< template<typename ... > typename T,typename ... TTs  > auto foo( T<TTs...> && v )
+//{
+//	return v;
+//}
+//template< template<typename ... TTs> std::shared_ptr,typename ... TTs  > auto foo( T<TTs...> && v )
+//{
+//	return v;
+//}
+
+namespace stdex//unbrauchbar, make_shared wird nicht benutzt. und wenn ich es hin bekäme wäre es schlimmer code. aber warum krieg ich es nicht hin??
+{
+	template<class ... _TTs> auto make_shared( std::shared_ptr<_TTs...> const & ptr)
+	{
+		return stdex::make_shared( *ptr );
+	}
+	template<class ... _TTs> auto make_shared( std::shared_ptr<_TTs...> && ptr)
+	{
+		return stdex::make_shared( *ptr );
+	}
+	template<class ... _TTs> auto make_shared_fromshared( std::shared_ptr<_TTs...> const & ptr)
+	{
+		return stdex::make_shared( *ptr );
+	}
+}
 
 namespace UTsharedextended
 {
@@ -69,6 +98,28 @@ namespace UTsharedextended
 				int const & v3 = a;v3;
 				//int & v4 = ca;//error C2440: 'initializing': cannot convert from 'const UTAllerei::UT_shared_ptr::A' to 'int &'
 				int const & v4 = ca;v4;
+			}
+		}
+		TEST_METHOD(UT_CreateCopy_des_shared_ptr)
+		{
+			auto p1 = stdex::make_shared( A{6} );
+			auto constp1 = std::make_shared<A const>( A{5} );
+
+			{
+				auto p2 = stdex::make_shared( p1 );
+				auto p3 = stdex::make_shared_fromshared( p1 );
+				
+				//Assert::IsFalse( p1 == p2 );
+				//Assert::IsTrue( *p1 == *p2 );
+				//weil nicht der stdex::make_shared für shared_ptr (siehe oben) gerufen wird, wird shared_ptr<shared_ptr<T>> angelegt
+				Assert::IsTrue( p1 == *p2 );
+				Assert::IsTrue( *p1 == **p2 );
+			}
+			{
+				//gewünschtes verhalten
+				auto p2 = stdex::make_shared( *p1 );
+				Assert::IsFalse( p1 == p2 );
+				Assert::IsTrue( *p1 == *p2 );
 			}
 		}
 		TEST_METHOD(UT_CreateCopy_des_shared_ptr_neue_referenz)
@@ -270,5 +321,117 @@ namespace UTsharedextended
 
 		}
 	};
-}
+	TEST_CLASS(UT_IsVector)
+	{
+		TEST_METHOD(UT_is_vector)
+		{
+			struct less{
+				bool operator()( int const &, int const &) const;
+			};
+			Assert::IsTrue( WS::is_std_vector<std::vector<int>>::value );
+			Assert::IsFalse( WS::is_std_vector<int>::value );
+			Assert::IsFalse( WS::is_std_vector<std::set<int>>::value );
+			Assert::IsFalse( WS::is_std_vector<std::set<int,less>>::value );
 
+			Assert::IsTrue( WS::is_std_set<std::set<int>>::value );
+			Assert::IsTrue( WS::is_std_set<std::set<int,less>>::value );
+			Assert::IsFalse( WS::is_std_set<int>::value );
+		}
+		TEST_METHOD(UT_is_vector2)
+		{
+			auto vec = std::vector<std::vector<int>>{};
+			auto const constvec = vec;
+			auto & refvec = vec;
+			auto const & constrefvec = vec;
+			auto volatile volatilevec = vec;
+			auto volatile & volatilerefvec = vec;
+			auto const volatile & constvolatilerefvec = vec;
+
+			Assert::IsTrue( WS::is_std_vector<decltype(vec)>::value );
+			Assert::IsTrue( WS::is_std_vector_v<decltype(vec)> );
+			Assert::IsTrue( WS::is_std_vector_v<decltype(constvec)> );
+			Assert::IsTrue( WS::is_std_vector_v<decltype(refvec)> );
+			Assert::IsTrue( WS::is_std_vector_v<decltype(constvec)> );
+			Assert::IsTrue( WS::is_std_vector_v<decltype(constrefvec)> );
+			Assert::IsTrue( WS::is_std_vector_v<decltype(volatilevec)> );
+			Assert::IsTrue( WS::is_std_vector_v<decltype(volatilerefvec)> );
+			Assert::IsTrue( WS::is_std_vector_v<decltype(constvolatilerefvec)> );
+		}
+		TEST_METHOD(UT_is_set)
+		{
+			auto set = std::set<std::vector<int>>{};
+			auto const constset = set;
+			auto & refset = set;
+			auto const & constrefset = set;
+
+			Assert::IsTrue( WS::is_std_set<decltype(set)>::value );
+			Assert::IsTrue( WS::is_std_set_v<decltype(set)> );
+			Assert::IsTrue( WS::is_std_set_v<decltype(constset)> );
+			Assert::IsTrue( WS::is_std_set_v<decltype(refset)> );
+			Assert::IsTrue( WS::is_std_set_v<decltype(constset)> );
+			Assert::IsTrue( WS::is_std_set_v<decltype(constrefset)> );
+		}
+		TEST_METHOD(UT_is_set_less)
+		{
+			using container_value_t = std::vector<int>;
+			struct less{
+				bool operator()( container_value_t const &, container_value_t const &) const;
+			};
+			auto set = std::set<container_value_t,less>{};
+			auto const constset = set;
+			auto & refset = set;
+			auto const & constrefset = set;
+
+			Assert::IsTrue( WS::is_std_set<decltype(set)>::value );
+			Assert::IsTrue( WS::is_std_set_v<decltype(set)> );
+			Assert::IsTrue( WS::is_std_set_v<decltype(constset)> );
+			Assert::IsTrue( WS::is_std_set_v<decltype(refset)> );
+			Assert::IsTrue( WS::is_std_set_v<decltype(constset)> );
+			Assert::IsTrue( WS::is_std_set_v<decltype(constrefset)> );
+		}
+		TEST_METHOD(UT_is_set_volatile)
+		{
+			using container_value_t = int volatile;
+
+			auto set = std::set<container_value_t>{};
+			auto const constset = set;
+			auto & refset = set;
+			auto const & constrefset = set;
+
+			Assert::IsTrue( WS::is_std_set<decltype(set)>::value );
+			Assert::IsTrue( WS::is_std_set_v<decltype(set)> );
+			Assert::IsTrue( WS::is_std_set_v<decltype(constset)> );
+			Assert::IsTrue( WS::is_std_set_v<decltype(refset)> );
+			Assert::IsTrue( WS::is_std_set_v<decltype(constset)> );
+			Assert::IsTrue( WS::is_std_set_v<decltype(constrefset)> );
+		}
+		TEST_METHOD(UT_is_set_volatile_less)
+		{
+			using container_value_t = int volatile;
+			struct less{
+				bool operator()( container_value_t const &, container_value_t const &) const;
+			};
+
+			auto set = std::set<container_value_t,less>{};
+			auto const constset = set;
+			auto & refset = set;
+			auto const & constrefset = set;
+			auto volatile volatileset = set;
+			auto volatile & volatilerefset = set;
+			auto const volatile constvolatileset = set;
+			auto const volatile & constvolatilerefset = set;
+
+			Assert::IsFalse( WS::is_std_set<std::string>::value );
+			Assert::IsTrue( WS::is_std_set<decltype(set)>::value );
+			Assert::IsTrue( WS::is_std_set_v<decltype(set)> );
+			Assert::IsTrue( WS::is_std_set_v<decltype(constset)> );
+			Assert::IsTrue( WS::is_std_set_v<decltype(refset)> );
+			Assert::IsTrue( WS::is_std_set_v<decltype(constset)> );
+			Assert::IsTrue( WS::is_std_set_v<decltype(constrefset)> );
+			Assert::IsTrue( WS::is_std_set_v<decltype(volatileset)> );
+			Assert::IsTrue( WS::is_std_set_v<decltype(volatilerefset)> );
+			Assert::IsTrue( WS::is_std_set_v<decltype(constvolatileset)> );
+			Assert::IsTrue( WS::is_std_set_v<decltype(constvolatilerefset)> );
+		}
+	};
+}
