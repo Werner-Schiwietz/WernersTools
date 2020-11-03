@@ -364,7 +364,37 @@ namespace UT_compare_bool
 				x=x;
 			}
 		}
-		TEST_METHOD(UT_referenz_ohne_objekt)
+
+		TEST_METHOD(UT_test_using_ret_value_implicit_cast)
+		{
+			struct A
+			{
+				std::string str="hallo";
+				WS::return_type<std::string> get() &&
+				{
+					return {str};
+				}
+				WS::return_type<std::string const &> get() const &
+				{
+					return {str};
+				}
+			};
+			auto equ = [](std::string const & l, std::string const & r){return l==r;};
+
+			if( auto x = A{}.get() )
+				Assert::IsTrue( equ(x,"hallo") );
+			{
+				auto a = A{};
+				if( auto x = a.get() )
+					Assert::IsTrue( equ( x, "hallo" ) );
+			}
+			{
+				auto const a = A{};//const sinnlos, aber...
+				if( auto const x = a.get() )//const sinnlos, aber...
+					Assert::IsTrue( equ( x, "hallo" ) );
+			}
+		}
+		TEST_METHOD(UT_referenz_ohne_objekt)//hä
 		{
 			//std::string & str {}; //error C2440: 'initializing': cannot convert from 'initializer list' to 'std::string &'
 

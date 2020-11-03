@@ -35,9 +35,9 @@ namespace WS
 		auto & toValueType() const &					{return this->value;} 
 		auto & toValueType() &							{return this->value;} 
 		auto && toValueType() &&						{return std::move(this->value);}//ohoh nutzung ohne prüfung ob valid? value nach aufruf evtl. leer aber valid-status bleibt ggf. true
-		explicit operator value_t const & () const &	{return this->value;} 
-		explicit operator value_t & () &				{return this->value;} 
-		explicit operator value_t && () &&				{return std::move(this->value);}//ohoh nutzung ohne prüfung ob valid? value nach aufruf evtl. leer aber valid-status bleibt ggf. true
+		operator value_t const & () const &				{return this->value;} 
+		operator value_t & () &							{return this->value;} 
+		operator value_t && () &&						{return std::move(this->value);}//ohoh nutzung ohne prüfung ob valid? value nach aufruf evtl. leer aber valid-status bleibt ggf. true
 		bool Valid() const override						{return this->error_code==error_code_t(0);}
 	};
 }
