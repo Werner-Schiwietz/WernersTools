@@ -8,7 +8,7 @@ using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 #include <set>
 
 #include "..\..\headeronly\stdex_make_shared.h"
-#include "..\..\headeronly\is_deref_is_pointer.h"
+#include "..\..\headeronly\is_.h"
 
 #include <atlstr.h>
 
@@ -21,17 +21,28 @@ using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 //	return v;
 //}
 
-namespace stdex//unbrauchbar, make_shared wird nicht benutzt. und wenn ich es hin bekäme wäre es schlimmer code. aber warum krieg ich es nicht hin??
+namespace stdex_//nicht schlau, der anwender soll dereferenzieren, wenn er von einem shared_ptr eine kopie will
 {
-	template<class ... _TTs> auto make_shared( std::shared_ptr<_TTs...> const & ptr)
+	template<class T> auto make_shared( std::shared_ptr<T> & ptr)
 	{
+		if( ptr == nullptr )
+			return std::shared_ptr<T>{}
 		return stdex::make_shared( *ptr );
 	}
-	template<class ... _TTs> auto make_shared( std::shared_ptr<_TTs...> && ptr)
+	template<class T> auto make_shared( std::shared_ptr<T> const & ptr)
 	{
+		if( ptr == nullptr )
+			return std::shared_ptr<T>{}
 		return stdex::make_shared( *ptr );
 	}
-	template<class ... _TTs> auto make_shared_fromshared( std::shared_ptr<_TTs...> const & ptr)
+	template<class T> auto make_shared( std::shared_ptr<T> && ptr)
+	{
+		return std::move(ptr);
+	}
+}
+namespace stdex
+{
+	template<class T> auto make_shared_fromshared( std::shared_ptr<T> const & ptr)
 	{
 		return stdex::make_shared( *ptr );
 	}
@@ -233,7 +244,6 @@ namespace UTsharedextended
 				auto x = stdex::make_shared(CString{L"hallo"});
 				Assert::IsTrue( *x==L"hallo" );
 			}
-
 		}
 		TEST_METHOD(UT_test3)
 		{			
@@ -269,6 +279,25 @@ namespace UTsharedextended
 			static_assert(WS::is_pointerable<op_pointer>::value == true );
 			static_assert(WS::is_pointerable<op_deref>::value == false );
 			static_assert(WS::is_pointerable<op_deref_pointer>::value == true );
+
+		}
+		TEST_METHOD(UT_test_shard_ptr_array)
+		{
+			struct A
+			{
+				std::string str;
+				~A(){
+				}
+			};
+			auto p1 = std::shared_ptr<A[2]>{ new A[2]{"Hallo","Welt"} };
+			auto p2 = std::make_shared<int[3]>( size_t{4} );//array [3]{4,4,4}//liefert in c++20 was anderes, oder?
+			auto p3 = std::make_shared<int[]>( size_t{4} );//array [2]//liefert in c++20 was anderes, oder?
+			auto px1 = p1.get();
+			auto px2 = px1+1;
+			Assert::IsTrue( (*px1).str=="Hallo" );
+			Assert::IsTrue( px2->str=="Welt" );
+			//p1.operator*();//error C2672: 'std::shared_ptr<UTsharedextended::UT_sharedextended::UT_test_shard_ptr_array::A [2]>::operator *': no matching overloaded function found
+			//auto p11 = stdex::make_shared(*p1);//error C2100: illegal indirection
 
 		}
 	};

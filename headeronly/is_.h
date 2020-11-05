@@ -2,6 +2,13 @@
 
 #include <type_traits>
 
+namespace std
+{
+	template <class _Ty, class _Alloc>class vector;
+	template <class _Kty, class _Pr, class _Alloc>class set;
+	template <typename>class shared_ptr;
+	template <typename,typename>class unique_ptr;
+}
 namespace WS
 {
 	//idee von https://stackoverflow.com/questions/49904809/template-function-for-detecting-pointer-like-dereferencable-types-fails-for-ac Answer 4
@@ -23,8 +30,27 @@ namespace WS
 
 namespace WS
 {
+	template<typename T> struct is_shared_ptr : std::false_type{};
+	template<typename T> struct is_shared_ptr<std::shared_ptr<T>> : std::true_type{};
+	template<typename T> struct is_shared_ptr<std::shared_ptr<T> const> : std::true_type{};
+	template<typename T> struct is_shared_ptr<std::shared_ptr<T> volatile> : std::true_type{};
+	template<typename T> struct is_shared_ptr<std::shared_ptr<T> const volatile> : std::true_type{};
+	template<typename T> struct is_shared_ptr<std::shared_ptr<T>&> : std::true_type{};
+	template<typename T> struct is_shared_ptr<std::shared_ptr<T> const &> : std::true_type{};
+	template<typename T> struct is_shared_ptr<std::shared_ptr<T> volatile &> : std::true_type{};
+	template<typename T> struct is_shared_ptr<std::shared_ptr<T> const volatile &> : std::true_type{};
+	template<typename T> struct is_shared_ptr<std::shared_ptr<T> &&> : std::true_type{};
+	template<typename T> struct is_shared_ptr<std::shared_ptr<T> const &&> : std::true_type{};//dämlich, const rvalue, aber sonst roter test UT_is_shared_ptr_const
+	template<typename T> struct is_shared_ptr<std::shared_ptr<T> volatile &&> : std::true_type{};//dämlich
+	template<typename T> struct is_shared_ptr<std::shared_ptr<T> const volatile &&> : std::true_type{};//dämlich
+	template<typename T> static auto const is_shared_ptr_v = is_shared_ptr<T>::value;
+}
+
+
+namespace WS
+{
 	template <typename T,typename =void> struct is_std_vector : std::false_type { };
-	template <typename T> struct is_std_vector< T, typename std::enable_if< std::is_same<std::decay_t<T>,std::vector< typename std::decay_t<T>::value_type, typename std::decay_t<T>::allocator_type > >::value >::type > : std::true_type {};
+	template <typename T> struct is_std_vector<T,typename std::enable_if<std::is_same<std::decay_t<T>,std::vector<typename std::decay_t<T>::value_type, typename std::decay_t<T>::allocator_type>>::value>::type> : std::true_type {};
 	template <typename T> static auto const is_std_vector_v = is_std_vector<T>::value;
 	
 	template <typename T,typename =void> struct is_std_set : std::false_type { };

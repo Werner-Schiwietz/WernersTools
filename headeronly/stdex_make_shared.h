@@ -2,6 +2,8 @@
 
 #include <memory>
 
+#include "is_.h"
+
 namespace stdex//brauchbar
 {
 	//usage stdex::make_shared( datentyp{...} ); also man uebergibt ein refernz oder rv-referenz und spart sich den template-parameter
