@@ -23,17 +23,29 @@ using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 
 namespace stdex_//nicht schlau, der anwender soll dereferenzieren, wenn er von einem shared_ptr eine kopie will
 {
+	//usage stdex::make_shared( datentyp{...} ); also man uebergibt ein refernz oder rv-referenz und spart sich den template-parameter
+	template<class _Ty> auto make_shared( _Ty const & v)
+	{
+		using pointer_element_t = std::remove_reference_t<_Ty>;
+		return std::make_shared<pointer_element_t, _Ty const &>( v );
+	}
+	template<class _Ty> auto make_shared( _Ty && v)
+	{
+		using pointer_element_t = std::remove_reference_t<_Ty>;
+		return std::make_shared<pointer_element_t, _Ty &&>( std::forward<_Ty>(v) );
+	}
+
 	template<class T> auto make_shared( std::shared_ptr<T> & ptr)
 	{
 		if( ptr == nullptr )
 			return std::shared_ptr<T>{}
-		return stdex::make_shared( *ptr );
+		return make_shared( *ptr );
 	}
 	template<class T> auto make_shared( std::shared_ptr<T> const & ptr)
 	{
 		if( ptr == nullptr )
 			return std::shared_ptr<T>{}
-		return stdex::make_shared( *ptr );
+		return make_shared( *ptr );
 	}
 	template<class T> auto make_shared( std::shared_ptr<T> && ptr)
 	{

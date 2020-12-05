@@ -18,10 +18,10 @@ namespace WS
 		invalid = -1, //-1 allgemeiner fehler, oder nicht initialisiert
 		none,		  //0 bedeutet immer kein fehler
 	};
-	template<typename value_type,typename error_code=return_type_error_code> struct return_type : compare_bool
+	template<typename value_type,typename error_code_type=return_type_error_code> struct return_type : compare_bool
 	{
 		using value_t = value_type;
-		using error_code_t = error_code;
+		using error_code_t = error_code_type;
 		value_t			value {};
 		error_code_t	error_code = error_code_t(-1);
 

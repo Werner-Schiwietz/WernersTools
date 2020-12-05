@@ -70,6 +70,8 @@ namespace UT_compare_bool
 				bool Valid() const override { return this->valid;}
 			};
 
+			if(A{})
+				Assert::Fail();
 			Assert::IsFalse(A{});
 			Assert::IsFalse(A{}==true);
 			Assert::IsFalse(true==A{});
@@ -238,6 +240,14 @@ namespace UT_compare_bool
 				Assert::Fail();
 			if( auto v=a.get(true))
 				Assert::Fail();
+		}
+		TEST_METHOD(UT_test_ret_type_return_struct2)
+		{
+			//WS::return_type<struct {int x;}> x;
+			//WS::return_type<struct X{int x;}> x;
+			struct X{int xx;};
+			WS::return_type<struct X> x;
+			x.toValueType().xx;
 		}
 		TEST_METHOD(UT_test_ret_type_return_tuple)
 		{
