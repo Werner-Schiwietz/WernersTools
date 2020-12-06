@@ -22,6 +22,10 @@
 //wozu braucht man das? 
 //keine ahnung. Ich suche noch das problem für die lösung.
 
+namespace std
+{	//forward
+	template <class...> class tuple;
+}
 namespace WS_old
 {
 	//von https://codereview.stackexchange.com/questions/129058/type-list-with-utilities abgeleitet
@@ -47,10 +51,6 @@ namespace WS_old
 	};
 }
 
-namespace std
-{	//forward
-	template <class...> class tuple;
-}
 namespace WS
 {
 	template<size_t N,typename first_t,typename...types> struct get_type : get_type<N-1,types...>
@@ -68,7 +68,7 @@ namespace WS
 		static size_t constexpr count=sizeof ... (types);
 		[[deprecated("deprecated use count")]] static size_t constexpr size(){return sizeof...(types);}
 		template<size_t N> using type = typename get_type<N,types...>::type;
-		template<size_t N> using get = typename get_type<N,types...>;
+		template<size_t N> using get = get_type<N,types...>;
 		template<size_t N> using get_t = typename get<N>::type;
 		using tuple_t = std::tuple<types...>;
 	};
