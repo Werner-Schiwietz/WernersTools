@@ -169,6 +169,11 @@
     <ClCompile Include="UT_Signal.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\headeronly\char_helper.h" />
+    <ClInclude Include="..\..\headeronly\combiner.h" />
+    <ClInclude Include="..\..\headeronly\combiner_last.h" />
+    <ClInclude Include="..\..\headeronly\mutex_automicflag.h" />
+    <ClInclude Include="..\..\headeronly\signal.h" />
     <ClInclude Include="pch.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

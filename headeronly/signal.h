@@ -47,15 +47,12 @@ namespace WS
 			id_t release(){signal=nullptr;return id;}//der auf aufrufer verantwortet den disconnect selbst
 			void disconnect();
 		};
-		std::map<id_t,fn_t> callbacks;//Funktionspointer-Verwaltung
 
 		Signal( ) {}
-		template<typename fn_in_t> 
-		[[nodiscard]]
-		Connection_Guard connect( fn_in_t fn ) //für nutzer wie fn_in_t::operator()(...)  evtl connect(std::reference_wrapper(*this)) verwenden, da 'fn' immer kopiert wird
+		template<typename fn_in_t> [[nodiscard]] Connection_Guard connect( fn_in_t fn ) //für nutzer wie fn_in_t::operator()(...)  evtl connect(std::reference_wrapper(*this)) verwenden, da 'fn' immer kopiert wird
 		{ 
 			std::lock_guard<decltype(locker)> const lock{locker};
-			id_t id = ++last_id; 
+			auto id = next_id();
 			callbacks[id] = fn;
 			return {this,id};
 		}
@@ -75,14 +72,38 @@ namespace WS
 		}
 		void disconnect( id_t id )
 		{
-			if( id )
-			{
-				std::lock_guard<decltype(locker)> const lock{locker};
-				callbacks.erase(id);
-			}
+			std::lock_guard<decltype(locker)> const lock{locker};
+			if( callbacks.erase(id) != 1 )
+				throw std::invalid_argument(__FUNCTION__ " id war ungültig");
 		}
+
+		std::map<id_t,fn_t> callbacks;//Funktionspointer-Verwaltung
 	private:
-		std::atomic<id_t>	last_id = 0;
+		id_t next_id()
+		{
+			if(locker.islocked()==false)
+				throw std::runtime_error(__FUNCTION__ " lock fehlt");
+
+			id_t id = 1;
+			auto iter = callbacks.rbegin();
+			if( iter!=callbacks.rend())
+				id = (*iter).first + 1;
+			if( id==0 )//überlauf? id0 ist invalid
+			{
+				id = 1;
+				for( auto [used_id, callback] : callbacks )//lücke suchen
+				{
+					if( id==used_id && callback )
+					{
+						if( ++id==0 )
+							throw std::runtime_error( "zuviele signal-user" );
+					}
+					else
+						break;
+				}
+			}
+			return id;
+		}
 		mutex_atomicflag	locker {};	
 	};
 

@@ -2,9 +2,9 @@
 
 namespace WS
 {
-	//Combiner verarbeiten die Rückgabewerte der gerufenen Funktionen
+	//Combiner verarbeiten in WS::Signal die Rückgabewerte der gerufenen Funktionen 
 	template<typename T,std::conditional_t<std::is_same<void,T>::value==false, T, int> initvalue=std::conditional_t<std::is_same<void,T>::value==false, T, int>{}> struct combiner_last 
-	{	//combiner_last liefert in this->value den rückgabewert der letzten gerufenen Funktion, oder, wenn kein Funktion verknüpft ist, den initvalue
+	{	//combiner_last liefert in this->value den rückgabewert des letzten Aufrufs von operator()(T), oder, wenn kein Aufruf erfolgte, den initvalue
 		static constexpr T init_val{initvalue};
 		using id_t = size_t;//typename Signal_trait<T()>::id_t;
 		T		value{initvalue};

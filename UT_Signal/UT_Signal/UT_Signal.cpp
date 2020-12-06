@@ -118,6 +118,77 @@ namespace UTSignal
 			}
 			sig(5,5);
 		}
+		TEST_METHOD(UT_disconnect_wrong_id)
+		{
+			//WS::Signal<bool(int,int)>::Connection_Guard connection//besser nicht vor signal anlegen. signal würde vor dem guard zerstört werden!
+			WS::Signal<bool(int,int)> signal;
+			decltype(signal)::Connection_Guard connection;
+
+			try
+			{
+				signal.disconnect(10);
+				Assert::Fail(L"exception erwartet");
+			}
+			catch(std::exception & e)
+			{
+				Logger::WriteMessage((std::string(__FUNCTION__ " exception:") + e.what()).c_str());
+			}
+		}
+		TEST_METHOD(UT_Connection_multi_assign)
+		{
+			//WS::Signal<bool(int,int)>::Connection_Guard connection//besser nicht vor signal anlegen. signal würde vor dem guard zerstört werden!
+			WS::Signal<bool(int,int)> signal;
+			decltype(signal)::Connection_Guard connection;
+
+			Assert::IsTrue( signal.callbacks.size()==0 );
+			connection = signal.connect(foo1);
+			Assert::IsTrue( signal.callbacks.size()==1 );
+			connection = signal.connect(foo1);
+			Assert::IsTrue( signal.callbacks.size()==1 );
+			connection = signal.connect(foo3);
+			Assert::IsTrue( signal.callbacks.size()==1 );
+		}
+
+		BEGIN_TEST_METHOD_ATTRIBUTE(UT_Signal_connect_until_exception)
+			TEST_IGNORE()
+		END_TEST_METHOD_ATTRIBUTE()
+		TEST_METHOD(UT_Signal_connect_until_exception)//der speicher geht aus, bevor die map des signal voll ist
+		{
+			WS::Signal<bool(int,int)> signal;
+			Logger::WriteMessage(__FUNCTION__ " das kann dauern" );
+			try
+			{
+				for(;;)
+					(void)signal.connect(foo1).release();//never do this
+			}
+			catch( std::exception & e )
+			{
+				Logger::WriteMessage(__FUNCTION__);
+				Logger::WriteMessage(e.what());
+				
+			}
+		}
+		BEGIN_TEST_METHOD_ATTRIBUTE(UT_Signal_next_id_over_4Giga_times)
+			TEST_IGNORE()
+		END_TEST_METHOD_ATTRIBUTE()
+		TEST_METHOD(UT_Signal_next_id_over_4Giga_times)
+		{
+			WS::Signal<bool(int,int)> signal;
+			decltype(signal)::Connection_Guard connection;
+
+			Logger::WriteMessage(__FUNCTION__ " das kann dauern" );
+			try
+			{
+				for(__int64 i=0;i<5'000'000'000i64;++i)
+					connection = signal.connect(foo1);
+			}
+			catch( std::exception & e )
+			{
+				Logger::WriteMessage(__FUNCTION__);
+				Logger::WriteMessage(e.what());
+
+			}
+		}
 		TEST_METHOD(UT_Signal_own_disconnect_und_method_calling)
 		{
 			WS::Signal<bool(int,int)> sig;
@@ -241,14 +312,24 @@ namespace UTSignal
 				connection_t connection_lamda;
 				connection_t connection_std_bind;
 				connection_t connection_operator;
+				connection_t connection_functor;
 				std::string lastFromLambda;
 				std::string lastFromBind;
+				std::string lastFromFunctor;
 				std::string lastFromOperator;
 				SignalUser( signal_t & signal)
 				{
+					struct functor
+					{
+						SignalUser & item;
+						functor(SignalUser & item):item(item){}
+
+						void operator()(std::string const & value){return item.SignalCallbackFunctor(value);}
+					};
 					//testweise 3 arten eine methoden bei signal zu registieren um das signal verarbeiten
 					connection_lamda	= signal.connect([this](std::string value){this->SignalCallbackLambda(value);});
 					connection_std_bind	= signal.connect(std::bind(&SignalUser::SignalCallbackBind, this, std::placeholders::_1));
+					connection_functor	= signal.connect(functor{*this});
 					//connection_operator = signal.connect(*this);//copy-ctor=delete  error C2280: 'UTSignal::UTSignal::UT_Signal_in_class_using::SignalUser::SignalUser(const UTSignal::UTSignal::UT_Signal_in_class_using::SignalUser &)': attempting to reference a deleted function
 					connection_operator = signal.connect(std::reference_wrapper(*this));//reference_wrapper sonst wuerde kopie von this angelegt werden
 				}
@@ -268,6 +349,11 @@ namespace UTSignal
 					Logger::WriteMessage( (std::string(__FUNCTION__ " value:") + value).c_str() );
 					lastFromBind = value;
 				}
+				void SignalCallbackFunctor(std::string value)
+				{
+					Logger::WriteMessage( (std::string(__FUNCTION__ " value:") + value).c_str() );
+					lastFromFunctor = value;
+				}
 			};
 
 			char buf[20];
@@ -277,16 +363,17 @@ namespace UTSignal
 			{
 				SignalUser ConnectToSignal(signal);
 				Logger::WriteMessage( (std::string("callback_count:") + tostring(signal.callbacks.size(),buf,10)).c_str() );
-				Assert::IsTrue( signal.callbacks.size()==3 );
+				Assert::IsTrue( signal.callbacks.size()==4 );
 				signal("hallo2");
 				Assert::IsTrue( ConnectToSignal.lastFromLambda=="hallo2");
 				Assert::IsTrue( ConnectToSignal.lastFromBind=="hallo2");
 				Assert::IsTrue( ConnectToSignal.lastFromOperator=="hallo2");
 				ConnectToSignal.connection_lamda.disconnect();
 				Logger::WriteMessage( (std::string("callback_count:") + tostring(signal.callbacks.size(),buf,10)).c_str() );
-				Assert::IsTrue( signal.callbacks.size()==2 );
+				Assert::IsTrue( signal.callbacks.size()==3 );
 				signal("hallo2_1");
 				Assert::IsTrue( ConnectToSignal.lastFromLambda=="hallo2");
+				Assert::IsTrue( ConnectToSignal.lastFromFunctor=="hallo2_1");
 				Assert::IsTrue( ConnectToSignal.lastFromBind=="hallo2_1");
 				Assert::IsTrue( ConnectToSignal.lastFromOperator=="hallo2_1");
 			}

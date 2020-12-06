@@ -14,6 +14,13 @@ namespace WS
 	public:
 		void lock(){ while (flag.test_and_set());}
 		void unlock(){ flag.clear(); }
+		bool islocked()//nicht atomic, nur zu kontrollzwecken
+		{ 
+			//std::atomic_flag::test() erst mit c++20
+			bool retvalue = flag.test_and_set();
+			if(retvalue==false)
+				flag.clear(); 
+			return retvalue;
+		}
 	};
-
 }
