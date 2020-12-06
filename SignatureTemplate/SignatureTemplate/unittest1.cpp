@@ -266,8 +266,8 @@ namespace SignatureTemplate
 		}
 		TEST_METHOD( UT_typelist_types )
 		{
-			Assert::IsTrue( WS::typelist<bool, int, short&>::size()!=2, L"sollte 3 sein" );
-			Assert::IsTrue( WS::typelist<bool, int, short&>::size()==3, L"sollte 3 sein" );
+			Assert::IsTrue( WS::typelist<bool, int, short&>::count!=2, L"sollte 3 sein" );
+			Assert::IsTrue( WS::typelist<bool, int, short&>::count==3, L"sollte 3 sein" );
 			Assert::IsTrue(std::is_same<bool,WS::typelist<bool,int,short&>::get<0>::type>::value, L"sollte bool sein" );
 			Assert::IsTrue( std::is_same<bool, WS::typelist<bool, int, short&>::get_t<1>>::value==false, L"sollte int sein" );
 			Assert::IsTrue( std::is_same<int, WS::typelist<bool, int, short&>::get<1>::type>::value, L"sollte int sein" );
@@ -347,10 +347,10 @@ namespace SignatureTemplate
 			bool f1 = fo3{}( int(1));
 			int f2 = fo3{}( int(1));
 			int f3 = fo3{}( bool(true));
-			Assert::IsFalse( WS::is_callable<fo3,bool( int const & )>::value);
+			Assert::IsFalse( WS::is_callable<fo3,bool( int const & )>::value);//return-wert müsste gleich sein
+			Assert::IsTrue( defines_functor_operator<fo3, bool( int const & )>::value );
 			Assert::IsTrue( WS::is_callable<fo3,int( int const & )>::value);//cast int auf bool
 			Assert::IsTrue( WS::is_callable<fo3,int( bool const & )>::value);
-			Assert::IsFalse( defines_functor_operator<fo3, bool( int const & )>::value );
 
 		}
 		TEST_METHOD(UT_is_functor)
