@@ -140,15 +140,24 @@ namespace UTSignal
 			WS::Signal<bool(int,int)> signal;
 			decltype(signal)::Connection_Guard connection;
 
-			Assert::IsTrue( signal.callbacks.size()==0 );
+			Assert::IsTrue( signal.prio_callbacks[0xff].size()==0 );
 			connection = signal.connect(foo1);
-			Assert::IsTrue( signal.callbacks.size()==1 );
+			Assert::IsTrue( signal.prio_callbacks[0xff].size()==1 );
 			connection = signal.connect(foo1);
-			Assert::IsTrue( signal.callbacks.size()==1 );
+			Assert::IsTrue( signal.prio_callbacks[0xff].size()==1 );
 			connection = signal.connect(foo3);
-			Assert::IsTrue( signal.callbacks.size()==1 );
+			Assert::IsTrue( signal.prio_callbacks[0xff].size()==1 );
 		}
-
+		TEST_METHOD(UT_id_type_lfdid_uberlauf)
+		{
+			WS::Signal<void(void)>::id_type{0};
+			auto id = WS::Signal<void(void)>::id_type{0}.id_offset(1);
+			Assert::IsTrue(id==1);
+			id = WS::Signal<void(void)>::id_type{0}.id_offset(-1);
+			Assert::IsTrue(id==0xfff'fff);
+			id = WS::Signal<void(void)>::id_type{0xfff'fff}.id_offset(+1);
+			Assert::IsFalse(id);
+		}
 		BEGIN_TEST_METHOD_ATTRIBUTE(UT_Signal_connect_until_exception)
 			TEST_IGNORE()
 		END_TEST_METHOD_ATTRIBUTE()
@@ -357,29 +366,127 @@ namespace UTSignal
 			};
 
 			char buf[20];
-			Logger::WriteMessage( (std::string("callback_count:") + tostring(signal.callbacks.size(),buf,10)).c_str() );
-			Assert::IsTrue( signal.callbacks.size()==0 );
+			auto constexpr def_prio = decltype(signal)::id_type::default_prio;
+
+			Logger::WriteMessage( (std::string("callback_count:") + tostring(signal.prio_callbacks[def_prio].size(),buf,10)).c_str() );
+			Assert::IsTrue( signal.prio_callbacks[def_prio].size()==0 );
 			signal("hallo1");
 			{
 				SignalUser ConnectToSignal(signal);
-				Logger::WriteMessage( (std::string("callback_count:") + tostring(signal.callbacks.size(),buf,10)).c_str() );
-				Assert::IsTrue( signal.callbacks.size()==4 );
+				Logger::WriteMessage( (std::string("callback_count:") + tostring(signal.prio_callbacks[def_prio].size(),buf,10)).c_str() );
+				Assert::IsTrue( signal.prio_callbacks[def_prio].size()==4 );
 				signal("hallo2");
 				Assert::IsTrue( ConnectToSignal.lastFromLambda=="hallo2");
 				Assert::IsTrue( ConnectToSignal.lastFromBind=="hallo2");
 				Assert::IsTrue( ConnectToSignal.lastFromOperator=="hallo2");
 				ConnectToSignal.connection_lamda.disconnect();
-				Logger::WriteMessage( (std::string("callback_count:") + tostring(signal.callbacks.size(),buf,10)).c_str() );
-				Assert::IsTrue( signal.callbacks.size()==3 );
+				Logger::WriteMessage( (std::string("callback_count:") + tostring(signal.prio_callbacks[def_prio].size(),buf,10)).c_str() );
+				Assert::IsTrue( signal.prio_callbacks[def_prio].size()==3 );
 				signal("hallo2_1");
 				Assert::IsTrue( ConnectToSignal.lastFromLambda=="hallo2");
 				Assert::IsTrue( ConnectToSignal.lastFromFunctor=="hallo2_1");
 				Assert::IsTrue( ConnectToSignal.lastFromBind=="hallo2_1");
 				Assert::IsTrue( ConnectToSignal.lastFromOperator=="hallo2_1");
 			}
-			Logger::WriteMessage( (std::string("callback_count:") + tostring(signal.callbacks.size(),buf,10)).c_str() );
-			Assert::IsTrue( signal.callbacks.size()==0 );
+			Logger::WriteMessage( (std::string("callback_count:") + tostring(signal.prio_callbacks[def_prio].size(),buf,10)).c_str() );
+			Assert::IsTrue( signal.prio_callbacks[def_prio].size()==0 );
 			signal("hallo3");
+		}
+		TEST_METHOD(UT_Signal_in_class_using_mit_prio)
+		{
+			auto signal = WS::Signal<void(std::string,bool&)>{};
+			using signal_t = decltype(signal);
+			using connection_t = signal_t::Connection_Guard;
+
+			//signal-konsument
+			struct SignalUser
+			{
+				connection_t connection_lamda;
+				connection_t connection_std_bind;
+				connection_t connection_operator;
+				connection_t connection_functor;
+				std::string lastFromLambda;
+				std::string lastFromBind;
+				std::string lastFromFunctor;
+				std::string lastFromOperator;
+				SignalUser( signal_t & signal)
+				{
+					struct functor
+					{
+						SignalUser & item;
+						functor(SignalUser & item):item(item){}
+
+						void operator()(std::string const & value,bool& verarbeitet){return item.SignalCallbackFunctor(value,verarbeitet);}
+					};
+					//testweise 3 arten eine methoden bei signal zu registieren um das signal verarbeiten
+					connection_lamda	= signal.connect([this](std::string value,bool& verarbeitet){this->SignalCallbackLambda(value,verarbeitet);});
+					connection_std_bind	= signal.connect(std::bind(&SignalUser::SignalCallbackBind, this, std::placeholders::_1, std::placeholders::_2));
+					connection_functor	= signal.connect(functor{*this},signal_t::prio_t{3});//wird vor default_prio ausgeführt
+					//connection_operator = signal.connect(*this);//copy-ctor=delete  error C2280: 'UTSignal::UTSignal::UT_Signal_in_class_using::SignalUser::SignalUser(const UTSignal::UTSignal::UT_Signal_in_class_using::SignalUser &)': attempting to reference a deleted function
+					connection_operator = signal.connect(std::reference_wrapper(*this),signal_t::prio_t{3});//reference_wrapper sonst wuerde kopie von this angelegt werden
+				}
+
+				void operator()(std::string const & value,bool & verarbeitet)
+				{
+					Logger::WriteMessage( (std::string(__FUNCTION__ " value:'") + value + "' verarbeitet=" + (verarbeitet?"true":"false")).c_str() );
+					lastFromOperator = value;
+				}
+				void SignalCallbackLambda(std::string value,bool & verarbeitet)
+				{
+					Assert::IsFalse(verarbeitet);
+					Logger::WriteMessage( (std::string(__FUNCTION__ " value:'") + value + "' verarbeitet=" + (verarbeitet?"true":"false") + " wird nun verarbeitet").c_str() );
+					verarbeitet=true;
+					lastFromLambda = value;
+				}
+				void SignalCallbackBind(std::string value,bool & verarbeitet)
+				{
+					Logger::WriteMessage( (std::string(__FUNCTION__ " value:'") + value + "' verarbeitet=" + (verarbeitet?"true":"false")).c_str() );
+					lastFromBind = value;
+				}
+				void SignalCallbackFunctor(std::string value,bool & verarbeitet)
+				{
+					Logger::WriteMessage( (std::string(__FUNCTION__ " value:'") + value + "' verarbeitet=" + (verarbeitet?"true":"false")).c_str() );
+					lastFromFunctor = value;
+				}
+			};
+
+			char buf[20];
+			auto constexpr def_prio = decltype(signal)::id_type::default_prio;
+
+			Logger::WriteMessage( (std::string("callback_count:") + tostring(signal.prio_callbacks[def_prio].size(),buf,10)).c_str() );
+			Assert::IsTrue( signal.prio_callbacks[def_prio].size()==0 );
+			bool verarbeitet = false;//die lambda verarbeitet die info
+			signal("hallo1",verarbeitet );
+			Assert::IsFalse(verarbeitet);
+			{
+				SignalUser ConnectToSignal(signal);
+				Logger::WriteMessage( (std::string("callback[def_prio] count:") + tostring(signal.prio_callbacks[def_prio].size(),buf,10)).c_str() );
+				Logger::WriteMessage( (std::string("callback[prio 3] count:") + tostring(signal.prio_callbacks[3].size(),buf,10)).c_str() );
+				Assert::IsTrue( signal.prio_callbacks[def_prio].size()==2 );
+				Assert::IsTrue( signal.prio_callbacks[3].size()==2 );
+				signal("hallo2",verarbeitet=false);
+				Assert::IsTrue(verarbeitet);
+				Assert::IsTrue( ConnectToSignal.lastFromLambda=="hallo2");
+				Assert::IsTrue( ConnectToSignal.lastFromBind=="hallo2");
+				Assert::IsTrue( ConnectToSignal.lastFromOperator=="hallo2");
+				ConnectToSignal.connection_lamda.disconnect();
+				Logger::WriteMessage( (std::string("callback[def_prio] count:") + tostring(signal.prio_callbacks[def_prio].size(),buf,10)).c_str() );
+				Logger::WriteMessage( (std::string("callback[prio 3] count:") + tostring(signal.prio_callbacks[3].size(),buf,10)).c_str() );
+				Assert::IsTrue( signal.prio_callbacks[def_prio].size()==1 );
+				Assert::IsTrue( signal.prio_callbacks[3].size()==2 );
+				signal("hallo2_1",verarbeitet=false);
+				Assert::IsFalse(verarbeitet);
+				Assert::IsTrue( ConnectToSignal.lastFromLambda=="hallo2");
+				Assert::IsTrue( ConnectToSignal.lastFromFunctor=="hallo2_1");
+				Assert::IsTrue( ConnectToSignal.lastFromBind=="hallo2_1");
+				Assert::IsTrue( ConnectToSignal.lastFromOperator=="hallo2_1");
+			}
+			Logger::WriteMessage( (std::string("callback[def_prio] count:") + tostring(signal.prio_callbacks[def_prio].size(),buf,10)).c_str() );
+			Logger::WriteMessage( (std::string("callback[prio 3] count:") + tostring(signal.prio_callbacks[3].size(),buf,10)).c_str() );
+			Assert::IsTrue( signal.prio_callbacks[def_prio].size()==0 );
+			Assert::IsTrue( signal.prio_callbacks[3].size()==0 );
+			signal("hallo3",verarbeitet=false);
+			Assert::IsFalse(verarbeitet);
 		}
 		TEST_METHOD(UT_tostring)
 		{
@@ -418,5 +525,73 @@ namespace UTSignal
 			}
 
 		}	
+		TEST_METHOD(UT_Signal_id_t)
+		{
+			using id_type = WS::Signal<void(void)>::id_type;
+			static_assert(sizeof(id_type)==sizeof(size_t));
+
+			auto id1=id_type{1};
+			auto id2=id_type{1,1};
+			size_t x1 = id1;x1;
+			size_t x2 = id2;x2;
+			Assert::IsFalse(id1==id2);
+			Assert::IsTrue(id1==id1);
+			Assert::IsTrue(id2==id2);
+			Assert::IsTrue(id1.id()==id2.id());
+			Assert::IsTrue(id1.prio()==0xff);
+			Assert::IsTrue(id2.prio()==0x01);
+
+			auto id3=id_type{0xcf'ffffff};//c ist prio
+			Assert::IsTrue((id_type::id_t)id3==0xcf'fff'fff);
+			Assert::IsTrue(id3.id()==0x00'fff'fff);
+			Assert::IsTrue(id3.prio()==0xcf);
+			try
+			{
+				id3=id_type{0xcf'fff'fff, 1};//cf ist prio
+				Assert::Fail(L"exception erwartet");
+			}
+			catch(std::exception & e)
+			{
+				Logger::WriteMessage( (std::string(__FUNCTION__ " Line(" _LINE_ ")") +  e.what()).c_str() );
+			}
+			try
+			{
+				id3=id_type{0xcf'fff'fff, 0};//cf ist prio
+				Assert::Fail(L"exception erwartet");
+			}
+			catch(std::exception & e)
+			{
+				Logger::WriteMessage( (std::string(__FUNCTION__ " Line(" _LINE_ ")") +  e.what()).c_str() );
+			}
+			id3=id_type{0xcf'fff'fff, 0xff};//cf ist prio, ff =default und wird ignoriert
+			Assert::IsTrue((id_type::id_t)id3==0xcf'fff'fff);
+			Assert::IsTrue(id3.id()==0x00'fff'fff);
+			Assert::IsTrue(id3.prio()==0xcf);
+		}
+		TEST_METHOD(UT_demo)
+		{
+			using signal_t = WS::Signal<bool(std::string const &, bool&)>;
+			auto  signal = signal_t{};//anlegen des signal-objekt
+		
+			struct SignalUser //callback-objekt mit autolink zum signal
+			{
+				using signal_t = signal_t;
+				signal_t::Connection_Guard connection;
+				SignalUser(SignalUser const &) = delete;//um sicher zu gehen, dass keine kopie angelegt werden kann
+				SignalUser( signal_t  & signal ) {this->connection = signal.connect(std::reference_wrapper(*this));}//reference_wrapper sonst wuerde kopie von this angelegt werden
+
+				bool operator()(std::string const & value,bool & verarbeitet)//diese funktion wird von signal gerufen
+				{
+					Logger::WriteMessage( (std::string(__FUNCTION__ " value:'") + value + "' verarbeitet=" + (verarbeitet?"true":"false")).c_str() );
+					#pragma warning(suppress:6282)
+					return verarbeitet=true;//als verarbeite kennzeichnen
+				}
+			} signaluser{signal};//verknüpft signal im ctor per connect mit signaluser 
+
+			bool verarbeitet = false;
+			auto combiner_wenn_von_interesse = signal("hallo", verarbeitet);//ruft alle verbundenen funktionen
+			Assert::IsTrue(verarbeitet);
+			Assert::IsTrue(combiner_wenn_von_interesse());// liefert ergebnis des default-combiner combiner_last<bool>
+		}
 	};
 }
