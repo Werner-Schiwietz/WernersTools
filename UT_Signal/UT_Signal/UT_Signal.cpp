@@ -488,6 +488,47 @@ namespace UTSignal
 			signal("hallo3",verarbeitet=false);
 			Assert::IsFalse(verarbeitet);
 		}
+		TEST_METHOD(UT_Signal_in_class_using_block)
+		{
+			auto signal = WS::Signal<void(size_t&)>{};
+			using signal_t = decltype(signal);
+			using connection_t = signal_t::Connection_Guard;
+			using block_t = signal_t::Block_Guard;
+			block_t block;
+
+			auto fn = [](size_t & counter){++counter;};
+
+			auto connection1 = signal.connect(fn);
+			auto connection2 = signal.connect(fn);
+			auto connection3 = signal.connect(fn);
+
+			size_t v=0;
+			signal(v);
+			Assert::IsTrue(v==3);
+
+			{
+				auto block2 =signal.block(connection2);
+
+				v=0;
+				signal(v);
+				Assert::IsTrue(v==2);
+
+				block =signal.block(connection1);
+
+				v=0;
+				signal(v);
+				Assert::IsTrue(v==1);
+
+				block =signal.block(connection3);//reuse blocker
+
+				v=0;
+				signal(v);
+				Assert::IsTrue(v==1);
+			}
+			v=0;
+			signal(v);
+			Assert::IsTrue(v==2);
+		}
 		TEST_METHOD(UT_tostring)
 		{
 
@@ -527,8 +568,12 @@ namespace UTSignal
 		}	
 		TEST_METHOD(UT_Signal_id_t)
 		{
-			using id_type = WS::Signal<void(void)>::id_type;
+			using id_type = typename WS::Signal<void(void)>::id_type;
 			static_assert(sizeof(id_type)==sizeof(size_t));
+			static_assert(sizeof(id_type::id_t)==sizeof(size_t));
+			static_assert(sizeof(id_type::parts)==sizeof(size_t));
+			static_assert(sizeof(id_type::prio_t)==sizeof(__int8));						//1Byte
+			//static_assert(sizeof(decltype(id_type::parts_t::prio))==sizeof(size_t));	//aber in der  struct 4Byte
 
 			auto id1=id_type{1};
 			auto id2=id_type{1,1};
