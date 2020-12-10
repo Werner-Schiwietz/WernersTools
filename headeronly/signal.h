@@ -128,7 +128,7 @@ namespace WS
 			} 
 		};
 		using prio_t = typename id_type::prio_t;
-		#pragma region Guards
+		#pragma region Region Guard
 		struct _Guard
 		{	//_Guard für Connection_ und Block_ 
 			using Signal_t=Signal<return_type(parameter_types...),combiner_t>;
@@ -149,22 +149,6 @@ namespace WS
 			}
 			operator bool(){return this->signal && id;}
 		};
-		struct Connection_Guard : _Guard
-		{	//Connection_Guard entfernt automatisch im dtor die callback-funktion aus der Signal-Funktionspointer-Verwaltung
-			//using _Guard::_Guard;
-			Connection_Guard(){}
-			Connection_Guard(Connection_Guard const &) = delete;
-			Connection_Guard(Connection_Guard && r) noexcept : _Guard(std::move(r)){}
-			Connection_Guard& operator=(Connection_Guard const &) & = delete;
-			Connection_Guard& operator=(Connection_Guard && r ) & noexcept { Connection_Guard{std::move(r)}.swap(*this);return *this; }
-			Connection_Guard(Signal_t* signal, id_t id) noexcept : _Guard(signal, id){}
-
-			~Connection_Guard(){try{disconnect();}catch(...){}}//ohne try ggf app-abort
-
-			[[nodiscard]]
-			id_t release(){signal=nullptr;return id;}//der auf aufrufer verantwortet den disconnect selbst
-			void disconnect();
-		};
 		struct Block_Guard : _Guard
 		{	//Block_Guard entfernt automatisch im dtor die die Blockade für den slot 
 			using _Guard::_Guard;
@@ -182,18 +166,42 @@ namespace WS
 			id_t release(){signal=nullptr;return id;}//der auf aufrufer verantwortet den disconnect selbst
 			void unblock();
 		};
+		struct Connection_Guard : _Guard
+		{	//Connection_Guard entfernt automatisch im dtor die callback-funktion aus der Signal-Funktionspointer-Verwaltung
+			//using _Guard::_Guard;
+			Connection_Guard(){}
+			Connection_Guard(Connection_Guard const &) = delete;
+			Connection_Guard(Connection_Guard && r) noexcept : _Guard(std::move(r)){}
+			Connection_Guard& operator=(Connection_Guard const &) & = delete;
+			Connection_Guard& operator=(Connection_Guard && r ) & noexcept { Connection_Guard{std::move(r)}.swap(*this);return *this; }
+			Connection_Guard(Signal_t* signal, id_t id) noexcept : _Guard(signal, id){}
+
+			~Connection_Guard(){try{disconnect();}catch(...){}}//ohne try ggf app-abort
+
+			void disconnect();
+			[[nodiscard]] id_t			release()			{signal=nullptr;return id;}//der auf aufrufer verantwortet den disconnect selbst
+			[[nodiscard]] Block_Guard	block()				{if(signal)signal->block(*this);}
+			void						break_signaling()	{if(signal)signal->break_signaling();}
+
+		};
 		#pragma endregion
-		Signal( ) {}
-		auto operator()( parameter_types... args)
+
+		Signal(){}
+		auto operator()( parameter_types... args)//löst signalisierung aus
 		{
 			std::lock_guard<decltype(locker)> const lock{locker};
+			this->breakSignaling=false;
 			if constexpr(std::is_same<return_t,void>::value==false)
 			{
 				combiner_type combiner{};
 				for(auto &[prio,callbacks] : this->prio_callbacks)
 				{
+					if( this->breakSignaling )
+						break;
 					for( auto & [id, fn_item] : callbacks )
 					{
+						if( this->breakSignaling )
+							break;
 						if( fn_item.blocked==false ) 
 							combiner( fn_item.fn(args...), id_type{id,prio} );									
 						//combiner( fn( std::forward<parameter_types>( args )... ), id_type{id,prio} );	//mit std::forward schlägt UT_Signal_in_class_using fehl, wegen std::string als parameter der moved würde
@@ -201,15 +209,23 @@ namespace WS
 				}
 				return combiner;
 			}
-			else for(auto &[prio,callbacks] : this->prio_callbacks)
+			else for(auto & [prio,callbacks] : this->prio_callbacks)
 			{
-				for( auto & [id, fn_item] : callbacks )
+				if( this->breakSignaling )
+					break;
+				for( auto & [id,fn_item] : callbacks )
 				{
+					if( this->breakSignaling )
+						break;
 					if( fn_item.blocked==false )
 						fn_item.fn( args... );
-					//fn( std::forward<parameter_types>( args )... );//mit std::forward schlägt UT_Signal_in_class_using fehl, wegen std::string als parameter der moved würde
+					//fn( std::forward<parameter_types>( args )... );//mit std::forward schlägt UT_Signal_in_class_using fehl, wegen std::string als parameter der per move kaputt ginge
 				}
 			}
+		}
+		void break_signaling()
+		{
+			this->breakSignaling=true;
 		}
 
 		template<typename fn_in_t> [[nodiscard]] Connection_Guard	connect( fn_in_t fn, typename id_type::prio_t prio = id_type::default_prio ) //für nutzer wie fn_in_t::operator()(...)  evtl connect(std::reference_wrapper(*this)) verwenden, da 'fn' immer kopiert wird
@@ -255,10 +271,12 @@ namespace WS
 			if( iter != callbacks.end() )
 			{
 				if( iter->second.blocked==false )
-					throw std::runtime_error(__FUNCTION__ " nicht geblocked");
+					throw std::runtime_error(__FUNCTION__ "id nicht geblockt");
 				iter->second.blocked = false;
 			}
 		}
+
+		size_t														num_slots() const {size_t retvalue{0};for(auto const & connections : this->prio_callbacks)retvalue+=connections.size();return retvalue;}
 
 		struct fn_item
 		{
@@ -293,7 +311,8 @@ namespace WS
 			}
 			return {id,prio};
 		}
-		mutex_atomicflag	locker {};	
+		mutex_atomicflag	locker {};
+		std::atomic_bool	breakSignaling{false};
 	};
 
 	template<typename ret_t,typename...args,typename combiner_t> void Signal<ret_t(args...),combiner_t>::Connection_Guard::disconnect( )

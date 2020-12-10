@@ -529,6 +529,47 @@ namespace UTSignal
 			signal(v);
 			Assert::IsTrue(v==2);
 		}
+		TEST_METHOD(UT_Signal_in_class_using_break_signaling)
+		{
+			auto signal = WS::Signal<void(size_t&)>{};
+			using signal_t = decltype(signal);
+			using connection_t = signal_t::Connection_Guard;
+
+			size_t break_at = 0;
+			
+			connection_t connection1;
+			auto fn = [&](size_t & counter)
+			{
+				if(++counter==break_at)
+				{
+					signal.break_signaling();
+					//connection1.break_signaling();//welche der drei connections egal, der interne signalpointer ist entscheident
+				}
+			};
+
+//			for( auto i=0;auto v :{1,2,3} )//c++20
+//			{
+//				++i;
+//			}
+
+			connection1 = signal.connect(fn);
+			auto connection2 = signal.connect(fn);
+			auto connection3 = signal.connect(fn);
+
+			size_t v=0;
+			signal(v);
+			Assert::IsTrue(v==3);
+
+			break_at=2;
+			v=0;
+			signal(v);
+			Assert::IsTrue(v==2);
+
+			break_at=0;
+			v=0;
+			signal(v);
+			Assert::IsTrue(v==3);
+		}
 		TEST_METHOD(UT_tostring)
 		{
 
