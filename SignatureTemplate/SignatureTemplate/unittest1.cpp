@@ -289,6 +289,10 @@ namespace SignatureTemplate
 			Assert::IsTrue( std::is_same<void, WS::typelist<void>::type<0>>::value);
 			Assert::IsTrue( std::is_same<void, WS::typelist<void>::get<0>::type>::value);
 			Assert::IsTrue( std::is_same<void, WS::typelist<void>::get_t<0>>::value);
+
+			//Assert::IsTrue( std::is_same<void, WS::typelist<>::type<1>>::value);//error C2976: 'WS::get_type': too few template arguments
+			//Assert::IsTrue( std::is_same<void, WS::typelist<void>::get_t<1>>::value);//error C2976: 'WS::get_type': too few template arguments
+
 			//WS::typelist<void>::tuple_t tuple;
 		}
 		TEST_METHOD( UT_typelist_int )
@@ -296,7 +300,7 @@ namespace SignatureTemplate
 			static_assert(WS::typelist<int>::count==1);
 			static_assert(std::is_same<WS::typelist<int>::get<0>::type,int>::value);
 			static_assert(std::is_same<WS::typelist<int>::get_t<0>,int>::value);
-			//static_assert(std::is_same<WS::typelist<int>::get_t<1>,int>::value);
+			//static_assert(std::is_same<WS::typelist<int>::get_t<1>,int>::value);//error C2976: 'WS::get_type': too few template arguments
 			WS::typelist<int>::tuple_t tuple;
 		}
 		TEST_METHOD(UT_signatur_types)

@@ -52,13 +52,8 @@ namespace WS_old
 
 namespace WS
 {
-	template<size_t N,typename first_t,typename...types> struct get_type : get_type<N-1,types...>
-	{
-	};
-	template<typename first_t,typename...types> struct get_type<0,first_t,types...>
-	{
-		using type=first_t;
-	};
+	template<size_t N,typename first_t,typename...types> struct get_type : get_type<N-1,types...>{/*static_assert(N<=sizeof...(types),"N out of bounds");*/};
+	template<typename first_t,typename...types> struct get_type<0,first_t,types...>{using type=first_t;};
 	template<size_t N,typename...types> using get_type_t = typename get_type<N,types...>::type;
 
 	template<typename...types> struct typelist
