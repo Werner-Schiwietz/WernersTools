@@ -16,6 +16,7 @@
 //headeronly\signal.h				diese datei
 //headeronly\mutex_automicflag.h	mutex fuer loak_guard nutzt atomic_flag
 //headeronly\combiner_last.h		default_combiner
+//headeronly\auto_ptr.h				smart-pointer
 //evtl. noch
 //headeronly\combiner.h	//optinal. da sind noch andere combiner, die man evtl. brauchen könnte
 
@@ -58,7 +59,8 @@ TEST_METHOD(UT_demo)
 
 #include "mutex_automicflag.h"
 #include "combiner_last.h"
-
+#include "Auto_Ptr.h"
+#include "type_list.h"//type_list ist opional, braucht man nicht
 
 #include <functional>
 #include <map>
@@ -70,13 +72,15 @@ namespace WS
 	{
 		using signatur_t		= return_type(parameter_types...);
 		using return_t          = return_type;
+		using typelist_t		= WS::typelist<parameter_types...>;//type_list ist opional, braucht man nicht
+		//using tuple_t			= typename typelist_t::tuple_t;
 		using tuple_t			= std::tuple<parameter_types...>;
 		using fn_t              = std::function<return_type(parameter_types...)>;
 		using id_t				= size_t;
 	};
 
 	template<typename signatur,typename combiner_t=combiner_last<Signal_trait<signatur>::return_t>>struct Signal;
-	template<typename return_type, typename ... parameter_types,typename combiner_type>struct Signal<return_type(parameter_types...),typename combiner_type> : Signal_trait<return_type(parameter_types...)>
+	template<typename return_type, typename ... parameter_types,typename combiner_type>struct Signal<return_type(parameter_types...),typename combiner_type> : Signal_trait<return_type(parameter_types...)>, WS::enable_auto_ptr_from_this<Signal<return_type(parameter_types...),combiner_type>>
 	{
 		using combiner_t=combiner_type;
 
@@ -133,14 +137,14 @@ namespace WS
 		{	//_Guard für Connection_ und Block_ 
 			using Signal_t=Signal<return_type(parameter_types...),combiner_t>;
 			id_t					id		= 0;
-			Signal_t *				signal	= nullptr;
+			WS::auto_ptr<Signal_t>	signal	= nullptr;
 			_Guard() noexcept {}
 			_Guard(_Guard const &) = delete;
 			_Guard(_Guard && r) noexcept {swap(r);}
 			_Guard& operator=(_Guard const &)& = delete;
 			_Guard& operator=(_Guard && r ) & noexcept {_Guard{std::move(r)}.swap(*this);return *this;}
 
-			_Guard(Signal_t* signal, id_t id) : signal(signal), id(id){}
+			_Guard(Signal_t& signal, id_t id) : signal(signal), id(id){}
 
 			void swap(_Guard & r)
 			{
@@ -157,7 +161,7 @@ namespace WS
 			Block_Guard(Block_Guard && r) noexcept : _Guard(std::move(r)){}
 			Block_Guard& operator=(Block_Guard const &) & = delete;
 			Block_Guard& operator=(Block_Guard && r ) & noexcept { Block_Guard{std::move(r)}.swap(*this);return *this; }
-			Block_Guard(Signal_t* signal, id_t id) : _Guard(signal, id){}
+			Block_Guard(Signal_t& signal, id_t id) : _Guard(signal, id){}
 
 
 			~Block_Guard(){try{unblock();}catch(...){}}//ohne try ggf app-abort
@@ -174,7 +178,7 @@ namespace WS
 			Connection_Guard(Connection_Guard && r) noexcept : _Guard(std::move(r)){}
 			Connection_Guard& operator=(Connection_Guard const &) & = delete;
 			Connection_Guard& operator=(Connection_Guard && r ) & noexcept { Connection_Guard{std::move(r)}.swap(*this);return *this; }
-			Connection_Guard(Signal_t* signal, id_t id) noexcept : _Guard(signal, id){}
+			Connection_Guard(Signal_t& signal, id_t id) noexcept : _Guard(signal, id){}
 
 			~Connection_Guard(){try{disconnect();}catch(...){}}//ohne try ggf app-abort
 
@@ -233,7 +237,7 @@ namespace WS
 			std::lock_guard<decltype(locker)> const lock{locker};
 			auto id = next_id(prio);
 			prio_callbacks[id.prio()][id.id()] = {fn};
-			return {this,id};
+			return {*this,id};
 		}
 		void														disconnect( id_t id )
 		{
@@ -256,7 +260,7 @@ namespace WS
 				if( iter->second.blocked==false )
 				{
 					iter->second.blocked = true;
-					return{this,id};
+					return{*this,id};
 				}
 			}
 			return {};

@@ -285,6 +285,27 @@ namespace UTSignal
 			}
 			sig(5,5);
 		}
+		TEST_METHOD(UT_Signal_standard_voidParameter)
+		{
+			size_t counter{0};
+			WS::Signal<void()> sig1;
+			WS::Signal<void(void)> sig2;
+			sig1();
+			sig2();
+			Assert::IsTrue(counter==0);
+
+			{
+				auto connection1 = sig1.connect([&counter](void){++counter;});
+				auto connection2 = sig2.connect([&counter](void){++counter;});
+				sig1();
+				Assert::IsTrue(counter==1);
+				sig2();
+				Assert::IsTrue(counter==2);
+			}
+			sig1();
+			sig2();
+			Assert::IsTrue(counter==2);
+		}
 		TEST_METHOD(UT_Signal_standard_all)
 		{
 			WS::Signal<bool(int,int),WS::combiner_all<bool>> sig;
@@ -569,6 +590,29 @@ namespace UTSignal
 			v=0;
 			signal(v);
 			Assert::IsTrue(v==3);
+		}
+		TEST_METHOD(UT_Signal_destroy_with_connection)
+		{
+			auto signal_ptr = std::make_unique<WS::Signal<void(size_t&)>>();
+			using signal_t = std::decay_t<decltype(*signal_ptr)>;
+			using connection_t = signal_t::Connection_Guard;
+
+			{
+				connection_t connection1;
+				auto fn = [&](size_t & counter)
+				{
+					++counter;
+				};
+
+				connection1 = signal_ptr->connect(fn);
+
+				size_t v=0;
+				(*signal_ptr)(v);
+				Assert::IsTrue(v==1);
+				Assert::IsTrue( connection1.signal!=nullptr );
+				signal_ptr = nullptr;//zerstört signal obwohl connection1 noch einen signal-pointer hat. Problem?
+				Assert::IsTrue( connection1.signal==nullptr );// no problem
+			}
 		}
 		TEST_METHOD(UT_tostring)
 		{

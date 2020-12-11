@@ -150,7 +150,7 @@ namespace WS
 		{
 			return is_callable<functional_t,ret_t(args_t...)>::value;
 		}
-		template<typename functional_t> static constexpr bool callable(functional_t  && v )
+		template<typename functional_t> static constexpr bool callable(functional_t  &&  )
 		{
 			return is_callable<functional_t,ret_t(args_t...)>::value;
 		}
@@ -274,6 +274,31 @@ namespace SignatureTemplate
 			Assert::IsTrue( std::is_same<bool, WS::typelist<bool, int, short&>::get<2>::type>::value==false, L"sollte short& sein" );
 			Assert::IsTrue( std::is_same<short&, WS::typelist<bool, int, short&>::get<2>::type>::value, L"sollte short& sein" );
 		}
+		TEST_METHOD( UT_typelist_empty_tuple )
+		{
+			std::tuple<> tuple;
+			WS::typelist<void>::tuple_t tuple2;
+			WS::typelist<>::tuple_t tuple3; 
+		}
+		TEST_METHOD( UT_typelist_empty )
+		{
+			static_assert(WS::typelist<>::count==0);
+			Assert::IsTrue( std::is_same<void, WS::typelist<>::type<0>>::value);
+			Assert::IsTrue( std::is_same<void, WS::typelist<>::get<0>::type>::value);
+			Assert::IsTrue( std::is_same<void, WS::typelist<>::get_t<0>>::value);
+			Assert::IsTrue( std::is_same<void, WS::typelist<void>::type<0>>::value);
+			Assert::IsTrue( std::is_same<void, WS::typelist<void>::get<0>::type>::value);
+			Assert::IsTrue( std::is_same<void, WS::typelist<void>::get_t<0>>::value);
+			//WS::typelist<void>::tuple_t tuple;
+		}
+		TEST_METHOD( UT_typelist_int )
+		{
+			static_assert(WS::typelist<int>::count==1);
+			static_assert(std::is_same<WS::typelist<int>::get<0>::type,int>::value);
+			static_assert(std::is_same<WS::typelist<int>::get_t<0>,int>::value);
+			//static_assert(std::is_same<WS::typelist<int>::get_t<1>,int>::value);
+			WS::typelist<int>::tuple_t tuple;
+		}
 		TEST_METHOD(UT_signatur_types)
 		{
 			WS::signatur<void(int)> s1;s1;
@@ -310,13 +335,13 @@ namespace SignatureTemplate
 		}
 		TEST_METHOD(UT_has_signature_functor)
 		{
-			auto fn1 = &fo1::operator();
+			auto fn1 = &fo1::operator();fn1;
 			using T1 = decltype(&fo1::operator());
 			using T2 = decltype((bool(fo2::*)(short))&fo2::operator());
 			using f_t = bool( fo2::* )(short);
 			using f_t_invalid = bool( fo2::* )(fo2);
-			auto fn21 = static_cast<bool( fo2::* )(short)>(&fo2::operator());
-			auto fn22 = static_cast<f_t>(&fo2::operator());
+			auto fn21 = static_cast<bool( fo2::* )(short)>(&fo2::operator());fn21;
+			auto fn22 = static_cast<f_t>(&fo2::operator());fn22;
 			//auto fnX = static_cast<f_t_invalid>(&fo2::operator());
 			//bool x = has_signature<bool( int const & )>(fo1()).value; x;
 			//Assert::IsTrue( has_signature<fo1, bool( int const & )>::value, L"1: nur funktionname geht irgend wie nicht" );
@@ -336,17 +361,17 @@ namespace SignatureTemplate
 				using fn_t = bool( fo3::* )(int const &);
 				using fn_t2 = decltype((fn_t)&fo3::operator());
 
-				auto x = fn_t{};
-				auto y = fn_t2{};
+				auto x = fn_t{};x;
+				auto y = fn_t2{};y;
 				Assert::IsTrue(std::is_same<fn_t, fn_t2>::value);
 			}
 
 			Assert::IsTrue( defines_functor_operator<fo1, bool( int const & )>::value );
 			Assert::IsTrue( defines_functor_operator<fo2, bool( int const & )>::value );
 
-			bool f1 = fo3{}( int(1));
-			int f2 = fo3{}( int(1));
-			int f3 = fo3{}( bool(true));
+			bool f1 = fo3{}( int(1));f1;
+			int f2 = fo3{}( int(1));f2;
+			int f3 = fo3{}( bool(true));f3;
 			Assert::IsFalse( WS::is_callable<fo3,bool( int const & )>::value);//return-wert müsste gleich sein
 			Assert::IsTrue( defines_functor_operator<fo3, bool( int const & )>::value );
 			Assert::IsTrue( WS::is_callable<fo3,int( int const & )>::value);//cast int auf bool
@@ -411,7 +436,7 @@ namespace SignatureTemplate
 			Assert::IsFalse( WS::has_signatur<bool( int const & )>::function( fn2 ) );
 			Assert::IsFalse( WS::has_signatur<bool( int const & )>::function( fn3 ) );
 
-			int i=5;
+			int i=5;i;
 			std::function<bool( int const & )> f;
 			f = l;
 			auto b =f( 5 );
@@ -443,14 +468,14 @@ namespace SignatureTemplate
 
 		TEST_METHOD(UT_calling)
 		{
-			int v5=5, v6=6;
+			int v5=5, v6=6;v6;
 			Assert::IsTrue( fn1( v5 ) );
 			Assert::IsTrue( fo1{}( v5 ) );
 			Assert::IsTrue( [&]( int const & v ) { return v==5; }(v5) );
 		}
 		TEST_METHOD(UT_auto_lambda)
 		{
-			auto ab = fnAutoAdd( 1, 2 );
+			auto ab = fnAutoAdd( 1, 2 );ab;
 			auto abc = fnAutoAdd( fnAutoAdd( std::string("hallo"),std::string(" ")), std::string("welt") );
 		}
 	};

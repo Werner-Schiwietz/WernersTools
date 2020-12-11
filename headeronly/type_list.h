@@ -44,10 +44,9 @@ namespace WS_old
 		};
 		template<size_t index> using get_t = typename get<index>::type;
 		//size() liefert die anzahl der typen
-		constexpr static size_t size(){return sizeof...(types);}
+		static size_t constexpr size(){return sizeof...(types);}
 		//include <tuple>. liefert std::tuple<types...>
-		struct tuple{using type=std::tuple<types...>;};
-		using tuple_t = typename tuple::type;
+		using tuple_t = std::tuple<types...>;
 	};
 }
 
@@ -60,18 +59,27 @@ namespace WS
 	{
 		using type=first_t;
 	};
-	template<size_t N,typename first_t,typename...types> using get_type_t = typename get_type<N,first_t,types...>::type;
+	template<size_t N,typename...types> using get_type_t = typename get_type<N,types...>::type;
 
-	template<typename...types>
-	struct typelist
+	template<typename...types> struct typelist
 	{
 		static size_t constexpr count=sizeof ... (types);
-		[[deprecated("deprecated use count")]] static size_t constexpr size(){return sizeof...(types);}
+		//[[deprecated("deprecated use count")]] static size_t constexpr size(){return sizeof...(types);}
 		template<size_t N> using type = typename get_type<N,types...>::type;
 		template<size_t N> using get = get_type<N,types...>;
 		template<size_t N> using get_t = typename get<N>::type;
 		using tuple_t = std::tuple<types...>;
 	};
+	template<> struct typelist<>//spezialisierung leere typelist
+	{
+		static size_t constexpr count=0;
+		//[[deprecated("deprecated use count")]] static size_t constexpr size(){return 0;}
+		template<size_t N> using type = typename get_type<N,void>::type;
+		template<size_t N> using get = get_type<N,void>;
+		template<size_t N> using get_t = typename get<N>::type;
+		using tuple_t = std::tuple<>;
+	};
+	template<> struct typelist<void> : typelist<>{};
 }
 
 namespace WS
