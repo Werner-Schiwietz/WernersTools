@@ -44,7 +44,7 @@ namespace WS_old
 		};
 		template<size_t index> using get_t = typename get<index>::type;
 		//size() liefert die anzahl der typen
-		static size_t constexpr size(){return sizeof...(types);}
+		static size_t constexpr size=sizeof...(types);
 		//include <tuple>. liefert std::tuple<types...>
 		using tuple_t = std::tuple<types...>;
 	};
@@ -58,8 +58,7 @@ namespace WS
 
 	template<typename...types> struct typelist
 	{
-		static size_t constexpr count=sizeof ... (types);
-		//[[deprecated("deprecated use count")]] static size_t constexpr size(){return sizeof...(types);}
+		static size_t constexpr size=sizeof ... (types);
 		template<size_t N> using type = typename get_type<N,types...>::type;
 		template<size_t N> using get = get_type<N,types...>;
 		template<size_t N> using get_t = typename get<N>::type;

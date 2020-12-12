@@ -266,8 +266,8 @@ namespace SignatureTemplate
 		}
 		TEST_METHOD( UT_typelist_types )
 		{
-			Assert::IsTrue( WS::typelist<bool, int, short&>::count!=2, L"sollte 3 sein" );
-			Assert::IsTrue( WS::typelist<bool, int, short&>::count==3, L"sollte 3 sein" );
+			Assert::IsTrue( WS::typelist<bool, int, short&>::size!=2, L"sollte 3 sein" );
+			Assert::IsTrue( WS::typelist<bool, int, short&>::size==3, L"sollte 3 sein" );
 			Assert::IsTrue(std::is_same<bool,WS::typelist<bool,int,short&>::get<0>::type>::value, L"sollte bool sein" );
 			Assert::IsTrue( std::is_same<bool, WS::typelist<bool, int, short&>::get_t<1>>::value==false, L"sollte int sein" );
 			Assert::IsTrue( std::is_same<int, WS::typelist<bool, int, short&>::get<1>::type>::value, L"sollte int sein" );
@@ -297,7 +297,7 @@ namespace SignatureTemplate
 		}
 		TEST_METHOD( UT_typelist_int )
 		{
-			static_assert(WS::typelist<int>::count==1);
+			static_assert(WS::typelist<int>::size==1);
 			static_assert(std::is_same<WS::typelist<int>::get<0>::type,int>::value);
 			static_assert(std::is_same<WS::typelist<int>::get_t<0>,int>::value);
 			//static_assert(std::is_same<WS::typelist<int>::get_t<1>,int>::value);//error C2976: 'WS::get_type': too few template arguments
