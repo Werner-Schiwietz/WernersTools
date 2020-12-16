@@ -11,13 +11,55 @@
 //GESCHÄFTEN MIT DER SOFTWARE ERGEBEN. 
 
 #include <atomic>
-#include <mutex>	//wer WS::mutex_atomicflag benutzt sollte auch std::lock_guard nutzen
+
 					//usage 
 					// mutex_atomicflag	locker {};
+					// als WS::lock_guard
+					// auto auto_release_lock =  WS::lock_guard<mutex_atomicflag>{locker};//der ctor ruft locker.lock() der dtor locker.unlock()
+					// oder als std::lock_guard
 					// auto auto_release_lock = std::lock_guard<mutex_atomicflag>{locker};//der ctor ruft locker.lock() der dtor locker.unlock()
 
 namespace WS
 {
+	//WS::lock_guard wie std::lock_guard. zusätzlich is_locked() unlock() und WS::lock_guard kann per rvalue-ref verschoben werden
+	template <class mutex_type> class lock_guard 
+	{ 
+	public:
+		using mutex_t = mutex_type;
+
+		explicit lock_guard(mutex_type& mutex) // construct and lock
+			: mutex(&mutex) 
+		{
+			this->mutex->lock();
+			this->locked = true;
+		}
+		lock_guard(lock_guard const &) = delete;
+		lock_guard& operator=(lock_guard const &) = delete;
+		lock_guard(lock_guard && r) {swap(r);}
+		lock_guard& operator=(lock_guard &&) & {lock_guard{std::move(r)}.swap(*this);return *this;}
+		void swap( lock_guard & r )
+		{
+			std::swap( this->locked, r.locked );
+			std::swap( this->mutex, r.mutex );
+		}
+
+		~lock_guard() noexcept {unlock();}
+		void unlock()
+		{
+			if(is_locked())
+			{
+				this->locked=false;
+				//#pragma warning(suppress:26110)//unsinn warning C26110: Caller failing to hold lock 'this->mutex' before calling function 'std::_Mutex_base::unlock'.
+				this->mutex->unlock();
+				this->mutex = nullptr;
+			}
+		}
+		bool is_locked() const { return locked && this->mutex;}
+	private:
+		lock_guard(){}
+		bool			locked	{false};
+		mutex_t *		mutex	{nullptr};
+	};
 	class mutex_atomicflag
 	{
 		std::atomic_flag flag{};
