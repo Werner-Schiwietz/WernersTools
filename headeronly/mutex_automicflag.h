@@ -60,6 +60,9 @@ namespace WS
 		bool			locked	{false};
 		mutex_t *		mutex	{nullptr};
 	};
+	template <class mutex_type> [[nodiscard]]lock_guard<mutex_type> lock( mutex_type & mutex){ return lock_guard<mutex_type>{mutex};}
+
+
 	class mutex_atomicflag
 	{
 		std::atomic_flag flag{};

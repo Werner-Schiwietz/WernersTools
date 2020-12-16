@@ -79,41 +79,37 @@ namespace WS
 		std::atomic<size_t>			waiting{0};//anzahl wartender threads, für pulse nötig
 
 		mutable std::mutex			state_mutex{};//dient hauptsächlich der vermeidung von race-condition
-		auto _lock_state_mutex() const
-		{
-			return WS::lock_guard<decltype(this->state_mutex)>(this->state_mutex);
-		}
 
 	public:
 		#pragma region status der semaphore runing oder blocked
-		bool is_running() const {auto locked=_lock_state_mutex();return _is_running();}
+		bool is_running() const {auto locked=lock(this->state_mutex);return _is_running();}
 		bool operator()() const {return is_running();}
 		operator bool () const {return is_running();}
 		#pragma endregion
 
 		#pragma region blocking methoden
-		void reset()		{auto lock=_lock_state_mutex();_set_blocked();}
-		void set_blocked()	{auto lock=_lock_state_mutex();_set_blocked();}
+		void reset()		{auto locked=lock(this->state_mutex);_set_blocked();}
+		void set_blocked()	{auto locked=lock(this->state_mutex);_set_blocked();}
 		#pragma endregion 
 		void set_blocked_and_wait()//statt set_blocked und wait unabhängig mit gefahr einer race condition
 		{
-			auto lock=_lock_state_mutex();
+			auto locked=lock(this->state_mutex);
 			_set_blocked();
-			_wait( lock );
+			_wait( locked );
 		}
 
 		void wait( )//es wird ggf gewartet, bis die Semaphore im running-mode ist, per set_running() oder pulse() egal
 		{
-			auto pulse_lock =_lock_state_mutex();
+			auto pulse_lock =lock(this->state_mutex);
 			_wait( pulse_lock );
 		}
 
 		#pragma region running methoden
-		void signaled()		{auto lock=_lock_state_mutex();_set_running();}
-		void set_running()	{auto lock=_lock_state_mutex();_set_running();}
+		void signaled()		{auto locked=lock(this->state_mutex);_set_running();}
+		void set_running()	{auto locked=lock(this->state_mutex);_set_running();}
 		void pulse() //jeder wartender thread soll gestartet werden, der nächste wait im thread blockiert wieder. also definiert einmalige ausführung.
 		{
-			auto pulse_lock=_lock_state_mutex();//blockiert neue wait-aufrufe und damit das hochzählen von waiting
+			auto pulse_lock=lock(this->state_mutex);//blockiert neue wait-aufrufe und damit das hochzählen von waiting
 			if( _is_running()==false )
 			{
 				size_t counter = 0;size_t const threads = waiting;//basteln, weil notify_all manchmal nicht die gewünschte wirkung erzielt
@@ -132,14 +128,14 @@ namespace WS
 		}
 		#pragma endregion 
 
-		size_t	Waiting(){auto lock=_lock_state_mutex();return waiting;}//liefert anzahl der wartenden threads
+		size_t	Waiting(){auto locked=lock(this->state_mutex);return waiting;}//liefert anzahl der wartenden threads
 		void	notify_all(){ cv.notify_all(); };//sollten wartende threads nicht gestartet werden, kann mit notify_all() der anstoß erneute ausgelöst werden. k.A. warum das manchmal nötig ist
 	private:
 		//funktionen ohne eigenen lock sind private
 		bool _is_running() const {return running;}
 		void _set_running(){running=true;cv.notify_all();}
 		void _set_blocked(){running=false;}
-		void _wait( WS::lock_guard<decltype(state_mutex)> & pulse_lock)
+		void _wait( lock_guard<decltype(state_mutex)> & pulse_lock)
 		{
 			if(running==false)
 			{

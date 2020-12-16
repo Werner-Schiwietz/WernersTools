@@ -204,7 +204,7 @@ namespace UTSemaphore
 		TEST_METHOD( move_lock )
 		{
 			std::mutex	mutex{};
-			auto lock = WS::lock_guard<decltype(mutex)>(mutex);
+			auto lock = WS::lock(mutex);
 			Assert::IsTrue( lock.is_locked() );
 			decltype(lock) lock2 = std::move(lock);
 			Assert::IsFalse( lock.is_locked() );
