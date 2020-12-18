@@ -48,7 +48,7 @@
 //	while( ready==false )
 //	{
 //		//wenn worker nichts mehr zu tun hat mit neuen daten(counter=0) aufwecken
-//		if( sema.is_running()==false )
+//		if( sema.is_signaled()==false )
 //		{
 //			counter=0;
 //			if( --counter_inner == 0 )
@@ -73,18 +73,24 @@ namespace WS
 {
 	class Semaphore
 	{
-		std::mutex					wait_mutex{};
-		std::condition_variable		cv{};
-		std::atomic_bool			running{false};
-		std::atomic<size_t>			waiting{0};//anzahl wartender threads, für pulse nötig
+		using mutex_t				= std::mutex;
+		using condition_variable_t	= std::condition_variable;
+		using count_t				= size_t;
+		enum class Notify{none,one,all};
 
-		mutable std::mutex			state_mutex{};//dient hauptsächlich der vermeidung von race-condition
+		mutex_t						wait_mutex{};
+		condition_variable_t		cv{};
+		std::atomic_bool			running{false};
+		std::atomic<count_t>		waiting{0};//anzahl wartender threads, für pulse nötig
+
+		mutable mutex_t				state_mutex{};//dient hauptsächlich der vermeidung von race-condition
 
 	public:
 		#pragma region status der semaphore runing oder blocked
-		bool is_running() const {auto locked=lock(this->state_mutex);return _is_running();}
-		bool operator()() const {return is_running();}
-		operator bool () const {return is_running();}
+		bool is_signaled() const {auto locked=lock(this->state_mutex);return _is_signaled();}
+		bool operator()()  const {return  is_signaled();}
+		operator bool ()   const {return  is_signaled();}
+		bool is_blocked()  const {return !is_signaled();}
 		#pragma endregion
 
 		#pragma region blocking methoden
@@ -97,43 +103,49 @@ namespace WS
 			_set_blocked();
 			_wait( locked );
 		}
-
 		void wait( )//es wird ggf gewartet, bis die Semaphore im running-mode ist, per set_running() oder pulse() egal
 		{
-			auto pulse_lock =lock(this->state_mutex);
-			_wait( pulse_lock );
+			auto locked =lock(this->state_mutex);
+			_wait( locked );
 		}
 
 		#pragma region running methoden
-		void signaled()		{auto locked=lock(this->state_mutex);_set_running();}
-		void set_running()	{auto locked=lock(this->state_mutex);_set_running();}
+		void signaled(Notify eNotify)		{auto locked=lock(this->state_mutex);_set_signaled_and_wait_till_all_running(eNotify);}
+		void signaled()						{signaled(Notify::all);}
+		void set_running(Notify eNotify)	{signaled(eNotify);}
+		void set_running()					{signaled(Notify::all);}
 		void pulse() //jeder wartender thread soll gestartet werden, der nächste wait im thread blockiert wieder. also definiert einmalige ausführung.
 		{
-			auto pulse_lock=lock(this->state_mutex);//blockiert neue wait-aufrufe und damit das hochzählen von waiting
-			if( _is_running()==false )
+			auto locked=lock(this->state_mutex);//blockiert neue wait-aufrufe und damit das hochzählen von waiting
+			if( _is_blocked() )
 			{
-				size_t counter = 0;size_t const threads = waiting;//basteln, weil notify_all manchmal nicht die gewünschte wirkung erzielt
-				_set_running();
-				while( waiting )//alle wartenten müssen gestartet worden sein
-				{
-					if( ++counter > threads )
-					{
-						cv.notify_all();//???geht doch manchmal einer verloren, also nochmal anstoßen!!!
-						counter=0;
-					}
-					std::this_thread::yield();//nicht nötig, schadet aber auch nicht
-				}
+				_set_signaled_and_wait_till_all_running(Notify::all);
 				_set_blocked();
 			}
 		}
 		#pragma endregion 
 
-		size_t	Waiting(){auto locked=lock(this->state_mutex);return waiting;}//liefert anzahl der wartenden threads
-		void	notify_all(){ cv.notify_all(); };//sollten wartende threads nicht gestartet werden, kann mit notify_all() der anstoß erneute ausgelöst werden. k.A. warum das manchmal nötig ist
+		count_t	Waiting(){auto locked=lock(this->state_mutex);return waiting;}//liefert anzahl der wartenden threads
+
+		void	notify(Notify notify)
+		{
+			switch(notify)
+			{
+			case Notify::one:
+				cv.notify_one(); 
+				break;
+			case Notify::all:
+				cv.notify_all(); 
+				break;
+			}
+		}
+		void	notify_all(){ notify(Notify::all); };//sollten wartende threads nicht gestartet werden, kann mit notify_all() der anstoß erneute ausgelöst werden. k.A. warum das manchmal nötig ist
+
 	private:
 		//funktionen ohne eigenen lock sind private
-		bool _is_running() const {return running;}
-		void _set_running(){running=true;cv.notify_all();}
+		bool _is_signaled() const {return  running;}
+		bool _is_blocked()  const {return !running;}
+		void _set_signaled(Notify eNotify){running=true;notify(eNotify);}
 		void _set_blocked(){running=false;}
 		void _wait( lock_guard<decltype(state_mutex)> & pulse_lock)
 		{
@@ -141,13 +153,46 @@ namespace WS
 			{
 				auto condition = [this,pulse_lock=std::move(pulse_lock)]() mutable //ohne mutable lambda klappt das mit dem verschieben des pulse_lock nicht, da die capture-parameter const wären
 				{
-					pulse_lock.unlock();//setzt beim ersten aufruf der check_funktion den mutext zurück
-					return this->_is_running(); 
+					bool running = this->_is_signaled();
+					if(  running==false && pulse_lock.is_locked() )
+						++waiting;//erster aufruf, wir warten. genau einmal waiting++
+					else if( running && pulse_lock.is_locked()==false )
+						--waiting;//nicht erster aufruf und wir warten nicht mehr
+
+					pulse_lock.unlock();//setzt beim ersten aufruf der check_funktion den mutext zurück, die semaphore ist wieder frei für veränderung, egal ob gewartet wird, oder nicht
+					return running;
 				};
-				std::unique_lock<std::mutex> lk( wait_mutex );
-				++waiting;
+				std::unique_lock<mutex_t> lk( wait_mutex );
 				cv.wait( lk, std::ref(condition) );
-				--waiting;
+			}
+		}
+
+		void _wait_till_all_running( count_t const threads_waiting, Notify const eNotify)
+		{
+			if( eNotify!=Notify::none )
+			{
+				count_t counter = 0; 
+				while( this->waiting )//wartet noch ein thread
+				{
+					if( eNotify==Notify::one && this->waiting<threads_waiting )
+						return;//mind. einer ist losgelaufen
+
+					if( ++counter > threads_waiting )//warten wir schon lange?
+					{
+						notify( eNotify );//???geht doch manchmal einer verloren, also nochmal anstoßen!!!
+						counter=0;//evtl. läuft das ewig. dann hängt ein thread oder wurde unsachgemäß beendet
+					}
+					std::this_thread::yield();//nicht nötig, schadet aber auch nicht
+				}
+			}
+		}
+		void _set_signaled_and_wait_till_all_running(Notify const eNotify)
+		{
+			if( _is_signaled()==false )
+			{
+				count_t const threads_waiting = this->waiting;//weil notify_all manchmal nicht die gewünschte wirkung erzielt. die anzahl wartenden threads vor signaled merken und weitergeben
+				_set_signaled(eNotify);
+				_wait_till_all_running( threads_waiting, eNotify);
 			}
 		}
 	};

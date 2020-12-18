@@ -23,7 +23,7 @@ void einfaches_daten_synchronisations_beispiel ()
 	while( ready==false )
 	{
 		//wenn worker nichts mehr zu tun hat mit neuen daten(counter=0) aufwecken
-		if( sema.is_running()==false )
+		if( sema.is_signaled()==false )
 		{
 			counter=0;
 			if( --counter_inner == 0 )
@@ -31,8 +31,9 @@ void einfaches_daten_synchronisations_beispiel ()
 
 			sema.set_running();
 		}
-		else
-			sema.notify_all();//eine notification geht scheinbar schonmal verloren. wenn man lange genug wartet werden vom system notifications ausgelöst. ist aber lästig
+		//else
+		//	sema.notify_all();//eine notification geht scheinbar schonmal verloren. wenn man lange genug wartet werden vom system notifications ausgelöst. ist aber lästig
+		std::this_thread::yield();//mit yield ca. 45% schneller ??
 	}
 
 	worker.join();
@@ -167,7 +168,7 @@ namespace UTSemaphore
 				size_t counter_inner{20000};
 				while( ready==false )
 				{
-					if( sema.is_running()==false )
+					if( sema.is_signaled()==false )
 					{
 						counter=0;
 						if( --counter_inner == 0 )
@@ -238,13 +239,21 @@ namespace UTSemaphore
 		{
 			struct A
 			{
+				A()=default;
+				A(A const &)=delete;
 				int foo(){return 5;}
+				auto& operator()(A & v){return v;}
 			};
 
 			A a;
 			Assert::IsTrue( a.foo() == 5 );
 			std::reference_wrapper<A> ra = a;
+			//Assert::IsTrue( ra.foo() == 5 );//error C2039: 'foo': is not a member of 'std::reference_wrapper<UTSemaphore::UTSemaphore::std__reference_wrapper1::A>'
 			Assert::IsTrue( ra.get().foo() == 5 );
+			static_cast<decltype(ra)::type&>(ra).foo();
+			A{}(ra).foo();
+			//A(ra).foo();
+			
 		}
 	};
 }
