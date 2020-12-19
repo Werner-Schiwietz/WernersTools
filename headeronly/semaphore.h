@@ -21,16 +21,18 @@
 
 //usage siehe UT_semaphore.cpp 
 //	wichtige funktionen
-//		WS::Semaphore::set_running()
-//		WS::Semaphore::set_blocked()
+//		WS::Semaphore::signaled(notify=Notify::all) or set_running. enum Notify als none, one, all gibt an, welche Notify-Funktion auf die condition_variable nach signaled gerufen wird
+//		WS::Semaphore::blocked() or set_running
 //		WS::Semaphore::wait() //if blocked
-	//oder als taktgeber
+//oder als taktgeber
+//		WS::Semaphore::pulse()//jeder wartende thread wird gestartet. nächste wait wartet garantiert, also genau ein durchlauf von wait zu wait in jedem thread. pulse kommt zum aufrufer zurück, wenn alle threads laufen, nicht wenn sie fertig sind
 //		WS::Semaphore::wait() //if blocked
-//		WS::Semaphore::pulse()
-
+//Fragen, für UnitTest. Ansonsten wird man die nicht brauchen.
+//		WS::Semaphore::is_signaled() or WS::Semaphore() or (bool)WS::Semaphore
+//		WS::Semaphore::is_blocked()
 
 // beispiel
-//void einfaches_daten_synchronisations_beispiel ()
+//void einfaches_daten_synchronisations_beispiel ()//ein datenlieferant und ein worker
 //{
 //	WS::Semaphore		sema;//blocked
 //	bool				ready{false};
@@ -39,7 +41,7 @@
 //
 //	auto worker = std::thread( [&]()
 //	{	//thread zählt von 0 - 100 und legt sich dann schlafen
-//		for(;ready==false;)
+//		for(;ready==false;)//wenn true beendet sich der thread
 //			if( ++counter == 100 )
 //				sema.set_blocked_and_wait();//wichtig statt set_blocked();wait(); was zur race-condition führen kann
 //	});
@@ -62,6 +64,7 @@
 //
 //	worker.join();
 //}
+//pulse beispiel in UT_semaphore.cpp
 
 #include "mutex_automicflag.h"
 
@@ -95,7 +98,7 @@ namespace WS
 
 		#pragma region blocking methoden
 		void reset()		{auto locked=lock(this->state_mutex);_set_blocked();}
-		void set_blocked()	{auto locked=lock(this->state_mutex);_set_blocked();}
+		void blocked()		{auto locked=lock(this->state_mutex);_set_blocked();}
 		#pragma endregion 
 		void set_blocked_and_wait()//statt set_blocked und wait unabhängig mit gefahr einer race condition
 		{
