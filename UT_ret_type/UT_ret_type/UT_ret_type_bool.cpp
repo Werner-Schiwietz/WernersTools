@@ -67,7 +67,7 @@ namespace UT_compare_bool
 				A(bool valid):valid(valid){}
 				int  value {};
 				bool valid = false;
-				bool Valid() const override { return this->valid;}
+				bool to_bool() const override { return this->valid;}
 			};
 
 			if(A{})
@@ -209,7 +209,7 @@ namespace UT_compare_bool
 			Assert::IsFalse(A{0}!=true);
 			Assert::IsFalse(true!=A{0});
 			auto a1 = A{false};
-			if( a1.Valid() )
+			if( a1.to_bool() )
 			{
 				Assert::IsTrue( a1.toValueType()==false );
 			}

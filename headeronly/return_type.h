@@ -14,8 +14,8 @@ namespace WS
 {
 	struct compare_bool
 	{
-		virtual bool Valid() const = 0;
-		operator bool() const { return Valid();}
+		virtual bool to_bool() const = 0;
+		operator bool() const { return to_bool();}
 		bool operator!() const { return !operator bool();}
 		bool operator==(bool r) const { return operator bool()==r;}
 		bool operator!=(bool r) const { return operator bool()!=r;}
@@ -36,7 +36,7 @@ namespace WS
 
 		return_type() noexcept(noexcept(value_t{})) {}
 		return_type(error_code_t error_code) noexcept(noexcept(value_t{})) : error_code(error_code) {}
-		template<typename T>return_type(T && value) noexcept(noexcept(std::decay_t<value_t>(std::forward<T>(value)))) : value(std::forward<T>(value)),error_code(error_code_t(0)) {}
+		template<typename T>return_type(T && value,error_code_t error_code=error_code_t(0)) noexcept(noexcept(std::decay_t<value_t>(std::forward<T>(value)))) : value(std::forward<T>(value)),error_code(error_code) {}
 
 		//bool operator==(value_t const & r) const { return toValueType()==r;}
 		//bool operator!=(value_t const & r) const { return toValueType()!=r;}
@@ -47,6 +47,10 @@ namespace WS
 		operator value_t const & () const &				{return this->value;} 
 		operator value_t & () &							{return this->value;} 
 		operator value_t && () &&						{return std::move(this->value);}//ohoh nutzung ohne prüfung ob valid? value nach aufruf evtl. leer aber valid-status bleibt ggf. true
-		bool Valid() const override						{return this->error_code==error_code_t(0);}
+		bool to_bool() const override					{return this->error_code==error_code_t(0);}
 	};
+	template<typename value_type,typename error_code_t=return_type_error_code> auto make_ret_type(value_type && value,error_code_t error_code=error_code_t{0})
+	{
+		return return_type<value_type,error_code_t>(std::move(value),error_code);
+	}
 }

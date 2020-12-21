@@ -5,6 +5,8 @@ using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 
 #include "..\..\headeronly\semaphore.h"
 
+#include <sstream>
+
 void einfaches_daten_synchronisations_beispiel ()
 {
 	WS::Semaphore		sema;//blocked
@@ -16,7 +18,7 @@ void einfaches_daten_synchronisations_beispiel ()
 	{	//thread zählt von 0 - 100 und legt sich dann schlafen
 		for(;ready==false;)
 			if( ++counter == 100 )
-				sema.set_blocked_and_wait();//wichtig statt set_blocked();wait(); was zur race-condition führen kann
+				sema.set_blocked_and_wait();//wichtig statt blocked();wait(); was zur race-condition führen kann. Es ginge auch wait( blocked() );
 	});
 
 	size_t counter_inner{20000};//20'000 mal bis 100 zählen lassen, super anspruchsvoll
@@ -76,10 +78,13 @@ namespace UTSemaphore
 
 			auto fn = [&]
 			{
+				//std::ostringstream ss;
 				for(;ready==false;)
 				{
+					//ss << std::this_thread::get_id() << " blocking";out(ss.str().c_str());ss.str("");
 					sema.wait();//wartet bis sema in running-state  versetzt wird bzw. hier pulse ausgeführt wird. pulse soll wait-blockade genau einmal lösen. der nächste aufruf von wait blockiert bis zum nächsten pulse
 					++counter;//das ist die arbeit die der thread ausführt. kurz, aber immer hin klar definiert
+					//ss << std::this_thread::get_id() << " running";out(ss.str().c_str());ss.str("");
 				}
 				--threads_running;
 			};
@@ -103,15 +108,16 @@ namespace UTSemaphore
 			using namespace std::chrono_literals;
 			Assert::IsTrue( counter==0);
 
-			sema.pulse();
+			Assert::IsTrue( sema.pulse() == 0 );
 			Assert::IsTrue( counter==0);
 
 			start_thread();
 			while( sema.Waiting()!=1)
 				std::this_thread::yield();
 
-			sema.pulse();
-			Assert::IsTrue( counter==1);
+			decltype(sema)::count_t started_thread_count = sema.pulse();//nicht auto, sonst wird der lock nicht freigegeben
+			while(sema.Waiting()!=started_thread_count)std::this_thread::yield();//pulse() wartet bis thread läuft, nicht bis die arbeit gemacht ist.
+			Assert::IsTrue( counter==started_thread_count);
 			counter=0;
 
 
@@ -127,13 +133,16 @@ namespace UTSemaphore
 
 			for( auto i=anzahl_pulse; i --> 0; )
 			{
-
-				sema.pulse();//funktioniert nur, wenn kein thread per therminate oder sonstige krummen dinge beendet wurde
+				started_thread_count = sema.pulse();//funktioniert nur, wenn kein thread per therminate oder sonstige krummen dinge beendet wurde
+				Assert::IsTrue( started_thread_count == anzahl_threads );
 
 				while( sema.Waiting()!=threads_running)
 					std::this_thread::yield();//warten bis alle wieder im definierten warte-zustand sind
 
 				Assert::IsTrue( counter==threads_running );
+
+				//std::ostringstream ss;ss << "loop " << i;out(ss.str().c_str());
+
 				counter=0;
 			}
 
@@ -254,6 +263,29 @@ namespace UTSemaphore
 			A{}(ra).foo();
 			//A(ra).foo();
 			
+		}
+		TEST_METHOD( is_signale_blocked )
+		{
+			WS::Semaphore sema;
+
+			{
+				auto issignaled = sema.is_signaled();//hält ergebnis und LOCK
+				Assert::IsTrue(  issignaled==false && sema.is_blocked(issignaled) );//LOCK an is_blocked weiter geben
+				sema.signaled();
+				issignaled = sema.is_signaled();
+				Assert::IsTrue(  issignaled && sema.is_blocked(issignaled)==false );
+			}
+
+			if( auto issignaled = sema.is_signaled(); issignaled==false || sema.is_blocked(issignaled) )
+			{
+				Assert::Fail();
+			}
+			sema.blocked();
+			if( auto issignaled = sema.is_signaled(); issignaled || sema.is_blocked(issignaled)==false )
+			{
+				Assert::Fail();
+			}
+
 		}
 	};
 }

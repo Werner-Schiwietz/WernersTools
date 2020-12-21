@@ -36,7 +36,7 @@ namespace WS
 		lock_guard(lock_guard const &) = delete;
 		lock_guard& operator=(lock_guard const &) = delete;
 		lock_guard(lock_guard && r) {swap(r);}
-		lock_guard& operator=(lock_guard &&) & {lock_guard{std::move(r)}.swap(*this);return *this;}
+		lock_guard& operator=(lock_guard && r) & {lock_guard{std::move(r)}.swap(*this);return *this;}
 		void swap( lock_guard & r )
 		{
 			std::swap( this->locked, r.locked );

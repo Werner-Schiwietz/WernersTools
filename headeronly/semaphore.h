@@ -20,6 +20,7 @@
 
 
 //usage siehe UT_semaphore.cpp 
+//!!!VORSICHT die meisten WS::Semaphore-Methoden liefern auch den lock_guard auf den state_mutex zurück. Also den Rückgabewert nicht merken, oder ggf. unlock aufrufen
 //	wichtige funktionen
 //		WS::Semaphore::signaled(notify=Notify::all) or set_running. enum Notify als none, one, all gibt an, welche Notify-Funktion auf die condition_variable nach signaled gerufen wird
 //		WS::Semaphore::blocked() or set_running
@@ -43,7 +44,7 @@
 //	{	//thread zählt von 0 - 100 und legt sich dann schlafen
 //		for(;ready==false;)//wenn true beendet sich der thread
 //			if( ++counter == 100 )
-//				sema.set_blocked_and_wait();//wichtig statt set_blocked();wait(); was zur race-condition führen kann
+//				sema.set_blocked_and_wait();//wichtig statt blocked();wait(); was zur race-condition führen kann. Es ginge auch wait( blocked() );
 //	});
 //
 //	size_t counter_inner{20000};//20'000 mal bis 100 zählen lassen, super anspruchsvoll
@@ -67,6 +68,7 @@
 //pulse beispiel in UT_semaphore.cpp
 
 #include "mutex_automicflag.h"
+#include "return_type.h"
 
 #include <atomic>
 #include <mutex>
@@ -76,9 +78,11 @@ namespace WS
 {
 	class Semaphore
 	{
+	public:
+		using count_t				= size_t;
+	private:
 		using mutex_t				= std::mutex;
 		using condition_variable_t	= std::condition_variable;
-		using count_t				= size_t;
 		enum class Notify{none,one,all};
 
 		mutex_t						wait_mutex{};
@@ -89,46 +93,78 @@ namespace WS
 		mutable mutex_t				state_mutex{};//dient hauptsächlich der vermeidung von race-condition
 
 	public:
+		#pragma region return_types
+		struct count_return_t
+		{
+			count_t				counter;
+			lock_guard<mutex_t> locked;
+
+			operator lock_guard<mutex_t>&&() &  {return std::move(locked);}
+			operator lock_guard<mutex_t>  () && {return std::move(locked);}
+			operator count_t() const {return counter;}
+		};
+		struct bool_lock : compare_bool
+		{
+			bool_lock(bool value,lock_guard<mutex_t> locked) : value(value),locked(std::move(locked)){} 
+			bool				value;
+			lock_guard<mutex_t>	locked;
+
+			operator lock_guard<mutex_t>&&() &  {return std::move(locked);}
+			operator lock_guard<mutex_t>  () && {return std::move(locked);}
+			bool to_bool() const override{return value;}
+		};
+		#pragma endregion
+
 		#pragma region status der semaphore runing oder blocked
-		bool is_signaled() const {auto locked=lock(this->state_mutex);return _is_signaled();}
-		bool operator()()  const {return  is_signaled();}
+		auto is_signaled(lock_guard<mutex_t>locked) const {return bool_lock{_is_signaled(),std::move(locked)};}// !! liefert auch den lock_guard zurück !!
+		auto is_signaled() const {return is_signaled(lock(this->state_mutex));}// !! liefert auch den lock_guard zurück !!
+		auto operator()()  const {return  is_signaled();}// !! liefert auch den lock_guard zurück !!
 		operator bool ()   const {return  is_signaled();}
-		bool is_blocked()  const {return !is_signaled();}
+		auto is_blocked(lock_guard<mutex_t>locked) const {return bool_lock{_is_blocked(),std::move(locked)};}// !! liefert auch den lock_guard zurück !!
+		auto is_blocked() const {return is_signaled(lock(this->state_mutex));}// !! liefert auch den lock_guard zurück !!
 		#pragma endregion
 
 		#pragma region blocking methoden
-		void reset()		{auto locked=lock(this->state_mutex);_set_blocked();}
-		void blocked()		{auto locked=lock(this->state_mutex);_set_blocked();}
+		auto reset(lock_guard<mutex_t>locked)	{_set_blocked();return std::move(locked);}
+		auto reset()							{return reset(lock(this->state_mutex));}
+		auto blocked(lock_guard<mutex_t>locked)	{return reset(std::move(locked));}
+		auto blocked()							{return reset();}
 		#pragma endregion 
 		void set_blocked_and_wait()//statt set_blocked und wait unabhängig mit gefahr einer race condition
 		{
-			auto locked=lock(this->state_mutex);
-			_set_blocked();
-			_wait( locked );
+			_wait( blocked() );
+		}
+		void wait( lock_guard<mutex_t>locked )
+		{
+			_wait( std::move(locked) );
 		}
 		void wait( )//es wird ggf gewartet, bis die Semaphore im running-mode ist, per set_running() oder pulse() egal
 		{
-			auto locked =lock(this->state_mutex);
-			_wait( locked );
+			_wait( lock(this->state_mutex) );
 		}
 
 		#pragma region running methoden
-		void signaled(Notify eNotify)		{auto locked=lock(this->state_mutex);_set_signaled_and_wait_till_all_running(eNotify);}
-		void signaled()						{signaled(Notify::all);}
-		void set_running(Notify eNotify)	{signaled(eNotify);}
-		void set_running()					{signaled(Notify::all);}
-		void pulse() //jeder wartender thread soll gestartet werden, der nächste wait im thread blockiert wieder. also definiert einmalige ausführung.
+		count_return_t	signaled(Notify eNotify,lock_guard<mutex_t>locked)	{return {_set_signaled_and_wait_till_all_running(eNotify),std::move(locked)};}//liefert die anzahl der wartenden threads UND DEN LOCK. also vorsicht, den return-wert nicht aufheben
+		auto			signaled(Notify eNotify)							{return signaled(eNotify,lock(this->state_mutex));}
+		auto			signaled()											{return signaled(Notify::all,lock(this->state_mutex));}
+		auto			set_running(Notify eNotify)							{return signaled(eNotify);}
+		auto			set_running()										{return signaled(Notify::all);}
+
+		count_return_t pulse(lock_guard<mutex_t>locked) //jeder wartender thread soll gestartet werden, der nächste wait im thread blockiert wieder. also definiert einmalige ausführung.
 		{
-			auto locked=lock(this->state_mutex);//blockiert neue wait-aufrufe und damit das hochzählen von waiting
+			count_t	started_thread_count{0};
 			if( _is_blocked() )
 			{
-				_set_signaled_and_wait_till_all_running(Notify::all);
+				started_thread_count = _set_signaled_and_wait_till_all_running(Notify::all);
 				_set_blocked();
 			}
+			return {started_thread_count,std::move(locked)};
 		}
+		auto pulse(){return pulse(lock(this->state_mutex));}//blockiert neue wait-aufrufe und damit das hochzählen von waiting}
 		#pragma endregion 
 
-		count_t	Waiting(){auto locked=lock(this->state_mutex);return waiting;}//liefert anzahl der wartenden threads
+		count_return_t	Waiting(lock_guard<mutex_t>locked){return {waiting,std::move(locked)};}//liefert anzahl der wartenden threads
+		auto			Waiting(){ return Waiting(lock(this->state_mutex)); }
 
 		void	notify(Notify notify)
 		{
@@ -145,12 +181,11 @@ namespace WS
 		void	notify_all(){ notify(Notify::all); };//sollten wartende threads nicht gestartet werden, kann mit notify_all() der anstoß erneute ausgelöst werden. k.A. warum das manchmal nötig ist
 
 	private:
-		//funktionen ohne eigenen lock sind private
-		bool _is_signaled() const {return  running;}
+		bool _is_signaled() const {return running;}
 		bool _is_blocked()  const {return !running;}
 		void _set_signaled(Notify eNotify){running=true;notify(eNotify);}
 		void _set_blocked(){running=false;}
-		void _wait( lock_guard<decltype(state_mutex)> & pulse_lock)
+		void _wait( lock_guard<decltype(state_mutex)> pulse_lock)
 		{
 			if(running==false)
 			{
@@ -169,7 +204,6 @@ namespace WS
 				cv.wait( lk, std::ref(condition) );
 			}
 		}
-
 		void _wait_till_all_running( count_t const threads_waiting, Notify const eNotify)
 		{
 			if( eNotify!=Notify::none )
@@ -189,14 +223,16 @@ namespace WS
 				}
 			}
 		}
-		void _set_signaled_and_wait_till_all_running(Notify const eNotify)
+		count_t _set_signaled_and_wait_till_all_running(Notify const eNotify)
 		{
 			if( _is_signaled()==false )
 			{
 				count_t const threads_waiting = this->waiting;//weil notify_all manchmal nicht die gewünschte wirkung erzielt. die anzahl wartenden threads vor signaled merken und weitergeben
 				_set_signaled(eNotify);
 				_wait_till_all_running( threads_waiting, eNotify);
+				return threads_waiting;
 			}
+			return 0;
 		}
 	};
 }
