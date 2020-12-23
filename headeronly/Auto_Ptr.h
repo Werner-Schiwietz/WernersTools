@@ -64,6 +64,7 @@ namespace WS
 				tagValid(bool valid,Managed managed) : valid{valid},managed{managed}{}
 				operator bool() { return valid; }
 			} valid;
+			static_assert(sizeof(tagValid)==1);
 		private:
 			~ReferenzCounterShare() {}
 			ReferenzCounterShare()=delete;
@@ -249,8 +250,8 @@ namespace WS
 						   || std::is_convertible<pointer_type,auto_ptr<U>::pointer_type>::value 
 							, __FUNCTION__ " pointer sind nicht zuweisbar");
 
-			using Tpt = WS::auto_ptr<T>::pointer_type;
-			using Upt = WS::auto_ptr<U>::pointer_type;
+			using Tpt = typename WS::auto_ptr<T>::pointer_type;
+			using Upt = typename WS::auto_ptr<U>::pointer_type;
 			using T_t = std::remove_pointer_t<Tpt>;
 			using U_t = std::remove_pointer_t<Upt>;
 			using Tpt1 = std::remove_const_t<T_t>;
@@ -499,45 +500,45 @@ namespace WS
 		{
 		}
 		//managed_auto_ptr( pointer_type ) = delete;
-		managed_auto_ptr() noexcept : auto_ptr() {}
-		managed_auto_ptr(std::nullptr_t) noexcept : auto_ptr() {}
+		managed_auto_ptr() noexcept : auto_ptr<T>() {}
+		managed_auto_ptr(std::nullptr_t) noexcept : auto_ptr<T>() {}
 		managed_auto_ptr( managed_auto_ptr const & r ) noexcept : auto_ptr(r) 
 		{
 		}
 		managed_auto_ptr( managed_auto_ptr && r ) noexcept : auto_ptr(std::move(r)) 
 		{
 		}
-		managed_auto_ptr( auto_ptr const & r ) : auto_ptr(r) 
+		managed_auto_ptr( auto_ptr<T> const & r ) : auto_ptr<T>(r) 
 		{
-			if( *this && is_managed()==false )
+			if( *this && this->is_managed()==false )
 				throw std::invalid_argument( __FUNCTION__ " managed auto_ptr erwartet");
 		}
-		managed_auto_ptr( auto_ptr && r ) : auto_ptr(std::move(r))
+		managed_auto_ptr( auto_ptr<T> && r ) : auto_ptr<T>(std::move(r))
 		{
-			if( *this && is_managed()==false )
+			if( *this && this->is_managed()==false )
 				throw std::invalid_argument( __FUNCTION__ " managed auto_ptr erwartet");
 		}
 		template<typename U>
 		managed_auto_ptr( auto_ptr<U> const & r ) : auto_ptr(r) 
 		{
-			if( *this && is_managed()==false )
+			if( *this && this->is_managed()==false )
 				throw std::invalid_argument( __FUNCTION__ " managed auto_ptr erwartet");
 		}
 		template<typename U>
 		managed_auto_ptr( auto_ptr<U> && r ) : auto_ptr(std::move(r))
 		{
-			if( *this && is_managed()==false )
+			if( *this && this->is_managed()==false )
 				throw std::invalid_argument( __FUNCTION__ " managed auto_ptr erwartet");
 		}
 		template<typename U>
-		managed_auto_ptr( enable_auto_ptr_from_this<U> & r ) : auto_ptr( r.auto_ptr_from_this() ) {}
+		managed_auto_ptr( enable_auto_ptr_from_this<U> & r ) : auto_ptr<T>( r.auto_ptr_from_this() ) {}
 		template<typename U>
-		managed_auto_ptr( enable_auto_ptr_from_this<U> const & r ) : auto_ptr( r.auto_ptr_from_this() ) {}
+		managed_auto_ptr( enable_auto_ptr_from_this<U> const & r ) : auto_ptr<T>( r.auto_ptr_from_this() ) {}
 		template<typename U>
-		managed_auto_ptr( enable_auto_ptr_from_this<U> * r ) : auto_ptr( r?r->auto_ptr_from_this():nullptr ) {}
+		managed_auto_ptr( enable_auto_ptr_from_this<U> * r ) : auto_ptr<T>( r?r->auto_ptr_from_this():nullptr ) {}
 		template<typename U>
-		managed_auto_ptr( enable_auto_ptr_from_this<U> const * r ) : auto_ptr( r?r->auto_ptr_from_this():nullptr ) {}
-		managed_auto_ptr( std::unique_ptr<T> && Ptr ) noexcept : auto_ptr( std::move(Ptr) ) {}
+		managed_auto_ptr( enable_auto_ptr_from_this<U> const * r ) : auto_ptr<T>( r?r->auto_ptr_from_this():nullptr ) {}
+		managed_auto_ptr( std::unique_ptr<T> && Ptr ) noexcept : auto_ptr<T>( std::move(Ptr) ) {}
 
 		explicit managed_auto_ptr( std::shared_ptr<T> sharedptr ) noexcept : auto_ptr( std::move(sharedptr) ) {}//bei sharedpointer muss sich z.zt ggf. der aufrufer um den cast kümmern, dass kann ich sonst nicht mehr testen
 		//auto_ptr(auto_ptr const& r) : auto_ptr(r.ownerless()){}
@@ -548,8 +549,8 @@ namespace WS
 		//explicit 
 		managed_auto_ptr(managed_auto_ptr<U> && r) noexcept : auto_ptr( std::move(r) ) {}//dient der konvertierung  const T = U oder T bzw U ist abgeleitet von vom Anderen, bzw. T = const U
 
-		managed_auto_ptr & operator=( managed_auto_ptr const & r) & noexcept { auto_ptr::operator=(r); return *this; }
-		managed_auto_ptr & operator=( managed_auto_ptr && r) & noexcept { auto_ptr::operator=(std::move(r)); return *this; }
+		managed_auto_ptr & operator=( managed_auto_ptr const & r) & noexcept { auto_ptr<T>::operator=(r); return *this; }
+		managed_auto_ptr & operator=( managed_auto_ptr && r) & noexcept { auto_ptr<T>::operator=(std::move(r)); return *this; }
 
 		template<typename U> 
 		managed_auto_ptr & operator=( enable_auto_ptr_from_this<U> * r ) & noexcept { return operator=(managed_auto_ptr(r)); }
@@ -643,8 +644,10 @@ namespace WS
 		using this_type = this_t;
 		mutable auto_ptr<this_t> auto_this;//wird erst bei der ersten verwendung initialisiert, so werden keine resourcen ungenutzt belegt
 	protected:
-		enable_auto_ptr_from_this( )
-		{}
+		enable_auto_ptr_from_this(){}
+		//es ist nicht möglich den auto_ptr.pointer umzusetzen, da dynamic_cast<this_t*>(this) im ctor noch nicht funktionieren kann
+		enable_auto_ptr_from_this(enable_auto_ptr_from_this const&){}
+		enable_auto_ptr_from_this(enable_auto_ptr_from_this && ){}
 	public:
 		virtual ~enable_auto_ptr_from_this( ) = 0
 		{

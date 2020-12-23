@@ -115,22 +115,22 @@ namespace WS
 		};
 		#pragma endregion
 
-		#pragma region status der semaphore runing oder blocked
-		auto is_signaled(lock_guard<mutex_t>locked) const {return bool_lock{_is_signaled(),std::move(locked)};}// !! liefert auch den lock_guard zurück !!
-		auto is_signaled() const {return is_signaled(lock(this->state_mutex));}// !! liefert auch den lock_guard zurück !!
-		auto operator()()  const {return  is_signaled();}// !! liefert auch den lock_guard zurück !!
-		operator bool ()   const {return  is_signaled();}
-		auto is_blocked(lock_guard<mutex_t>locked) const {return bool_lock{_is_blocked(),std::move(locked)};}// !! liefert auch den lock_guard zurück !!
-		auto is_blocked() const {return is_signaled(lock(this->state_mutex));}// !! liefert auch den lock_guard zurück !!
+		#pragma region status der semaphore running oder blocked
+		auto is_signaled(lock_guard<mutex_t>locked) const	{return bool_lock{_is_signaled(),std::move(locked)};}// !! liefert auch den lock_guard zurück !!
+		auto is_signaled() const							{return is_signaled(lock(this->state_mutex));}// !! liefert auch den lock_guard zurück !!
+		auto operator()()  const							{return is_signaled();}// !! liefert auch den lock_guard zurück !!
+		operator bool ()   const							{return is_signaled();}
+		auto is_blocked(lock_guard<mutex_t>locked) const	{return bool_lock{_is_blocked(),std::move(locked)};}// !! liefert auch den lock_guard zurück !!
+		auto is_blocked() const								{return is_signaled(lock(this->state_mutex));}// !! liefert auch den lock_guard zurück !!
 		#pragma endregion
 
 		#pragma region blocking methoden
-		auto reset(lock_guard<mutex_t>locked)	{_set_blocked();return std::move(locked);}
-		auto reset()							{return reset(lock(this->state_mutex));}
-		auto blocked(lock_guard<mutex_t>locked)	{return reset(std::move(locked));}
-		auto blocked()							{return reset();}
+		auto reset(lock_guard<mutex_t>locked)				{_set_blocked();return std::move(locked);}
+		auto reset()										{return reset(lock(this->state_mutex));}
+		auto blocked(lock_guard<mutex_t>locked)				{return reset(std::move(locked));}
+		auto blocked()										{return reset();}
 		#pragma endregion 
-		void set_blocked_and_wait()//statt set_blocked und wait unabhängig mit gefahr einer race condition
+		void set_blocked_and_wait()//statt blocked und wait unabhängig mit gefahr einer race condition
 		{
 			_wait( blocked() );
 		}

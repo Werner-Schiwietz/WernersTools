@@ -708,6 +708,10 @@ namespace autoptr
 			struct Data : WS::enable_auto_ptr_from_this<Data>
 			{
 				Data(int value):value(value){}
+				Data(Data const &) noexcept = default;
+				Data(Data &&) noexcept = default;//ohne noexcept nutzt vector beim umkopieren den ctor, mit noexcept nutzt vector beim umkopieren diesen mtor
+				Data& operator=(Data const &) noexcept = default;
+				Data& operator=(Data &&) noexcept = default;
 				int value;
 			};
 			std::vector<Data> container;

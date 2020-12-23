@@ -287,5 +287,52 @@ namespace UTSemaphore
 			}
 
 		}
+		TEST_METHOD( lock_als_parameter )
+		{
+			std::mutex mutex;
+			auto locked = WS::lock(mutex);
+			Assert::IsTrue( locked.is_locked() );
+			auto fnAlsObj = []( WS::lock_guard<std::mutex> locked )
+			{
+				Assert::IsTrue( locked.is_locked() );
+			};
+			auto fnAlsRVRef= []( WS::lock_guard<std::mutex> && locked )
+			{
+				Assert::IsTrue( locked.is_locked() );
+				return std::move(locked);
+			};
+			auto&& fnAlsRVRefReturnRVRef= []( WS::lock_guard<std::mutex> && locked )
+			{
+				Assert::IsTrue( locked.is_locked() );
+				return std::move(locked);
+			};
+			auto fnAlsRVRefOhneUebernahme= []( WS::lock_guard<std::mutex> && locked )
+			{
+				Assert::IsTrue( locked.is_locked() );
+			};
+
+			fnAlsObj( std::move(locked) );//per mtor uebergeben, lock geht sicher verloren
+			Assert::IsFalse( locked.is_locked() );
+			auto l1 = WS::lock(mutex);
+			Assert::IsTrue( l1.is_locked() );
+			l1 = std::move(l1);//auf sich selbst moven, verändert am objekt nichts dauerhaft
+			Assert::IsTrue( l1.is_locked() );
+
+			fnAlsRVRefOhneUebernahme( std::move(l1) );//std::move alleine macht nichts, nur eine rvaluereferenz
+			Assert::IsTrue( l1.is_locked() );
+
+			auto l2 = fnAlsRVRef( std::move(l1) );//der return in fnAlsRVRef verschiebt den lock ins return-objekt
+			Assert::IsFalse( l1.is_locked() );
+			Assert::IsTrue( l2.is_locked() );
+
+			auto && l3  = fnAlsRVRefReturnRVRef( std::move(l2) );//der return in fnAlsRVRefReturnRVRef macht per mtor neues lock-obj, auch wenn es anders aussieht
+			Assert::IsFalse( l2.is_locked() );
+			Assert::IsTrue( l3.is_locked() );
+
+			auto  l4  = fnAlsRVRefReturnRVRef( std::move(l3) );//kein unterschied zu l3 = fnAlsRVRefReturnRVRef
+			Assert::IsFalse( l2.is_locked() );
+			Assert::IsFalse( l3.is_locked() );
+			Assert::IsTrue( l4.is_locked() );
+		}
 	};
 }
