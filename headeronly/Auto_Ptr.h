@@ -297,8 +297,7 @@ namespace WS
 						|| std::is_base_of<T, U>::value
 						, __FUNCTION__ " pointer sind nicht zuweisbar");
 
-			auto_ptr temp{ r.transfer() };
-			swap( temp );
+			auto_ptr { r.transfer() }.swap( *this );
 
 			return *this;
 		}
@@ -308,9 +307,7 @@ namespace WS
 						   || std::is_base_of<T, U>::value
 						, __FUNCTION__ " pointer sind nicht zuweisbar");
 
-			auto_ptr<T> temp{ r };
-
-			swap( temp );
+			auto_ptr<T>{ r }.swap( *this );
 			return *this;
 		}
 		template<typename U> auto_ptr & operator=(std::unique_ptr<U> && uniqueptr) & noexcept
