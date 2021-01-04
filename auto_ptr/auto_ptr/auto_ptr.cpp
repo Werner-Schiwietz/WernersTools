@@ -702,8 +702,45 @@ namespace autoptr
 			Assert::IsTrue( p3->value == d3.value );
 			Assert::IsTrue( p3->value != d1.value );
 		}
+		TEST_METHOD(auto_ptr_from_this_moved)
+		{
+			struct A : WS::enable_auto_ptr_from_this<A>
+			{
+				int v{};
+				~A(){}
+				A() noexcept {}
+				A(int v) noexcept :v(v){}
+				A(A const & r) noexcept : v(r.v){}
+				A(A && r) noexcept : enable_auto_ptr_from_this(std::move(r)){swap(r);}
+				A& operator=(A const & r) & noexcept {this->v=r.v;return *this;}
+				A& operator=(A && r) & noexcept {A{std::move(r)}.swap(*this);return *this;}
+				void swap( A & r )
+				{
+					std::swap(this->v,r.v);
+				}
+			};
+
+			A a1{1};
+			A a2 = std::move(a1);
+
+			auto a1_ptr = a1.auto_ptr_from_this();
+			a1_ptr->v=2;
+			auto a2_ptr = a2.auto_ptr_from_this();
+			auto v1 = a1_ptr->v;
+			auto v2 = a2_ptr->v;
+			Assert::IsTrue(v1==2);
+			Assert::IsTrue(v2==1);
+			auto pa1 = a1_ptr.get();pa1;
+			auto pa2 = a2_ptr.get();pa2;
+			a1 = std::move(a2);
+			auto v1_2 = a1_ptr->v;
+			Assert::IsTrue(v1_2==1);
+			Assert::IsTrue(a2_ptr->v==int{});
+			Assert::IsTrue( a1_ptr.get()==pa1 );
+			Assert::IsTrue( a2_ptr.get()==pa2 );
+		}
 		TEST_METHOD(auto_ptr_from_this_von_objekt_im_vector)
-		{	//per auto_ptr_from_this gemerkte pointer auf std::vector-elemente werden durch reallok im vector zu nullptr, obwohl die ojekte im vector am index noch vorhanden sind, aber halt an anderer adresse
+		{	//per auto_ptr_from_this gemerkte pointer auf std::vector-elemente werden durch realloc im vector zu nullptr, obwohl die ojekte im vector am index noch vorhanden sind, aber halt an anderer adresse
 			//deshalb nicht auf dynamische container anwenden, zu gefährlich für den programmablauf
 			struct Data : WS::enable_auto_ptr_from_this<Data>
 			{
@@ -1340,7 +1377,7 @@ namespace autoptr
 				auto init_counter = ctor_counter::counter;
 				{
 
-					WS::auto_ptr_vw<ctor_counter,std::deque<WS::auto_ptr<ctor_counter>>> vw;
+					WS::auto_ptr_vw<ctor_counter,std::deque> vw;
 					(void)vw.push_back( new ctor_counter{} );
 					Assert::IsTrue(init_counter+1==ctor_counter::counter);
 					(void)vw.erase( nullptr );
@@ -1350,22 +1387,23 @@ namespace autoptr
 				Assert::IsTrue(init_counter==ctor_counter::counter, L"memory leak detected");
 			}		
 			{
-				WS::auto_ptr_vw<int,std::deque<WS::auto_ptr<int>>> vw;
+				WS::auto_ptr_vw<int,std::deque> vw;
+
 				(void)vw.push_back( new int{5} );
 				(void)vw.erase( nullptr );
 				(void)vw.replace( nullptr, (decltype(vw)::pointer_t)nullptr );
 				(void)vw[0];
 			}
 			{
-				WS::auto_ptr_vw<int,std::list<WS::auto_ptr<int>>> vw;//list bedingt brauchbar
+				WS::auto_ptr_vw<int,std::list> vw;//list bedingt brauchbar
 				(void)vw.push_back( new int{5} );
 				(void)vw.erase( nullptr );
 				(void)vw.replace( nullptr, (decltype(vw)::pointer_t)nullptr );
 				//(void)vw[0];//list unterstützt operator[] nicht
 			}
 			{
-				WS::auto_ptr_vw<int,std::forward_list<WS::auto_ptr<int>>> vw;//forward_list unbrauchbar
-				//(void)vw.push_back( new int{5} );//forward_list unterstütz emplace_back nicht
+				WS::auto_ptr_vw<int,std::forward_list> vw;//forward_list unbrauchbar
+				//(void)vw.push_back( new int{5} );//forward_list unterstütz emplace_back nicht, nicht einmal push_back
 				//(void)vw.erase( nullptr );
 				(void)vw.replace( nullptr, (decltype(vw)::pointer_t)nullptr );
 				//(void)vw[0];

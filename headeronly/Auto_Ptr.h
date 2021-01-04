@@ -639,12 +639,22 @@ namespace WS
 	template<typename this_t> class enable_auto_ptr_from_this 
 	{
 		using this_type = this_t;
-		mutable auto_ptr<this_t> auto_this;//wird erst bei der ersten verwendung initialisiert, so werden keine resourcen ungenutzt belegt
+		mutable auto_ptr<enable_auto_ptr_from_this<this_t>> auto_this;//wird erst bei der ersten verwendung initialisiert, so werden keine resourcen ungenutzt belegt
 	protected:
 		enable_auto_ptr_from_this(){}
-		//es ist nicht möglich den auto_ptr.pointer umzusetzen, da dynamic_cast<this_t*>(this) im ctor noch nicht funktionieren kann
-		enable_auto_ptr_from_this(enable_auto_ptr_from_this const&){}
 		enable_auto_ptr_from_this(enable_auto_ptr_from_this && ){}
+		//enable_auto_ptr_from_this(enable_auto_ptr_from_this const&){}
+		//enable_auto_ptr_from_this(enable_auto_ptr_from_this && r){swap(r);}
+		//enable_auto_ptr_from_this& operator=(enable_auto_ptr_from_this const&)&{}
+		//enable_auto_ptr_from_this& operator=(enable_auto_ptr_from_this && r)&{enable_auto_ptr_from_this{std::move(r)}.swap(*this);}
+		//void swap(enable_auto_ptr_from_this & r )
+		//{
+		//	std::swap( this->auto_this, r.auto_this);
+		//	if( this->auto_this.share.pointer )
+		//		this->auto_this.share.pointer = this;
+		//	if( r.auto_this.share.pointer )
+		//		r.auto_this.share.pointer = &r;
+		//}
 	public:
 		virtual ~enable_auto_ptr_from_this( ) = 0
 		{
@@ -656,18 +666,18 @@ namespace WS
 		{
 			if( this->auto_this==nullptr )//conditionjump besser als funktionspointerjump, so kann die CPU optimieren, behauptet das internet ohne beiweise. glaube ich aber nicht. ist aber deutlich besser lesbar als mit functionspointern
 			{
-				this->auto_this = auto_ptr<this_t>(dynamic_cast<this_t*>(this),false,auto_ptr<this_t>::Managed(true));
+				auto_this = auto_ptr<enable_auto_ptr_from_this<this_t>>{const_cast<enable_auto_ptr_from_this*>(this),false,auto_ptr<this_t>::Managed(true)};
 			}
-			return auto_this;
+			return auto_ptr<this_t>{auto_this};
 		}
 		auto_ptr<this_t const > auto_ptr_from_this() const
 		{
 			if( this->auto_this==nullptr )//conditionjump besser als funktionspointerjump, so kann die CPU optimieren, behauptet das internet ohne beiweise. glaube ich aber nicht. ist aber deutlich besser lesbar als mit functionspointern
 			{
 				//const_cast ist noetig
-				auto_this = auto_ptr<this_t>(dynamic_cast<this_t*>(const_cast<enable_auto_ptr_from_this*>(this)),false,auto_ptr<this_t>::Managed(true));
+				auto_this = auto_ptr<enable_auto_ptr_from_this<this_t>>{const_cast<enable_auto_ptr_from_this*>(this),false,auto_ptr<this_t>::Managed(true)};
 			}
-			return auto_this;
+			return auto_ptr<this_t>{auto_this};
 		}
 		//gibt nur aerger
 		//auto_ptr<this_t> operator &() const
@@ -688,56 +698,59 @@ namespace std
 namespace WS
 {
 	//usage: auto_ptr_vw<int[,std::vector|,std::deque]>//den alloator bzw zusätzliche template-parameter bekomme ich im moment nicht hin
-	template<typename T, class container_type=std::vector<auto_ptr<T>,std::allocator<auto_ptr<T>>>> class auto_ptr_vw
+	template<typename T, template<typename...> class container_type=std::vector> class auto_ptr_vw
 	{
 	public:
-		using container_t = container_type;
+		using container_t = container_type<auto_ptr<T>>;
 		using pointer_type = typename auto_ptr<T>::pointer_type;
 		using pointer_t = pointer_type;
-
+ 
 	private:
 		container_t container;
-
+ 
 	public:
 		auto begin() const{return container.begin();}//nur als const implementiert, weil man sonst eine referenz auf den owner bekäme
 		auto end() const{return container.end();}
 		auto size() const{return container.size();}
 		auto_ptr<T> at( size_t index ) { return container.at(index); }//liefert kopie. referenz wäre owner mit evtl. fatalen folgen
 		auto_ptr<T> operator[]( size_t index ) { return container[index]; }//liefert kopie. referenz wäre owner mit evtl. fatalen folgen
-
+ 
 		auto & push_back( auto_ptr_owner_parameter<T> auto_ptr_owner )//return_value ohne ref, also als kopie, sonst waere es eine refenez auf owner
 		{
+			//container.push_back( auto_ptr_owner.move() );
+			//return *container.rbegin();
 			return container.emplace_back( auto_ptr_owner.move() );
 		}
 		void clear()
 		{
 			container.clear();
 		}
-
-		//erase liefert nullptr bei fehler oder owner 
+ 
+		//erase liefert nullptr bei fehler oder owner
 		template<typename U> auto_ptr<T> erase( auto_ptr<U> const & erasevalue )
 		{
 			auto iter = std::find( container.begin(), container.end(), erasevalue );
 			if( iter == container.end() )
 				return nullptr;
-
+ 
 			auto retvalue = iter->transfer();
 			container.erase( iter );
 			return retvalue;
 		}
 		auto_ptr<T> erase( pointer_t p ) { return erase( auto_ptr<T>( p ) ); }
-		
-		//replace liefert nullptr bei fehler oder owner 
+            
+		//replace liefert nullptr bei fehler oder owner
 		template<typename U> auto_ptr<T> replace( auto_ptr<T> const & replacevalue, auto_ptr_owner_parameter<U> replacewith )
 		{
 			auto iter = std::find( container.begin(), container.end(), replacevalue );
 			if( iter == container.end() )
 				return nullptr;
-			
+                   
 			auto retvalue = iter->transfer();
 			*iter = replacewith;
 			return retvalue;
 		}
+
 		template<typename U, typename V> auto_ptr<T> replace( U replacevalue, V replacewith ) { return replace( auto_ptr<T>{replacevalue}, auto_ptr_owner_parameter<T>{replacewith}); }
 	};
 }

@@ -187,23 +187,26 @@ template<size_t size> inline wchar_t* itostring_s(    int value, wchar_t (&sz)[s
 	return sz;
 }
 
-//template<typename int_t,typename char_t> char_t* tostring( int_t value, char_t *buf, size_t buf_size, int radix ){ static_assert(false,"die Implementierung von " __FUNCSIG__ " fehlt" );}
-wchar_t* tostring( int const & value, wchar_t *buf, size_t bufsize, int radix ){_itow_s(value,buf,bufsize,radix);return buf;}
-char* tostring( int const & value, char *buf, size_t bufsize, int radix ){_itoa_s(value,buf,bufsize,radix);return buf;}
-wchar_t* tostring( unsigned int const & value, wchar_t *buf, size_t bufsize, int radix ){_ultow_s(value,buf,bufsize,radix);return buf;}
-char* tostring( unsigned int const & value, char *buf, size_t bufsize, int radix ){_ultoa_s(value,buf,bufsize,radix);return buf;}
-wchar_t* tostring( long const & value, wchar_t *buf, size_t bufsize, int radix ){_ltow_s(value,buf,bufsize,radix);return buf;}
-char* tostring( long const & value, char *buf, size_t bufsize, int radix ){_ltoa_s(value,buf,bufsize,radix);return buf;}
-wchar_t* tostring( unsigned long const & value, wchar_t *buf, size_t bufsize, int radix ){_ultow_s(value,buf,bufsize,radix);return buf;}
-char* tostring( unsigned long const & value, char *buf, size_t bufsize, int radix ){_ultoa_s(value,buf,bufsize,radix);return buf;}
-
-wchar_t* tostring( __int64 const & value, wchar_t *buf, size_t bufsize, int radix ){_i64tow_s(value,buf,bufsize,radix);return buf;}
-char* tostring( __int64 const & value, char *buf, size_t bufsize, int radix ){_i64toa_s(value,buf,bufsize,radix);return buf;}
-wchar_t* tostring( unsigned __int64 const & value, wchar_t *buf, size_t bufsize, int radix ){_ui64tow_s(value,buf,bufsize,radix);return buf;}
-char* tostring( unsigned __int64 const & value, char *buf, size_t bufsize, int radix ){_ui64toa_s(value,buf,bufsize,radix);return buf;}
-template<typename int_t, typename char_t, size_t size> char_t * tostring( int_t v, char_t (&buf)[size], int radix )
+namespace
 {
-	return tostring( v, buf, size, radix );
+	//template<typename int_t,typename char_t> char_t* tostring( int_t value, char_t *buf, size_t buf_size, int radix ){ static_assert(false,"die Implementierung von " __FUNCSIG__ " fehlt" );}
+	wchar_t* tostring( int const & value, wchar_t *buf, size_t bufsize, int radix ){_itow_s(value,buf,bufsize,radix);return buf;}
+	char* tostring( int const & value, char *buf, size_t bufsize, int radix ){_itoa_s(value,buf,bufsize,radix);return buf;}
+	wchar_t* tostring( unsigned int const & value, wchar_t *buf, size_t bufsize, int radix ){_ultow_s(value,buf,bufsize,radix);return buf;}
+	char* tostring( unsigned int const & value, char *buf, size_t bufsize, int radix ){_ultoa_s(value,buf,bufsize,radix);return buf;}
+	wchar_t* tostring( long const & value, wchar_t *buf, size_t bufsize, int radix ){_ltow_s(value,buf,bufsize,radix);return buf;}
+	char* tostring( long const & value, char *buf, size_t bufsize, int radix ){_ltoa_s(value,buf,bufsize,radix);return buf;}
+	wchar_t* tostring( unsigned long const & value, wchar_t *buf, size_t bufsize, int radix ){_ultow_s(value,buf,bufsize,radix);return buf;}
+	char* tostring( unsigned long const & value, char *buf, size_t bufsize, int radix ){_ultoa_s(value,buf,bufsize,radix);return buf;}
+
+	wchar_t* tostring( __int64 const & value, wchar_t *buf, size_t bufsize, int radix ){_i64tow_s(value,buf,bufsize,radix);return buf;}
+	char* tostring( __int64 const & value, char *buf, size_t bufsize, int radix ){_i64toa_s(value,buf,bufsize,radix);return buf;}
+	wchar_t* tostring( unsigned __int64 const & value, wchar_t *buf, size_t bufsize, int radix ){_ui64tow_s(value,buf,bufsize,radix);return buf;}
+	char* tostring( unsigned __int64 const & value, char *buf, size_t bufsize, int radix ){_ui64toa_s(value,buf,bufsize,radix);return buf;}
+	template<typename int_t, typename char_t, size_t size> char_t * tostring( int_t v, char_t (&buf)[size], int radix )
+	{
+		return tostring( v, buf, size, radix );
+	}
 }
 #pragma endregion
 
