@@ -642,7 +642,11 @@ namespace WS
 		mutable auto_ptr<enable_auto_ptr_from_this<this_t>> auto_this;//wird erst bei der ersten verwendung initialisiert, so werden keine resourcen ungenutzt belegt
 	protected:
 		enable_auto_ptr_from_this(){}
-		enable_auto_ptr_from_this(enable_auto_ptr_from_this && ){}
+		enable_auto_ptr_from_this(enable_auto_ptr_from_this const & ) noexcept {}
+		enable_auto_ptr_from_this(enable_auto_ptr_from_this && ) noexcept {}
+		enable_auto_ptr_from_this& operator=(enable_auto_ptr_from_this const &) noexcept {return *this;}
+		enable_auto_ptr_from_this& operator=(enable_auto_ptr_from_this && ) noexcept {return *this;}
+
 		//enable_auto_ptr_from_this(enable_auto_ptr_from_this const&){}
 		//enable_auto_ptr_from_this(enable_auto_ptr_from_this && r){swap(r);}
 		//enable_auto_ptr_from_this& operator=(enable_auto_ptr_from_this const&)&{}
@@ -715,7 +719,7 @@ namespace WS
 		auto_ptr<T> at( size_t index ) { return container.at(index); }//liefert kopie. referenz wäre owner mit evtl. fatalen folgen
 		auto_ptr<T> operator[]( size_t index ) { return container[index]; }//liefert kopie. referenz wäre owner mit evtl. fatalen folgen
  
-		auto & push_back( auto_ptr_owner_parameter<T> auto_ptr_owner )//return_value ohne ref, also als kopie, sonst waere es eine refenez auf owner
+		auto push_back( auto_ptr_owner_parameter<T> auto_ptr_owner )//return_value ohne ref, also als kopie, sonst waere es eine refenez auf owner
 		{
 			//container.push_back( auto_ptr_owner.move() );
 			//return *container.rbegin();

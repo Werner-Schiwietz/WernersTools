@@ -662,6 +662,7 @@ namespace autoptr
 			Assert::IsNull( ptr.get() );
 			{
 				X x{5};
+				X x1 = x;
 				ptr = x.auto_ptr_from_this();
 				Assert::IsNotNull(ptr.get());
 				Assert::IsFalse(ptr.owner());
@@ -1220,14 +1221,14 @@ namespace autoptr
 					Assert::IsFalse( neu.is_owner());
 					Assert::IsTrue( *neu==1 );
 				}
-				{
-					auto  & neu{vw.push_back( new int{2} )};
-					Assert::IsTrue( neu.is_owner());
-					Assert::IsTrue( *neu==2 );
-				}
+				//{
+				//	auto  & neu{vw.push_back( new int{2} )};//error C2440: 'initializing': cannot convert from '_Ty' to '_Ty &'
+				//	Assert::IsTrue( neu.is_owner()==false);
+				//	Assert::IsTrue( *neu==2 );
+				//}
 				{
 					auto  && neu{vw.push_back( new int{3} )};
-					Assert::IsTrue( neu.is_owner());
+					Assert::IsFalse( neu.is_owner());
 					Assert::IsTrue( *neu==3 );
 				}
 			}
@@ -1235,7 +1236,7 @@ namespace autoptr
 			WS::auto_ptr_vw<int> vw;
 			{
 				auto && neu{vw.push_back( new int{1} )};
-				Assert::IsTrue( neu.is_owner());
+				Assert::IsFalse( neu.is_owner());
 				Assert::IsTrue( *neu==1 );
 			}
 			(void)vw.push_back( std::unique_ptr<int>(new int{2}) );
