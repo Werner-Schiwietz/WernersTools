@@ -12,6 +12,9 @@
 
 #include <algorithm>
 
+#include "is_.h"
+
+
 #pragma warning( push,4)
 
 #ifndef ASSERT
@@ -24,101 +27,6 @@
 
 namespace WS
 {
-	using std::begin;
-	using std::end;
-
-	template <typename T> struct _exist_std_begin
-	{
-	private:
-		typedef char (& yes)[1];
-		typedef char (& no)[2];
-
-		template<typename U>static yes check(decltype(begin(std::declval<U>()))*);
-		template<typename>  static no  check(...);
-	public:
-		static bool const value = sizeof(check<std::remove_reference_t<T>>(nullptr)) != sizeof(no);
-
-		template<typename T> static auto _begin( T && container )
-		{
-			return begin( container );
-		}
-		template<typename T> static auto _end( T && container )
-		{
-			return end( container );
-		}
-	};	
-}
-namespace WS
-{
-	template <typename T> struct exist_std_begin
-	{
-	private:
-		typedef char (& yes)[1];
-		typedef char (& no)[2];
-
-		template<typename U>static yes check(decltype(std::begin(std::declval<U>()))*);
-		template<typename>  static no  check(...);
-	public:
-		static bool const value = sizeof(check<std::remove_reference_t<T>>(nullptr)) != sizeof(no);
-
-		template<typename T> static auto _begin( T && container )
-		{
-			return std::begin( container );
-		}
-		template<typename T> static auto _end( T && container )
-		{
-			return std::end( container );
-		}
-	};	
-	template <typename T> struct exist_global_begin
-	{
-	private:
-		typedef char (& yes)[1];
-		typedef char (& no)[2];
-
-		template<typename U>static yes check(decltype(::begin(std::declval<U>()))*);
-		template<typename>  static no  check(...);
-	public:
-		static bool const value = sizeof(check<std::remove_reference_t<T>>(nullptr)) != sizeof(no);
-		template<typename T> static auto _begin( T && container )
-		{
-			return ::begin( container );
-		}
-		template<typename T> static auto _end( T && container )
-		{
-			return ::end( container );
-		}
-	};	
-	template <typename T> struct exist__begin
-	{
-	private:
-		typedef char (& yes)[1];
-		typedef char (& no)[2];
-
-		template<typename U>static yes check(decltype(begin(std::declval<U>()))*);
-		template<typename>  static no  check(...);
-	public:
-		static bool const value = sizeof(check<std::remove_reference_t<T>>(nullptr)) != sizeof(no);
-		template<typename T> static auto _begin( T && container )
-		{
-			return begin( container );
-		}
-		template<typename T> static auto _end( T && container )
-		{
-			return end( container );
-		}
-	};	
-	template <typename T> struct exist_begin
-	{
-		//using type = exist_std_begin<T>;
-		using type = _exist_std_begin<T>;
-		static bool const value = type::value;// | exist_global_begin<T>::value | exist__begin<T>::value;
-	};
-}
-
-namespace WS
-{
-
 	template<typename T> struct bereich_t
 	{
 		T lower;
@@ -135,54 +43,79 @@ namespace WS
 	{
 		return value < bereich.lower;
 	}
+}
 
-	template <typename value_t, typename container_t, typename begin_end_t> bool is_in_container( value_t const & gesucht, container_t const & liste )
+namespace WS
+{
+	//container
+	template <typename value_t, typename U> auto is_in( value_t const & gesucht, U const & other ) 
+		-> std::enable_if_t<WS_exist::begin_v<U> || WS_exist::begin_WS_v<U> || WS_exist::begin_glbNS_v<U> || WS_exist::begin_std_v<U> || WS_has_method::begin_v<U>,bool>
 	{
-		auto b = begin_end_t::_begin(liste);
-		auto e = begin_end_t::_end(liste);
-		return std::find( b, e, gesucht ) != e;
-	}
-
-	template <typename value_t, typename U,bool istContainer=exist_begin<U>::value> struct _is_in
-	{
-		bool operator()( value_t const & v, U const & constainer ) const
+		if constexpr ( WS_has_method::begin_v<U> )
 		{
-			return is_in_container<value_t,U,exist_begin<U>::type>(v,constainer);
+			auto b = other.begin();
+			auto e = other.end();
+			return std::find(b,e,gesucht)!=e;
 		}
-	};
-	template <typename value_t, typename U> struct _is_in<value_t, U, false>
-	{
-		bool operator()( value_t const & v, U const & vergleichoperand ) const
+		else if constexpr ( WS_exist::begin_v<U> )
 		{
-			return v==vergleichoperand;
+			auto b = begin(other);
+			auto e = end(other);
+			return std::find(b,e,gesucht)!=e;
 		}
-	};
-
-	template <typename value_t, typename U> bool is_in( value_t const & gesucht, U const & other )
-	{
-		return _is_in<value_t,U>{}( gesucht, other );
+		else if constexpr ( WS_exist::begin_WS_v<U> )
+		{
+			auto b = WS::begin(other);
+			auto e = WS::end(other);
+			return std::find(b,e,gesucht)!=e;
+		}
+		else if constexpr ( WS_exist::begin_glbNS_v<U> )
+		{
+			auto b = ::begin(other);
+			auto e = ::end(other);
+			return std::find(b,e,gesucht)!=e;
+		}
+		else if constexpr ( WS_exist::begin_std_v<U> )
+		{
+			auto b = std::begin(other);
+			auto e = std::end(other);
+			return std::find(b,e,gesucht)!=e;
+		}
+		else if constexpr ( WS_has_method::begin_v<U> )
+		{
+			auto b = other.begin();
+			auto e = other.end();
+			return std::find(b,e,gesucht)!=e;
+		}
 	}
-
+	//bereich
+	template<typename value_t> bool is_in( value_t const & value, WS::bereich_t<value_t> const & bereich ){return bereich.is_in( value );}
+	//array, sonderbehandulung char-type-array
 	template<typename value_t, size_t size> bool is_in( value_t const & value, value_t const (&values)[size] )
 	{
-		for( auto const & item : values )
-			if( value == item )
-				return true;
+		if constexpr ( WS::is_char_type_v<value_t> )
+		{
+			//std::basic_string_view ist so nicht nullterminiert, geht nicht
+			//return is_in(value,std::basic_string_view<value_t>(values,size));
+			auto b = WS::begin<value_t,size>(values);
+			auto e = WS::end<value_t,size>(values);
+			return std::find(b,e,value)!=e;
+		}
+		else
+		{
+			for( auto const & item : values )
+				if( value == item )
+					return true;
+		}
 		return false;
 	}	
-	template<typename value_t> bool is_in( value_t const & value, bereich_t<value_t> const & bereich )
-	{
-		return bereich.is_in( value );
-	}
-	template<typename value_t> bool is_in( value_t const & value, value_t const & vergleichoperand )
-	{
-		return value == vergleichoperand;
-	}
+	//vergleich gleicher werte
+	template<typename value_t> bool is_in( value_t const & value, value_t const & vergleichoperand ){return value == vergleichoperand;}
+	//variadic
 	template<typename value_t, typename vergleichoperand_t, typename... others> bool  is_in( value_t const & value, vergleichoperand_t const & vergleichoperand, others const & ... Rest )
 	{
 		return is_in( value, vergleichoperand ) || is_in( value, Rest ... );
 	}
-
 }
 
 #pragma warning( pop )

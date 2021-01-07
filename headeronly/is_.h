@@ -12,6 +12,8 @@
 
 #include <type_traits>
 
+#include "chartype_begin_end.h"
+
 namespace std
 {
 	template <class _Ty, class _Alloc>class vector;
@@ -56,7 +58,6 @@ namespace WS
 	template<typename T> static auto const is_shared_ptr_v = is_shared_ptr<T>::value;
 }
 
-
 namespace WS
 {
 	template <typename T,typename =void> struct is_std_vector : std::false_type { };
@@ -66,4 +67,64 @@ namespace WS
 	template <typename T,typename =void> struct is_std_set : std::false_type { };
 	template <typename T> struct is_std_set< T, typename std::enable_if< std::is_same<std::decay_t<T>,std::set< typename std::decay_t<T>::value_type, typename std::decay_t<T>::key_compare, typename std::decay_t<T>::allocator_type > >::value >::type > : std::true_type {};
 	template <typename T> static auto const is_std_set_v = is_std_set<T>::value;
+}
+
+namespace WS
+{
+	template<typename T>	struct _is_char_type			: std::false_type{};
+	template<>				struct _is_char_type<char>		: std::true_type{};
+	template<>				struct _is_char_type<wchar_t>	: std::true_type{};
+	template<typename T>	using is_char_type = _is_char_type<std::remove_cv_t<std::remove_reference_t<T>>>;
+	template<typename T>	static bool constexpr is_char_type_v = is_char_type<T>::value;
+
+	static_assert( is_char_type_v<char> );
+	static_assert( is_char_type_v<char const> );
+	static_assert( is_char_type_v<char const *> == false );
+	static_assert( is_char_type_v<char *> == false );
+	static_assert( is_char_type_v<char const * const > == false );
+	static_assert( is_char_type_v<char const &> == true );
+	static_assert( is_char_type_v<const char> );
+	static_assert( is_char_type_v<wchar_t> );
+	static_assert( is_char_type_v<unsigned char> == false );
+	static_assert( std::is_same_v<char,__int8> == true );//???
+	static_assert( is_char_type_v<__int8> == std::is_same_v<char,__int8> );
+}
+
+namespace WS_exist
+{
+	//SFINAE: Substitution Failure Is Not An Error
+	//std namespace
+	template <typename> std::false_type _begin_std(unsigned long);
+	template <typename T> auto _begin_std(int) -> decltype( std :: begin( std::declval<T>() ), std::true_type{} );
+	template <typename T> using begin_std = decltype(_begin_std<T>(0));
+	template <typename T> static auto constexpr begin_std_v = begin_std<T>::value;
+
+	//SFINAE: Substitution Failure Is Not An Error
+	//WS namespace
+	template <typename> std::false_type _begin_WS(unsigned long);
+	template <typename T> auto _begin_WS(int) -> decltype( WS :: begin( std::declval<T>() ), std::true_type{} );
+	template <typename T> using begin_WS = decltype(_begin_WS<T>(0));
+	template <typename T> static auto constexpr begin_WS_v = begin_WS<T>::value;
+
+	//SFINAE: Substitution Failure Is Not An Error
+	//global namespace
+	template <typename> std::false_type _begin_glbNS(unsigned long);
+	template <typename T> auto _begin_glbNS(int) -> decltype( :: begin( std::declval<T>() ), std::true_type{} );
+	template <typename T> using begin_glbNS = decltype(_begin_glbNS<T>(0));
+	template <typename T> static auto constexpr begin_glbNS_v = begin_glbNS<T>::value;
+
+	//SFINAE: Substitution Failure Is Not An Error
+	//ohne namespace
+	template <typename> std::false_type _begin_(unsigned long);
+	template <typename T> auto _begin_(int) -> decltype( begin( std::declval<T>() ), std::true_type{} );
+	template <typename T> using begin_ = decltype(_begin_<T>(0));
+	template <typename T> static auto constexpr begin_v = begin_<T>::value;
+}
+namespace WS_has_method
+{
+	//SFINAE: Substitution Failure Is Not An Error
+	template <typename> std::false_type _begin(unsigned long);
+	template <typename T> auto _begin(int) -> decltype( std::declval<T>().begin(), std::true_type{} );		//kann dereferenziert werden
+	template <typename T> using begin_ = decltype(_begin<T>(0));
+	template <typename T> static auto const begin_v = begin_<T>::value;
 }
