@@ -46,7 +46,10 @@ namespace WS
 	//	size_t index=0;
 	//	for( ; index<size && ar[index]; ++index ) {}
 	//	return &ar[0]+index;
-	//}	template<typename char_t,size_t size> auto begin(char_t (&ar)[size]) noexcept ->decltype( std::enable_if_t<is_char_type_v<char_t>, char_t *>{}){return ar;}
+	//}	
+	//
+	//\evtl. 0-terminierte string-arrays. nicht 0-terminierte liefern als end die erste adresse hinter dem array
+	template<typename char_t,size_t size> auto begin(char_t (&ar)[size]) noexcept ->decltype( std::enable_if_t<is_char_type_v<char_t>, char_t *>{}){return ar;}
 	template<typename char_t,size_t size> auto end(char_t (&ar)[size]) noexcept ->decltype( std::enable_if_t<is_char_type_v<char_t>, char_t *>{})
 	{
 		size_t index=0;
@@ -60,7 +63,7 @@ namespace WS
 		for( ; index<size && ar[index]; ++index ) {}
 		return &ar[0]+index;
 	}
-	//\0-terminierte strings
+	//\0-terminierte strings, wenn nicht \0-terminiert undefineirtes ergebnis
 	template<typename char_t> auto begin(char_t const * p) noexcept ->decltype( std::enable_if_t<is_char_type_v<char_t>, char_t const *>{}){return p;}
 	template<typename char_t> auto end(char_t const * p) noexcept ->decltype( std::enable_if_t<is_char_type_v<char_t>, char_t const *>{}){while(*p)++p;return p;}
 	template<typename char_t> auto begin(char_t * p) noexcept ->decltype( std::enable_if_t<is_char_type_v<char_t>, char_t *>{}){return p;}
@@ -68,58 +71,195 @@ namespace WS
 }
 
 
-namespace WS_test
+namespace WS_exist
 {
 	//SFINAE: Substitution Failure Is Not An Error
-	template <typename> std::false_type __exist_std_begin(unsigned long);
-	template <typename T> auto __exist_std_begin(int) -> decltype( std :: begin( std::declval<T>() ), std::true_type{} );		//kann dereferenziert werden
-	template <typename T> using _exist_std_begin = decltype(__exist_std_begin<T>(0));
-	template <typename T> static auto const _exist_std_begin_v = _exist_std_begin<T>::value;
+	//std namespace
+	template <typename> std::false_type _begin_std(unsigned long);
+	template <typename T> auto _begin_std(int) -> decltype( std :: begin( std::declval<T>() ), std::true_type{} );
+	template <typename T> using begin_std = decltype(_begin_std<T>(0));
+	template <typename T> static auto constexpr begin_std_v = begin_std<T>::value;
 
 	//SFINAE: Substitution Failure Is Not An Error
-	template <typename> std::false_type __exist_WS_begin(unsigned long);
-	template <typename T> auto __exist_WS_begin(int) -> decltype( WS :: begin( std::declval<T>() ), std::true_type{} );		//kann dereferenziert werden
-	template <typename T> using _exist_WS_begin = decltype(__exist_WS_begin<T>(0));
-	template <typename T> static auto const _exist_WS_begin_v = _exist_WS_begin<T>::value;
+	//WS namespace
+	template <typename> std::false_type _begin_WS(unsigned long);
+	template <typename T> auto _begin_WS(int) -> decltype( WS :: begin( std::declval<T>() ), std::true_type{} );
+	template <typename T> using begin_WS = decltype(_begin_WS<T>(0));
+	template <typename T> static auto constexpr begin_WS_v = begin_WS<T>::value;
 
 	//SFINAE: Substitution Failure Is Not An Error
-	template <typename> std::false_type __exist_begin(unsigned long);
-	template <typename T> auto __exist_begin(int) -> decltype( :: begin( std::declval<T>() ), std::true_type{} );		//kann dereferenziert werden
-	template <typename T> using _exist_begin = decltype(__exist_begin<T>(0));
-	template <typename T> static auto const _exist_begin_v = _exist_begin<T>::value;
+	//global namespace
+	template <typename> std::false_type _begin_glbNS(unsigned long);
+	template <typename T> auto _begin_glbNS(int) -> decltype( :: begin( std::declval<T>() ), std::true_type{} );
+	template <typename T> using begin_glbNS = decltype(_begin_glbNS<T>(0));
+	template <typename T> static auto constexpr begin_glbNS_v = begin_glbNS<T>::value;
+
+	//SFINAE: Substitution Failure Is Not An Error
+	//ohne namespace
+	template <typename> std::false_type _begin_(unsigned long);
+	template <typename T> auto _begin_(int) -> decltype( begin( std::declval<T>() ), std::true_type{} );
+	template <typename T> using begin_ = decltype(_begin_<T>(0));
+	template <typename T> static auto constexpr begin_v = begin_<T>::value;
 }
 namespace WS_has_method
 {
 	//SFINAE: Substitution Failure Is Not An Error
 	template <typename> std::false_type _begin(unsigned long);
 	template <typename T> auto _begin(int) -> decltype( std::declval<T>().begin(), std::true_type{} );		//kann dereferenziert werden
-	template <typename T> using begin = decltype(_begin<T>(0));
-	template <typename T> static auto const begin_v = begin<T>::value;
+	template <typename T> using begin_ = decltype(_begin<T>(0));
+	template <typename T> static auto const begin_v = begin_<T>::value;
+}
+
+namespace WS_test
+{
+	//container
+	template <typename value_t, typename U> auto is_in( value_t const & gesucht, U const & other ) 
+		-> std::enable_if_t<WS_exist::begin_v<U> || WS_exist::begin_WS_v<U> || WS_exist::begin_glbNS_v<U> || WS_exist::begin_std_v<U> || WS_has_method::begin_v<U>,bool>
+	{
+		if constexpr ( WS_has_method::begin_v<U> )
+		{
+			auto b = other.begin();
+			auto e = other.end();
+			return std::find(b,e,gesucht)!=e;
+		}
+		else if constexpr ( WS_exist::begin_v<U> )
+		{
+			auto b = begin(other);
+			auto e = end(other);
+			return std::find(b,e,gesucht)!=e;
+		}
+		else if constexpr ( WS_exist::begin_WS_v<U> )
+		{
+			auto b = WS::begin(other);
+			auto e = WS::end(other);
+			return std::find(b,e,gesucht)!=e;
+		}
+		else if constexpr ( WS_exist::begin_glbNS_v<U> )
+		{
+			auto b = ::begin(other);
+			auto e = ::end(other);
+			return std::find(b,e,gesucht)!=e;
+		}
+		else if constexpr ( WS_exist::begin_std_v<U> )
+		{
+			auto b = std::begin(other);
+			auto e = std::end(other);
+			return std::find(b,e,gesucht)!=e;
+		}
+		else if constexpr ( WS_has_method::begin_v<U> )
+		{
+			auto b = other.begin();
+			auto e = other.end();
+			return std::find(b,e,gesucht)!=e;
+		}
+	}
+	//bereich
+	template<typename value_t> bool is_in( value_t const & value, WS::bereich_t<value_t> const & bereich ){return bereich.is_in( value );}
+	//array, sonderbehandulung char-type-array
+	template<typename value_t, size_t size> bool is_in( value_t const & value, value_t const (&values)[size] )
+	{
+		if constexpr ( WS::is_char_type_v<value_t> )
+		{
+			//std::basic_string_view ist so nicht nullterminiert, geht nicht
+			//return is_in(value,std::basic_string_view<value_t>(values,size));
+			auto b = WS::begin<value_t,size>(values);
+			auto e = WS::end<value_t,size>(values);
+			return std::find(b,e,value)!=e;
+		}
+		else
+		{
+			for( auto const & item : values )
+				if( value == item )
+					return true;
+		}
+		return false;
+	}	
+	//vergleich gleicher werte
+	template<typename value_t> bool is_in( value_t const & value, value_t const & vergleichoperand ){return value == vergleichoperand;}
+	//variadic
+	template<typename value_t, typename vergleichoperand_t, typename... others> bool  is_in( value_t const & value, vergleichoperand_t const & vergleichoperand, others const & ... Rest )
+	{
+		return WS_test::is_in( value, vergleichoperand ) || WS_test::is_in( value, Rest ... );
+	}
 }
 
 namespace UTisin
 {
+	//\evtl. 0-terminierte string-arrays. nicht 0-terminiert liefern als end die erste adresse hinter dem array
+	template<typename char_t,size_t size> auto begin(char_t (&ar)[size]) noexcept ->decltype( std::enable_if_t<WS::is_char_type_v<char_t>, char_t *>{}){return ar;}
+	template<typename char_t,size_t size> auto end(char_t (&ar)[size]) noexcept ->decltype( std::enable_if_t<WS::is_char_type_v<char_t>, char_t *>{})
+	{
+		size_t index=0;
+		for( ; index<size && ar[index]; ++index ) {}
+		return &ar[0]+index;
+	}
+	template<typename char_t,size_t size> auto begin(char_t const (&ar)[size]) noexcept ->decltype( std::enable_if_t<WS::is_char_type_v<char_t>, char_t const *>{}){return ar;}
+	template<typename char_t,size_t size> auto end(char_t const (&ar)[size]) noexcept ->decltype( std::enable_if_t<WS::is_char_type_v<char_t>, char_t const *>{})
+	{
+		size_t index=0;
+		for( ; index<size && ar[index]; ++index ) {}
+		return &ar[0]+index;
+	}
+
 	TEST_CLASS(UTisin)
 	{
 	public:
+		TEST_METHOD(UT_neu_is_in)
+		{
+			Assert::IsTrue(WS_test::is_in(3,3));
+			Assert::IsFalse(WS_test::is_in(3,4));
+			Assert::IsTrue(WS_test::is_in(3,std::vector{4,3,5,6}));
+			Assert::IsFalse(WS_test::is_in(2,std::vector{4,3,5,6}));
+
+			wchar_t text[5];
+			#pragma warning(suppress:4996)
+			wcsncpy(text,L"Hallo",5);//nicht nullterminiert
+			Assert::IsTrue(WS_test::is_in(L'a',text));
+			Assert::IsFalse(WS_test::is_in(L'\0',text));
+			Assert::IsFalse(WS_test::is_in(L'w',text));
+			Assert::IsTrue(WS_test::is_in('a',"hallo"));
+			Assert::IsFalse(WS_test::is_in('\0',"hallo"));
+			Assert::IsTrue(WS::is_in('a',"hallo"));
+			Assert::IsTrue(WS::is_in('\0',"hallo"));
+			Assert::IsTrue(WS_test::is_in(3,WS::bereich(2,6)));
+			Assert::IsFalse(WS_test::is_in(31,WS::bereich(2,6)));
+			//beriche müssen schon selben type haben
+			//Assert::IsTrue(WS_test::is_in(3,WS::bereich<short>(2,6)));//error C2672: 'WS_test::is_in': no matching overloaded function found
+			Assert::IsTrue(WS_test::is_in(3i16,WS::bereich<short>(2,6)));
+			Assert::IsFalse(WS_test::is_in(31i16,WS::bereich<short>(2,6)));
+			Assert::IsFalse(WS_test::is_in(31i16,WS::bereich<short>(2,6)));
+
+			Assert::IsTrue( WS_test::is_in('a', {'a','c','e'} ) );
+			Assert::IsTrue( WS_test::is_in('c', {'a','c','e'} ) );
+			Assert::IsTrue( WS_test::is_in('e', {'a','c','e'} ) );
+			Assert::IsFalse( WS_test::is_in('b', {'a','c','e'} ) );
+
+			Assert::IsTrue( WS_test::is_in(5, 1,3,5,7,9) );
+			Assert::IsFalse( WS_test::is_in(5, 1) );
+			//Assert::IsFalse( WS_test::is_in(5) );//error C2672: 'WS_test::is_in': no matching overloaded function found
+		}
 		TEST_METHOD(UT_find_begin)
 		{
 			{
-				using namespace WS_test;
-				static_assert( _exist_std_begin_v<int> == false );
-				static_assert( _exist_std_begin_v<char const *> == false );
-				static_assert( _exist_std_begin_v<decltype("hallo")> == true );
+				static_assert( WS_exist::begin_std_v<int> == false );
+				static_assert( WS_exist::begin_std_v<char const *> == false );
+				static_assert( WS_exist::begin_std_v<decltype("hallo")> == true );
+
 				decltype("hallo") x{};x;
-				static_assert( _exist_std_begin_v<decltype(x)> == true );
-				static_assert( _exist_WS_begin_v<char const *> == true );
-				static_assert( _exist_WS_begin_v<char *> == true );
+				static_assert( WS_exist::begin_std_v<decltype(x)> == true );
+				static_assert( WS_exist::begin_WS_v<char const *> == true );
+				static_assert( WS_exist::begin_WS_v<char *> == true );
+
+				static_assert( WS_exist::begin_v<decltype(x)> == false );//(void)::begin(x);
+				static_assert( WS_exist::begin_v<char const *> == false );
+				static_assert( WS_exist::begin_v<char *> == false );
 
 				static_assert( WS_has_method::begin_v<int> == false );
 				static_assert( WS_has_method::begin_v<char const *> == false );
 				static_assert( WS_has_method::begin_v<decltype("hallo")> == false );
 				static_assert( WS_has_method::begin_v<std::vector<int>> == true );
 
-				//static_assert( _exist_WS_begin_v<decltype(x)> == true ); //weil ...
+				//static_assert( WS_exist::begin_WS_v<decltype(x)> == true ); //weil ...
 				//decltype( WS :: begin( x ) ) xx;//error C2668: 'WS::begin': ambiguous call to overloaded function
 				decltype( WS :: begin<char const,6>( x ) ) px;px;
 
