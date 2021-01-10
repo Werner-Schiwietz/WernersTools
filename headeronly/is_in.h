@@ -51,13 +51,7 @@ namespace WS
 	template <typename value_t, typename U> auto is_in( value_t const & gesucht, U const & other ) 
 		-> std::enable_if_t<WS_exist::begin_v<U> || WS_exist::begin_WS_v<U> || WS_exist::begin_glbNS_v<U> || WS_exist::begin_std_v<U> || WS_has_method::begin_v<U>,bool>
 	{
-		if constexpr ( WS_has_method::begin_v<U> )
-		{
-			auto b = other.begin();
-			auto e = other.end();
-			return std::find(b,e,gesucht)!=e;
-		}
-		else if constexpr ( WS_exist::begin_v<U> )
+		if constexpr ( WS_exist::begin_v<U> )
 		{
 			auto b = begin(other);
 			auto e = end(other);
@@ -79,6 +73,12 @@ namespace WS
 		{
 			auto b = std::begin(other);
 			auto e = std::end(other);
+			return std::find(b,e,gesucht)!=e;
+		}
+		else if constexpr ( WS_has_method::begin_v<U> )
+		{
+			auto b = other.begin();
+			auto e = other.end();
 			return std::find(b,e,gesucht)!=e;
 		}
 		else if constexpr ( WS_has_method::begin_v<U> )

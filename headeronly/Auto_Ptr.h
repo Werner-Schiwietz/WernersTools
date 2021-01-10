@@ -174,7 +174,8 @@ namespace WS
 		using Managed=bool;
 		template<typename> friend class auto_ptr;
 	public:
-		typedef typename std::remove_all_extents_t<T> * pointer_type;//ggf die [] aus T entfernen
+		using element_type = typename std::remove_extent_t<T> ;//ggf den [] aus T entfernen
+		using pointer_type = typename element_type * ;//ggf die [] aus T entfernen
 	private:
 		mutable ReferenzCounter<pointer_type> share;
 		mutable std::unique_ptr<T> Ptr;
