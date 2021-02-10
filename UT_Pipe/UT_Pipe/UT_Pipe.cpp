@@ -74,7 +74,7 @@ namespace BasisUnitTests
                         Logger::WriteMessage(str);
                     }
                 }
-                pipe.member->end_worker();//destructer macht nur detach, dadurch kann der qworker länger arbeiten als die eigentliche pipe lebt
+                pipe.member->processdata_endworker();//destructor macht nur soft-terminate und detach, dadurch kann der worker länger arbeiten als die eigentliche pipe lebt
             }
             Logger::WriteMessage("<- UT_pipe");
         }
@@ -98,8 +98,8 @@ namespace BasisUnitTests
                 pipe.AddData( "");
                 pipe.AddData( "Ende und aus");
 
-                //ohne end_worker wird zumeist nichts ausgegeben
-                pipe.member->end_worker();//destructer macht nur detach, dadurch kann der qworker länger arbeiten als die eigentliche pipe lebt
+                //ohne processdata_endworker wird zumeist nichts ausgegeben
+                pipe.member->processdata_endworker();//destructor macht nur soft-terminate und detach, dadurch kann der worker länger arbeiten als die eigentliche pipe lebt
             }
             Logger::WriteMessage("<- UT_pipe_Logger");
         }

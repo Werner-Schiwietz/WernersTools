@@ -127,12 +127,12 @@ namespace WS
 		#pragma region blocking methoden
 		auto reset(lock_guard<mutex_t>locked)				{_set_blocked();return std::move(locked);}
 		auto reset()										{return reset(lock(this->state_mutex));}
-		auto blocked(lock_guard<mutex_t>locked)				{return reset(std::move(locked));}
-		auto blocked()										{return reset();}
+		auto set_blocked(lock_guard<mutex_t>locked)				{return reset(std::move(locked));}
+		auto set_blocked()										{return reset();}
 		#pragma endregion 
 		void set_blocked_and_wait()//statt blocked und wait unabhängig mit gefahr einer race condition
 		{
-			_wait( blocked() );
+			_wait( set_blocked() );
 		}
 		void wait( lock_guard<mutex_t>locked )
 		{

@@ -37,26 +37,28 @@ namespace WS
         struct Data
         {
             enum enumThreadState{running,process_and_terminate,terminate} threadstate{enumThreadState::running};
-            WS::Semaphore       sema;
+            WS::Semaphore       semaphore;
             std::mutex          mutex;
             std::thread         thread_working;
             std::queue<data_t>  data_pool;
 
-            void detach_worker()//es werden ggf. nicht alle pending-datas verarbeitet
+            void terminate_detach_worker(enumThreadState newState=enumThreadState::terminate)//es werden ggf. nicht alle pending-datas verarbeitet
             {
                 if( this->threadstate==enumThreadState::running )
                 {
-                    this->threadstate = enumThreadState::terminate;
-                    this->sema.signaled();
+                    this->threadstate = newState;
+                    this->semaphore.set_running();
                     this->thread_working.detach();
                 }
             }
-            void end_worker()//wartet, bis alle daten verarbeitet sind und thread sich beendet hat
+            void processdata_endworker(enumThreadState newState=enumThreadState::process_and_terminate)//wartet, bis alle daten verarbeitet sind und thread sich beendet hat
             {
                 if( this->threadstate==enumThreadState::running )
                 {
-                    this->threadstate = enumThreadState::process_and_terminate;
-                    this->sema.signaled();//daten verarbeiten
+                    if( newState!=enumThreadState::process_and_terminate && newState!=enumThreadState::terminate )
+                        throw std::invalid_argument( __FUNCTION__ " entweder enumThreadState::process_and_terminate oder enumThreadState::terminate erwartet");
+                    this->threadstate = newState;
+                    this->semaphore.set_running();//daten verarbeiten
                     this->thread_working.join();
                 }
             }
@@ -90,7 +92,7 @@ namespace WS
             {
                 auto looked = std::lock_guard(this->mutex);
                 data_pool.push( std::move(data) );
-                sema.set_running();//ggf. worker laufen lassen
+                semaphore.set_running();//ggf. worker laufen lassen
             }
         };
         using enumThreadState = typename Data::enumThreadState;
@@ -99,17 +101,17 @@ namespace WS
 
         ~Pipe()
         {
-            member->detach_worker();
+            member->terminate_detach_worker();
             //member->end_worker();
         }
         Pipe( std::function<void(Pipe<data_t>::data_ptr_t,std::function<void(data_t&&)>) > fn, std::function<void(data_t&&)> worker )
         {
-            this->member->sema.blocked();
+            this->member->semaphore.set_blocked();
             this->member->thread_working = std::thread( fn, this->member, worker );
         }
         Pipe( std::function<void(Pipe<data_t>::data_ptr_t)> fn )
         {
-            this->member->sema.blocked();
+            this->member->semaphore.set_blocked();
             this->member->thread_working = std::thread( fn, std::ref(*this) );
         }
 
@@ -118,7 +120,7 @@ namespace WS
         std::optional<data_t> PopData(){return this->member->PopData();}
         void AddData( data_t && data ){this->member->AddData( std::move(data) );}
     };
-    template<typename data_t>void std_pipe_function_caller(typename Pipe<data_t>::data_ptr_t pipedata, std::function<void(data_t&&)> worker )
+    template<typename data_t>void std_pipe_function_processor(typename Pipe<data_t>::data_ptr_t pipedata, std::function<void(data_t&&)> worker )
     {
         while(pipedata->threadstate!=Pipe<data_t>::enumThreadState::terminate)
         {
@@ -135,14 +137,14 @@ namespace WS
             else
             {
                 //keine daten mehr da. schlafen legen, mit neuen daten werden wir geweckt
-                pipedata->sema.set_blocked_and_wait();
+                pipedata->semaphore.set_blocked_and_wait();
             }
         }
         //end-thread
     }
     template<typename data_t> auto make_pipe( std::function<void(data_t&&)> worker_function )
     {
-        return Pipe<data_t>{std_pipe_function_caller<data_t>, worker_function};
+        return Pipe<data_t>{std_pipe_function_processor<data_t>, worker_function};
     }
 }
 
