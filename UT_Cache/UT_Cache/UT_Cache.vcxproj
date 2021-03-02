@@ -167,6 +167,7 @@
     <ClCompile Include="UT_Cache.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\headeronly\cache.h" />
     <ClInclude Include="pch.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
