@@ -101,7 +101,7 @@ namespace UTCache
 			}
 
 		}
-		TEST_METHOD(UT_Duration)
+		TEST_METHOD(UT_Duration_180ms)
 		{
 			using namespace std::literals::chrono_literals;
 
@@ -118,19 +118,19 @@ namespace UTCache
 					break;
 			}
 		}
-		TEST_METHOD(UT_Duration2)
+		TEST_METHOD(UT_Duration2_150ms)
 		{
 			auto till = std::chrono::system_clock::now() + std::chrono::milliseconds{150};
 			while(std::chrono::system_clock::now() <= till )
 			{}
 		}
-		TEST_METHOD(UT_Key)
+		TEST_METHOD(UT_Key_200ms)
 		{
 			using namespace std::literals::chrono_literals;
 			auto start_time {std::chrono::system_clock::now()};
 
-			WS::duration_key<int> key_t2{6};
-			WS::duration_key<int,200> key_t1{5};
+			WS::Pure_key<int> key_t2{6};
+			WS::Duration_key<int,200> key_t1{5};
 			for( auto duration = std::chrono::system_clock::now() - start_time; key_t1.is_valid(); duration = std::chrono::system_clock::now() - start_time)
 			{
 				Assert::IsTrue( duration < 201ms );
@@ -204,7 +204,7 @@ namespace UTCache
 			auto start_time = std::chrono::system_clock::now();
 			cache.Set(2,"hallo");
 			while( cache.Get(2).has_value() ){}
-			Assert::IsTrue( std::chrono::system_clock::now() - start_time > decltype(cache)::duration_key_t::valid_duration() );
+			Assert::IsTrue( std::chrono::system_clock::now() - start_time > decltype(cache)::validkey_t::valid_duration() );
 		}
 	};
 }
