@@ -15,6 +15,7 @@
 //- ergänzend kann ein validkey_type angegeben werden, der ggf. den Wert, der über den Key gecacht wird, ungültig macht.
 //  der default-validkey_type ist Pure_key. Mit Pure_key bleibt der Wert gültig, bis er gelöscht wird
 //  wenn der Wert nur eine bestimmte Zeit gültig sein soll kann die Spezialisierung WS::CacheDuration verwendet werden. WS::CacheDuration nutzt Duration_key.
+//	komplexere valid-Prüfungen können per validkey_maker realisiert werden. Siehe dazu UnitTest cache_int_mystring_validkey_maker
 //- der Zugriff ist per mutex_type (default-std::mutex) synchronisiert. Sollte keine Synchronisierung nötig sein, weil single-thread, kann WS::null_mutex für sperrenlose Funktion sorgen
 //
 //Beispielcode und Unittest in UT_Cache.cpp

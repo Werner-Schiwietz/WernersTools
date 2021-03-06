@@ -206,7 +206,7 @@ namespace UTCache
 			while( cache.Get(2).has_value() ){}
 			Assert::IsTrue( std::chrono::system_clock::now() - start_time > decltype(cache)::validkey_t::valid_duration() );
 		}
-		TEST_METHOD(cache_int_mystring_validkey_type_function)
+		TEST_METHOD(cache_int_mystring_validkey_maker)
 		{
 			int validator=5;
 			auto make_validkey = [&](mykey key)
