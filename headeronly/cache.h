@@ -23,6 +23,7 @@
 #include <map>
 #include <optional>
 #include <chrono>
+#include <functional>
 
 namespace WS
 {
@@ -32,6 +33,7 @@ namespace WS
 		void lock(){ }
 		void unlock(){ }
 	};
+	template<typename validkey_t,typename key_t> validkey_t _validkey_maker(key_t key){return validkey_t{std::move(key)};}
 	#pragma region key-types  
 	template<typename key_type,int duration_value,typename duration_type=std::chrono::milliseconds>struct Duration_key
 	{
@@ -64,18 +66,21 @@ namespace WS
 	};
 	#pragma endregion
 
-
 	template<typename key_type,typename value_type, typename mutex_type=std::mutex,typename validkey_type=Pure_key<key_type>> struct Cache
 	{
 		using key_t				= key_type;
+
 		using validkey_t		= validkey_type;
 		using value_t			= value_type;
 		using mutex_t			= mutex_type;
 		using data_t			= std::map<validkey_t,value_t>;
+		using validkey_maker_t	= std::function<validkey_t(key_type)>;
 
-		mutex_t			mutex;
-		data_t			data;
-		Cache(){}
+		mutex_t				mutex;
+		data_t				data;
+		validkey_maker_t	validkey_maker;
+	public:
+		Cache( validkey_maker_t validkey_maker=_validkey_maker<validkey_t,key_t> ) : validkey_maker(std::move(validkey_maker)) {}
 
 		//hält lock, liefert iterator
 		auto get_locked_item( key_t const & key )
@@ -89,7 +94,7 @@ namespace WS
 			private:
 				bool to_bool() const override{return locked.is_locked();}
 			}ret_value{WS::lock_guard{this->mutex}};
-			ret_value.iter = this->data.find(validkey_t{key});
+			ret_value.iter = this->data.find(validkey_maker(std::move(key)));
 
 			if( ret_value.iter==data.end() )
 				ret_value.locked.unlock();
@@ -102,9 +107,9 @@ namespace WS
 			return ret_value;
 		}
 		//ohne bleibenden lock als kopie
-		std::optional<value_type>	Get( key_t const & key )
+		std::optional<value_type>	Get( key_t key )
 		{
-			if( auto item = get_locked_item( key ) )
+			if( auto item = get_locked_item( std::move(key) ) )
 				return {item.iter->second};
 			return {};
 		}
@@ -112,13 +117,13 @@ namespace WS
 		auto Set( key_t const & key, value_t value )
 		{
 			decltype(get_locked_item( key )) ret_value{ WS::lock_guard{this->mutex} };
-			ret_value.iter = this->data.insert_or_assign(validkey_t{key}, std::move(value)).first;
+			ret_value.iter = this->data.insert_or_assign(validkey_maker(key), std::move(value)).first;
 
 			return ret_value;
 		}
 
 		void clear(){data.clear();}
-		auto clear( key_t key ){return data.erase(key);}
+		auto clear( key_t key ){return data.erase(validkey_maker(key));}
 	};
 	#pragma region cache spezialisierungen
 	template<typename key_type,typename value_type,typename validkey_type=Pure_key<key_type>> struct CacheSingleThread : Cache<key_type,value_type,null_mutex,validkey_type>

@@ -206,5 +206,48 @@ namespace UTCache
 			while( cache.Get(2).has_value() ){}
 			Assert::IsTrue( std::chrono::system_clock::now() - start_time > decltype(cache)::validkey_t::valid_duration() );
 		}
+		TEST_METHOD(cache_int_mystring_validkey_type_function)
+		{
+			int validator=5;
+			auto make_validkey = [&](mykey key)
+			{
+				struct keyhandler
+				{
+					using validator_t = std::remove_reference_t<decltype(validator)>;
+					using key_t = mykey;
+					validator_t const & validator_value;
+					validator_t soll_validator_value;
+
+					key_t key;
+
+					keyhandler()=delete;
+					keyhandler( key_t key, validator_t const & validator_value) : key(std::move(key)), validator_value(validator_value),soll_validator_value(validator_value){}
+
+					bool operator<( keyhandler const & r ) const {return  this->key<r.key;}
+					bool is_valid() const 
+					{
+						return validator_value==soll_validator_value;
+					} 
+					bool is_invalid() const {return !is_valid();}
+				};
+				return keyhandler(std::move(key),validator);
+			};
+
+			auto cache = WS::Cache<mykey,mystring,std::mutex,decltype(make_validkey(std::declval<mykey>()))>{make_validkey};
+
+			Assert::IsFalse( cache.Get(2).has_value() );
+			for( auto i=5; i --> 0;)
+			{
+				cache.Set( 3, "welt" );
+				cache.Set( 2, "hallo" );
+				for( int i=100; i--> 0; )
+				{
+					Assert::IsTrue( cache.Get( 2 ).has_value() );
+				}
+				++validator;
+				Assert::IsFalse( cache.Get( 2 ).has_value() );
+				Assert::IsFalse( cache.Get( 3 ).has_value() );
+			}
+		}
 	};
 }
