@@ -12,14 +12,18 @@
 #include "pch.h"
 #include "CppUnitTest.h"
 
-#include  <atlstr.h> //CString
-#include  <future>
-#include  <functional>
-#include  <queue>
-#include  <optional>
-#include  <memory>
+#include <atlstr.h> //CString
+#include <future>
+#include <functional>
+#include <queue>
+#include <optional>
+#include <memory>
+#include <chrono>
 
 #include "..\..\headeronly\pipe.h"
+#include "..\..\headeronly\char_helper.h"
+#include "..\..\headeronly\semaphore.h"
+#include "..\..\headeronly\mutex_automicflag.h"
 
 using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 
@@ -28,8 +32,47 @@ using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 #endif
 
 
+
+
 namespace BasisUnitTests
 {
+    template<typename working_data_type> struct pipe_data_processed
+    {
+        using working_data_t = working_data_type;
+        using semaphore_t = WS::Semaphore;
+        semaphore_t&    sema;
+        bool            sema_isvalid{false};
+        working_data_t  data;
+
+        pipe_data_processed()=delete;
+        pipe_data_processed(pipe_data_processed const&)=delete;
+        pipe_data_processed(pipe_data_processed && r) noexcept : sema(r.sema), data(std::move(r.data)){std::swap(sema_isvalid,r.sema_isvalid);}
+        pipe_data_processed& operator=(pipe_data_processed const&)=delete;
+        pipe_data_processed& operator=(pipe_data_processed &&)=delete;
+        pipe_data_processed(semaphore_t& sema, working_data_t data ) noexcept : sema(sema), data(data) 
+        {
+            this->sema_isvalid = true;
+            this->sema.set_blocked();
+        }
+        virtual ~pipe_data_processed()
+        {
+            if( this->sema_isvalid )
+            {
+                this->sema.set_running();
+            }
+        }
+    };
+    template<typename working_data_type> 
+    struct service_not_threadsafe_handler
+    {   
+        std::function<void(working_data_type)> worker;
+        service_not_threadsafe_handler(std::function<void(working_data_type&&)> worker) : worker(worker){}
+        void operator()( pipe_data_processed<working_data_type> && working_on)
+        {
+            worker(std::move(working_on.data));
+        }
+    };
+
     TEST_CLASS(Pipe_Tester)
     {
     public:
@@ -39,7 +82,7 @@ namespace BasisUnitTests
             struct my_data{int value;};
             int counter{0};
 
-            auto worker = []( my_data && data )
+            auto threadworker = []( my_data && data )
             {      //doing-something
 
                 CString str;
@@ -51,7 +94,7 @@ namespace BasisUnitTests
             };
 
             {
-                auto pipe = WS::make_pipe<my_data>( worker );
+                auto pipe = WS::make_pipe<my_data>( threadworker );
 
                 using namespace std::chrono_literals;
                 auto waiting = 0us;
@@ -74,7 +117,7 @@ namespace BasisUnitTests
                         Logger::WriteMessage(str);
                     }
                 }
-                pipe.member->processdata_endworker();//destructor macht nur soft-terminate und detach, dadurch kann der worker länger arbeiten als die eigentliche pipe lebt
+                pipe.member->processdata_endworker();//destructor macht nur soft-terminate und detach, dadurch kann der threadworker länger arbeiten als die eigentliche pipe lebt
             }
             Logger::WriteMessage("<- UT_pipe");
         }
@@ -83,25 +126,84 @@ namespace BasisUnitTests
             Logger::WriteMessage("-> UT_pipe_Logger");
             using my_data = CString;
 
-            auto worker = []( my_data && data )
+            auto threadworker = []( my_data && data )
             {      //doing-something
 
                 CString str;
-                str.Format( _T("worker -> '%s'"), data.GetString() );
+                str.Format( _T("threadworker -> '%s'"), data.GetString() );
                 Logger::WriteMessage(str);
             };
 
             {
-                auto pipe = WS::make_pipe<my_data>( worker );
+                auto pipe = WS::make_pipe<my_data>( threadworker );
                 pipe.AddData( "Hallo");
                 pipe.AddData( "Welt");
                 pipe.AddData( "");
                 pipe.AddData( "Ende und aus");
 
                 //ohne processdata_endworker wird zumeist nichts ausgegeben
-                pipe.member->processdata_endworker();//destructor macht nur soft-terminate und detach, dadurch kann der worker länger arbeiten als die eigentliche pipe lebt
+                pipe.member->processdata_endworker();//destructor macht nur soft-terminate und detach, dadurch kann der threadworker länger arbeiten als die eigentliche pipe lebt
             }
             Logger::WriteMessage("<- UT_pipe_Logger");
+        }
+        TEST_METHOD(UT_using_not_threadsafe_service_from_threads)
+        {   //threadworker-thread ist nicht thread-safe, wird aber aus verschiedenen threads mit daten beschickt.
+            //das muss synchronisiert werden
+
+            #pragma region die daten, die dem Service übergeben werden
+            struct working_data
+            {
+                int id;
+                std::chrono::microseconds working_time;
+            };
+            #pragma endregion 
+
+            #pragma region der Service
+            std::atomic_flag not_threadsafe_indikator{};//sollten mehr als ein thred laufen, wird exception geworfen. das kann aber nie passieren.
+            auto service_not_threadsafe = [&](working_data && working_on)
+            {
+                if( not_threadsafe_indikator.test_and_set() )
+                    throw std::runtime_error{ __FUNCTION__ " soll nicht threadsafe sein"};
+                std::this_thread::sleep_for( working_on.working_time );
+                not_threadsafe_indikator.clear();
+            };
+            #pragma endregion 
+            
+            #pragma region die Pipe die die Daten zeitlich(FIFO) geordnet dem Service übergibt
+            using pipe_data_processed_t = pipe_data_processed<working_data>;
+            WS::Pipe pipe = WS::make_pipe<pipe_data_processed_t>(service_not_threadsafe_handler<working_data>{service_not_threadsafe});
+            #pragma endregion 
+    
+            #pragma region code des threads der daten an den nicht threadsafen Service übergeben muss
+            WS::Semaphore alle_gleichzeitig_anlaufen_lassen;alle_gleichzeitig_anlaufen_lassen.set_blocked();
+            auto threadworker = [&](std::chrono::milliseconds working_time, int id)
+            {
+                char buf[20];
+                Logger::WriteMessage( (std::string{"-> threadworker:"} + tostring(id,buf,10)).c_str() );
+                WS::Semaphore sema{};
+                alle_gleichzeitig_anlaufen_lassen.wait();
+                pipe.AddData( pipe_data_processed(sema,pipe_data_processed_t::working_data_t{id,working_time}) );//hier wird der service per pipe mit daten beschickt. Es ist sichergestellt, dass die Daten hinter einander(FIFO) abgearbeitet werden
+                sema.wait();
+                Logger::WriteMessage((std::string{"<- threadworker:"} + tostring(id,buf,10)).c_str() );
+            };
+            #pragma endregion 
+
+            #pragma region hier werden die threads, die daten an den service schicken gestartet
+            using namespace std::literals::chrono_literals;
+            std::vector<std::future<void>> threads;
+            int lfd=0;
+            threads.push_back( std::async(threadworker,10ms,++lfd) );
+            threads.push_back( std::async(threadworker,1ms,++lfd) );
+            threads.push_back( std::async(threadworker,5ms,++lfd) );
+            threads.push_back( std::async(threadworker,100ms,++lfd) );
+            threads.push_back( std::async(threadworker,5ms,++lfd) );
+            #pragma endregion 
+
+            #pragma region alle threads zeitgleich anlaufen lassen und auf deren beendigung warten
+            alle_gleichzeitig_anlaufen_lassen.set_running();
+            for( auto & thread : threads )
+                thread.wait();
+            #pragma endregion 
         }
     };
 }
