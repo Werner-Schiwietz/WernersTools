@@ -66,8 +66,8 @@ namespace BasisUnitTests
     struct service_not_threadsafe_handler
     {   
         std::function<void(working_data_type)> worker;
-        service_not_threadsafe_handler(std::function<void(working_data_type&&)> worker) : worker(worker){}
-        void operator()( pipe_data_processed<working_data_type> && working_on)
+        service_not_threadsafe_handler(std::function<void(working_data_type)> worker) : worker(worker){}
+        void operator()( pipe_data_processed<working_data_type> working_on)
         {
             worker(std::move(working_on.data));
         }
@@ -155,16 +155,19 @@ namespace BasisUnitTests
             {
                 int id;
                 std::chrono::microseconds working_time;
+                int & ergebnis;
+                working_data( int & ergebnis, int id, std::chrono::microseconds working_time ) : ergebnis(ergebnis), id(id), working_time(working_time) {}
             };
             #pragma endregion 
 
             #pragma region der Service
             std::atomic_flag not_threadsafe_indikator{};//sollten mehr als ein thred laufen, wird exception geworfen. das kann aber nie passieren.
-            auto service_not_threadsafe = [&](working_data && working_on)
+            auto service_not_threadsafe = [&](working_data working_on)
             {
                 if( not_threadsafe_indikator.test_and_set() )
                     throw std::runtime_error{ __FUNCTION__ " soll nicht threadsafe sein"};
                 std::this_thread::sleep_for( working_on.working_time );
+                working_on.ergebnis = working_on.id%2;//irgendetwas prüfbares
                 not_threadsafe_indikator.clear();
             };
             #pragma endregion 
@@ -178,13 +181,14 @@ namespace BasisUnitTests
             WS::Semaphore alle_gleichzeitig_anlaufen_lassen;alle_gleichzeitig_anlaufen_lassen.set_blocked();
             auto threadworker = [&](std::chrono::milliseconds working_time, int id)
             {
+                int ergebnis = -1;
                 char buf[20];
                 Logger::WriteMessage( (std::string{"-> threadworker:"} + tostring(id,buf,10)).c_str() );
                 WS::Semaphore sema{};
                 alle_gleichzeitig_anlaufen_lassen.wait();
-                pipe.AddData( pipe_data_processed(sema,pipe_data_processed_t::working_data_t{id,working_time}) );//hier wird der service per pipe mit daten beschickt. Es ist sichergestellt, dass die Daten hinter einander(FIFO) abgearbeitet werden
+                pipe.AddData( pipe_data_processed(sema,pipe_data_processed_t::working_data_t{ergebnis,id,working_time}) );//hier wird der service per pipe mit daten beschickt. Es ist sichergestellt, dass die Daten hinter einander(FIFO) abgearbeitet werden
                 sema.wait();
-                Logger::WriteMessage((std::string{"<- threadworker:"} + tostring(id,buf,10)).c_str() );
+                Logger::WriteMessage((std::string{"<- threadworker:"} + tostring(id,buf,10) + " ergbnis wie erwartet:" + (ergebnis==id%2?"true":"false")).c_str() );
             };
             #pragma endregion 
 
