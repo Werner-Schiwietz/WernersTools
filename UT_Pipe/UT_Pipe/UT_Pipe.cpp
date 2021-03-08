@@ -13,8 +13,6 @@
 #include "CppUnitTest.h"
 
 #include <atlstr.h> //CString
-#include <future>
-#include <functional>
 #include <queue>
 #include <optional>
 #include <memory>
@@ -22,7 +20,6 @@
 
 #include "..\..\headeronly\pipe.h"
 #include "..\..\headeronly\char_helper.h"
-#include "..\..\headeronly\semaphore.h"
 #include "..\..\headeronly\mutex_automicflag.h"
 
 using namespace Microsoft::VisualStudio::CppUnitTestFramework;
@@ -36,43 +33,6 @@ using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 
 namespace BasisUnitTests
 {
-    template<typename working_data_type> struct pipe_data_processed
-    {
-        using working_data_t = working_data_type;
-        using semaphore_t = WS::Semaphore;
-        semaphore_t&    sema;
-        bool            sema_isvalid{false};
-        working_data_t  data;
-
-        pipe_data_processed()=delete;
-        pipe_data_processed(pipe_data_processed const&)=delete;
-        pipe_data_processed(pipe_data_processed && r) noexcept : sema(r.sema), data(std::move(r.data)){std::swap(sema_isvalid,r.sema_isvalid);}
-        pipe_data_processed& operator=(pipe_data_processed const&)=delete;
-        pipe_data_processed& operator=(pipe_data_processed &&)=delete;
-        pipe_data_processed(semaphore_t& sema, working_data_t data ) noexcept : sema(sema), data(data) 
-        {
-            this->sema_isvalid = true;
-            this->sema.set_blocked();
-        }
-        virtual ~pipe_data_processed()
-        {
-            if( this->sema_isvalid )
-            {
-                this->sema.set_running();
-            }
-        }
-    };
-    template<typename working_data_type> 
-    struct service_not_threadsafe_handler
-    {   
-        std::function<void(working_data_type)> worker;
-        service_not_threadsafe_handler(std::function<void(working_data_type)> worker) : worker(worker){}
-        void operator()( pipe_data_processed<working_data_type> working_on)
-        {
-            worker(std::move(working_on.data));
-        }
-    };
-
     TEST_CLASS(Pipe_Tester)
     {
     public:
@@ -173,8 +133,8 @@ namespace BasisUnitTests
             #pragma endregion 
             
             #pragma region die Pipe die die Daten zeitlich(FIFO) geordnet dem Service übergibt
-            using pipe_data_processed_t = pipe_data_processed<working_data>;
-            WS::Pipe pipe = WS::make_pipe<pipe_data_processed_t>(service_not_threadsafe_handler<working_data>{service_not_threadsafe});
+            using pipe_data_processed_t = WS::pipe_data_processed<working_data>;
+            WS::Pipe pipe = WS::make_pipe<pipe_data_processed_t>(WS::service_not_threadsafe_handler<working_data>{service_not_threadsafe});
             #pragma endregion 
     
             #pragma region code des threads der daten an den nicht threadsafen Service übergeben muss
@@ -184,10 +144,10 @@ namespace BasisUnitTests
                 int ergebnis = -1;
                 char buf[20];
                 Logger::WriteMessage( (std::string{"-> threadworker:"} + tostring(id,buf,10)).c_str() );
-                WS::Semaphore sema{};
+                WS::Semaphore daten_verarbeitet{};
                 alle_gleichzeitig_anlaufen_lassen.wait();
-                pipe.AddData( pipe_data_processed(sema,pipe_data_processed_t::working_data_t{ergebnis,id,working_time}) );//hier wird der service per pipe mit daten beschickt. Es ist sichergestellt, dass die Daten hinter einander(FIFO) abgearbeitet werden
-                sema.wait();
+                pipe.AddData( WS::pipe_data_processed(daten_verarbeitet,pipe_data_processed_t::working_data_t{ergebnis,id,working_time}) );//hier wird der service per pipe mit daten beschickt. Es ist sichergestellt, dass die Daten hinter einander(FIFO) abgearbeitet werden
+                daten_verarbeitet.wait();
                 Logger::WriteMessage((std::string{"<- threadworker:"} + tostring(id,buf,10) + " ergbnis wie erwartet:" + (ergebnis==id%2?"true":"false")).c_str() );
             };
             #pragma endregion 

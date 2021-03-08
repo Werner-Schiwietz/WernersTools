@@ -120,6 +120,45 @@ namespace WS
         std::optional<data_t> PopData(){return this->member->PopData();}
         void AddData( data_t && data ){this->member->AddData( std::move(data) );}
     };
+
+    #pragma region nicht threadsafe datenverarbeitung per pipe synchronisieren. siehe UT_Pipe.cpp-UT_using_not_threadsafe_service_from_threads
+    template<typename working_data_type> struct pipe_data_processed
+    {
+        using working_data_t = working_data_type;
+        using semaphore_t = WS::Semaphore;
+        semaphore_t&    data_processed;
+        bool            data_processed_isvalid{false};
+        working_data_t  data;
+
+        pipe_data_processed()=delete;
+        pipe_data_processed(pipe_data_processed const&)=delete;
+        pipe_data_processed(pipe_data_processed && r) noexcept : data_processed(r.data_processed), data(std::move(r.data)){std::swap(data_processed_isvalid,r.data_processed_isvalid);}
+        pipe_data_processed& operator=(pipe_data_processed const&)=delete;
+        pipe_data_processed& operator=(pipe_data_processed &&)=delete;
+        pipe_data_processed(semaphore_t& data_processed, working_data_t data ) noexcept : data_processed(data_processed), data(data) 
+        {
+            this->data_processed_isvalid = true;
+            this->data_processed.set_blocked();
+        }
+        virtual ~pipe_data_processed()
+        {
+            if( this->data_processed_isvalid )
+            {
+                this->data_processed.set_running();
+            }
+        }
+    };
+    template<typename working_data_type> struct service_not_threadsafe_handler
+    {   
+        std::function<void(working_data_type)> worker;
+        service_not_threadsafe_handler(std::function<void(working_data_type)> worker) : worker(worker){}
+        void operator()( pipe_data_processed<working_data_type> working_on)
+        {
+            worker(std::move(working_on.data));
+        }
+    };
+    #pragma endregion
+
     template<typename data_t>void std_pipe_function_processor(typename Pipe<data_t>::data_ptr_t pipedata, std::function<void(data_t&&)> worker )
     {
         while(pipedata->threadstate!=Pipe<data_t>::enumThreadState::terminate)
