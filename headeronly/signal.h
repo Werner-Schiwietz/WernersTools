@@ -62,6 +62,7 @@ TEST_METHOD(UT_demo)
 #include "Auto_Ptr.h"
 #include "type_list.h"//type_list ist opional, braucht man nicht
 
+#include <mutex>
 #include <functional>
 #include <map>
 
@@ -193,7 +194,7 @@ namespace WS
 		Signal(){}
 		auto operator()( parameter_types... args)//löst signalisierung aus
 		{
-			std::lock_guard<decltype(locker)> const lock{locker};
+			auto const lock = std::lock_guard{locker};
 			this->breakSignaling=false;
 			if constexpr(std::is_same<return_t,void>::value==false)
 			{
@@ -234,7 +235,8 @@ namespace WS
 
 		template<typename fn_in_t> [[nodiscard]] Connection_Guard	connect( fn_in_t fn, typename id_type::prio_t prio = id_type::default_prio ) //für nutzer wie fn_in_t::operator()(...)  evtl connect(std::reference_wrapper(*this)) verwenden, da 'fn' immer kopiert wird
 		{ 
-			std::lock_guard<decltype(locker)> const lock{locker};
+			//std::lock_guard<decltype(locker)> const lock{locker};
+			auto const lock = std::lock_guard{locker};
 			auto id = next_id(prio);
 			prio_callbacks[id.prio()][id.id()] = {fn};
 			return {*this,id};
@@ -242,7 +244,8 @@ namespace WS
 		void														disconnect( id_t id )
 		{
 			auto parts = id_type(id);
-			std::lock_guard<decltype(locker)> const lock{locker};
+			//std::lock_guard<decltype(locker)> const lock{locker};
+			auto const lock = std::lock_guard{locker};
 
 			if( prio_callbacks[parts.prio()].erase(parts.id()) != 1 )
 				throw std::invalid_argument(__FUNCTION__ " id war ungültig");
@@ -267,7 +270,8 @@ namespace WS
 		}
 		void														unblock( id_t id)
 		{
-			std::lock_guard<decltype(locker)> const lock{locker};
+			//std::lock_guard<decltype(locker)> const lock{locker};
+			auto const lock = std::lock_guard{locker};
 
 			auto id_blocked = id_type{id};
 			auto & callbacks = prio_callbacks[id_blocked.prio()];
