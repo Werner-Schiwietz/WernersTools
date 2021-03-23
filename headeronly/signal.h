@@ -184,9 +184,9 @@ namespace WS
 			~Connection_Guard(){try{disconnect();}catch(...){}}//ohne try ggf app-abort
 
 			void disconnect();
-			[[nodiscard]] id_t			release()			{signal=nullptr;return id;}//der auf aufrufer verantwortet den disconnect selbst
-			[[nodiscard]] Block_Guard	block()				{if(signal)signal->block(*this);}
-			void						break_signaling()	{if(signal)signal->break_signaling();}
+			[[nodiscard]] id_t			release()			{signal=nullptr;return id;}				//der aufrufer verantwortet den disconnect selbst. wozu???
+			[[nodiscard]] Block_Guard	block()				{return signal ? signal->block(*this) : Block_Guard{};}		//blockiert, solange der return Block_Guard lebt die signalisierung dieser connection
+			void						break_signaling()	{if(signal)signal->break_signaling();}	//bricht die signalisierung ab, weil z.b. die nachricht verarbeitet ist
 
 		};
 		#pragma endregion

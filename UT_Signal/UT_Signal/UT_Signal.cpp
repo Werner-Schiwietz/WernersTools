@@ -511,11 +511,12 @@ namespace UTSignal
 		}
 		TEST_METHOD(UT_Signal_in_class_using_block)
 		{
-			auto signal = WS::Signal<void(size_t&)>{};
-			using signal_t = decltype(signal);
-			using connection_t = signal_t::Connection_Guard;
-			using block_t = signal_t::Block_Guard;
-			block_t block;
+			using signal_t		= WS::Signal<void(size_t&)>;
+			using connection_t	= signal_t::Connection_Guard;
+			using block_t		= signal_t::Block_Guard;
+
+			auto signal	= signal_t{};
+			auto block	= block_t{};
 
 			auto fn = [](size_t & counter){++counter;};
 
@@ -528,19 +529,19 @@ namespace UTSignal
 			Assert::IsTrue(v==3);
 
 			{
-				auto block2 =signal.block(connection2);
+				auto block2 = connection2.block();//connection2 wird bei signalisierung übersprungen
 
 				v=0;
 				signal(v);
 				Assert::IsTrue(v==2);
 
-				block =signal.block(connection1);
+				block = connection1.block();//connection1 wird bei signalisierung übersprungen
 
 				v=0;
 				signal(v);
 				Assert::IsTrue(v==1);
 
-				block =signal.block(connection3);//reuse blocker
+				block = connection3.block();//reuse blocker. block der connection1 geht verloren
 
 				v=0;
 				signal(v);
