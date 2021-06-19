@@ -26,7 +26,7 @@ namespace WS
 		auto & operator()( T const & v_in, id_t  ={} ) &
 		{
 			if( this->value.has_value() )
-				this->value.value() &= v_in;
+				this->value.value() = this->value.value() & v_in;//T=bool -> mit &= warning C4805: '&': unsafe mix of type 'bool' and type 'int' in operation
 			else
 				this->value = v_in;
 			return *this;
@@ -41,7 +41,7 @@ namespace WS
 		auto & operator()( T const & v_in, id_t ={} ) &
 		{
 			if( this->value.has_value() )
-				this->value.value() |= v_in;
+				this->value.value() = this->value.value() | v_in;//T=bool -> mit |= warning C4805: '|': unsafe mix of type 'bool' and type 'int' in operation
 			else
 				this->value = v_in;
 			return *this;

@@ -15,6 +15,53 @@ namespace UTis
 	TEST_CLASS(UTis)
 	{
 	public:
+		TEST_METHOD(UT_is_unique_ptr_const)
+		{
+			using Ptr_t = std::unique_ptr<int>;
+			Ptr_t p4 {new int{4}};
+			Assert::IsTrue( WS::is_unique_ptr<decltype(p4)>::value );
+			Assert::IsTrue( WS::is_unique_ptr_v<decltype(p4)> );
+			Ptr_t & rp4 = p4;
+			Assert::IsTrue( WS::is_unique_ptr_v<decltype(rp4)> );
+			Ptr_t const cp4 = std::move(p4);
+			Assert::IsTrue( WS::is_unique_ptr_v<decltype(cp4)> );
+			Ptr_t const &  crp4 = cp4;
+			Assert::IsTrue( WS::is_unique_ptr_v<decltype(crp4)> );
+
+			auto ptr = Ptr_t{new int{5}};
+			Assert::IsTrue( WS::is_unique_ptr_v<decltype(std::move(ptr))> );
+			Assert::IsTrue( WS::is_unique_ptr_v<decltype(std::unique_ptr<int>{})> );
+			auto const constptr = Ptr_t {new int{6}};
+			Assert::IsTrue( WS::is_unique_ptr_v<decltype(std::move(constptr))> );
+		}
+		TEST_METHOD(UT_is_unique_ptr_with_deleter)
+		{
+			auto deleter = [](int*p){delete p;};
+			using deleter_t = decltype(deleter);
+			using Ptr_t = std::unique_ptr<int,deleter_t>;
+			Ptr_t p4 {new int{4},deleter};
+			Assert::IsTrue( WS::is_unique_ptr_v<decltype(p4)> );
+			Assert::IsFalse( WS::is_unique_ptr_simple_v<decltype(p4)> );
+			Ptr_t & rp4 = p4;
+			Assert::IsTrue( WS::is_unique_ptr_v<decltype(rp4)> );
+			Assert::IsFalse( WS::is_unique_ptr_simple_v<decltype(rp4)> );
+			Ptr_t const cp4 = std::move(p4);
+			Assert::IsTrue( WS::is_unique_ptr_v<decltype(cp4)> );
+			Assert::IsFalse( WS::is_unique_ptr_simple_v<decltype(cp4)> );
+			Ptr_t const &  crp4 = cp4;
+			Assert::IsTrue( WS::is_unique_ptr_v<decltype(crp4)> );
+			Assert::IsFalse( WS::is_unique_ptr_simple_v<decltype(crp4)> );
+
+			auto ptr = Ptr_t{new int{5},deleter};
+			Assert::IsTrue( WS::is_unique_ptr_v<decltype(std::move(ptr))> );
+			Assert::IsFalse( WS::is_unique_ptr_simple_v<decltype(std::move(ptr))> );
+			Assert::IsTrue( WS::is_unique_ptr_v<decltype(std::unique_ptr<int>{})> );
+			Assert::IsTrue( WS::is_unique_ptr_simple_v<decltype(std::unique_ptr<int>{})> );
+			auto const constptr = Ptr_t {new int{6},deleter};
+			Assert::IsTrue( WS::is_unique_ptr_v<decltype(std::move(constptr))> );
+			Assert::IsFalse( WS::is_unique_ptr_simple_v<decltype(std::move(constptr))> );
+		}
+
 		TEST_METHOD(UT_is_shared_ptr_const)
 		{
 			std::shared_ptr<int> p4 {new int{4}};

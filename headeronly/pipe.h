@@ -13,7 +13,7 @@
 //header 
 //headeronly\pipe.h					diese datei
 //headeronly\semaphore.h			
-//headeronly\mutex_automicflag.h	mutex fuer lock_guard nutzt atomic_flag
+//headeronly\mutex_atomicflag.h	mutex fuer lock_guard nutzt atomic_flag
 //<atomic>
 //<mutex>
 //<condition_variable>
@@ -47,7 +47,7 @@ namespace WS
                 if( this->threadstate==enumThreadState::running )
                 {
                     this->threadstate = newState;
-                    this->semaphore.set_running();
+                    this->semaphore.set_running(Semaphore::Notify::none);
                     this->thread_working.detach();
                 }
             }
@@ -137,8 +137,8 @@ namespace WS
         pipe_data_processed& operator=(pipe_data_processed &&)=delete;
         pipe_data_processed(semaphore_t& data_processed, working_data_t data ) noexcept : data_processed(data_processed), data(data) 
         {
-            this->data_processed_isvalid = true;
             this->data_processed.set_blocked();
+            this->data_processed_isvalid = true;
         }
         virtual ~pipe_data_processed()
         {

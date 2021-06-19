@@ -3,7 +3,7 @@
 
 using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 
-#include "..\..\headeronly\mutex_automicflag.h"
+#include "..\..\headeronly\mutex_atomicflag.h"
 #include "..\..\headeronly\return_type.h"
 #include "..\..\headeronly\cache.h"
 

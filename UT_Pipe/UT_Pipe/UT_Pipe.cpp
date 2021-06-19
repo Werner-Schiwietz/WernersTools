@@ -20,7 +20,7 @@
 
 #include "..\..\headeronly\pipe.h"
 #include "..\..\headeronly\char_helper.h"
-#include "..\..\headeronly\mutex_automicflag.h"
+#include "..\..\headeronly\mutex_atomicflag.h"
 
 using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 

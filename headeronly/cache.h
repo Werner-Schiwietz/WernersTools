@@ -1,14 +1,4 @@
 #pragma once
-//Copyright (c) 2020 Werner Schiwietz
-//Jedem, der eine Kopie dieser Software und der zugehörigen Dokumentationsdateien (die "Software") erhält, wird hiermit kostenlos die Erlaubnis erteilt, 
-//ohne Einschränkung mit der Software zu handeln, einschließlich und ohne Einschränkung der Rechte zur Nutzung, zum Kopieren, Ändern, Zusammenführen, Veröffentlichen, 
-//Verteilen, Unterlizenzieren und/oder Verkaufen von Kopien der Software, und Personen, denen die Software zur Verfügung gestellt wird, dies unter den folgenden Bedingungen zu gestatten:
-//Der obige Urheberrechtshinweis und dieser Genehmigungshinweis müssen in allen Kopien oder wesentlichen Teilen der Software enthalten sein.
-//DIE SOFTWARE WIRD OHNE MÄNGELGEWÄHR UND OHNE JEGLICHE AUSDRÜCKLICHE ODER STILLSCHWEIGENDE GEWÄHRLEISTUNG, EINSCHLIEßLICH, ABER NICHT BESCHRÄNKT AUF
-//DIE GEWÄHRLEISTUNG DER MARKTGÄNGIGKEIT, DER EIGNUNG FÜR EINEN BESTIMMTEN ZWECK UND DER NICHTVERLETZUNG VON RECHTEN DRITTER, ZUR VERFÜGUNG GESTELLT. 
-//DIE AUTOREN ODER URHEBERRECHTSINHABER SIND IN KEINEM FALL HAFTBAR FÜR ANSPRÜCHE, SCHÄDEN ODER ANDERE VERPFLICHTUNGEN, OB IN EINER VERTRAGS- ODER 
-//HAFTUNGSKLAGE, EINER UNERLAUBTEN HANDLUNG ODER ANDERWEITIG, DIE SICH AUS, AUS ODER IN VERBINDUNG MIT DER SOFTWARE ODER DER NUTZUNG ODER ANDEREN 
-//GESCHÄFTEN MIT DER SOFTWARE ERGEBEN. 
 
 //alles im namespace WS
 //WS::Cache mit key und value
@@ -19,6 +9,9 @@
 //- der Zugriff ist per mutex_type (default-std::mutex) synchronisiert. Sollte keine Synchronisierung nötig sein, weil single-thread, kann WS::null_mutex für sperrenlose Funktion sorgen
 //
 //Beispielcode und Unittest in UT_Cache.cpp
+
+#include "return_type.h"
+#include "mutex_atomicflag.h"
 
 #include <mutex>
 #include <map>
@@ -41,17 +34,32 @@ namespace WS
 		static_assert(duration_value>0);
 		using key_t = key_type;
 		using duration_t = duration_type;
-		decltype(std::chrono::system_clock::now()+duration_t{duration_value}) valid_till;
+		mutable decltype(std::chrono::system_clock::now()+duration_t{duration_value}) valid_till;
 		key_t key;
 
 		Duration_key()=delete;
 		Duration_key( key_t key) : key(std::move(key)), valid_till(std::chrono::system_clock::now() + valid_duration()){}
 
 		bool operator<( Duration_key const & r ) const {return  this->key<r.key;}
-		bool is_valid() const {return std::chrono::system_clock::now() <= this->valid_till;} 
+		virtual bool is_valid() const {return std::chrono::system_clock::now() <= this->valid_till;} 
 		bool is_invalid() const {return !is_valid();}
 
 		static constexpr duration_t valid_duration(){return duration_t{duration_value};}
+	};
+
+	//DurationRefresh_key vaild_till wird bei jedem positiven valid() neu ermittelt, also die valid-zeit verlängert
+	template<typename key_type,int duration_value,typename duration_type=std::chrono::milliseconds>struct DurationRefresh_key : Duration_key<key_type,duration_value,duration_type>
+	{
+		using Duration_key::Duration_key;
+		bool is_valid() const override 
+		{
+			if( std::chrono::system_clock::now() <= this->valid_till )
+			{
+				this->valid_till = std::chrono::system_clock::now() + valid_duration();
+				return true;
+			}
+			return false;
+		} 
 	};
 	template<typename key_type>struct Pure_key
 	{
@@ -102,6 +110,7 @@ namespace WS
 			else if( ret_value.iter->first.is_invalid() )
 			{
 				this->data.erase(ret_value.iter);
+				_clear_invalid();
 				ret_value.locked.unlock();
 			}
 
@@ -123,8 +132,32 @@ namespace WS
 			return ret_value;
 		}
 
-		void clear(){data.clear();}
-		auto clear( key_t key ){return data.erase(validkey_maker(key));}
+		void clear()
+		{
+			auto locked=std::lock_guard(this->mutex);
+			data.clear();
+		}
+		auto clear( key_t key )
+		{
+			auto locked=std::lock_guard(this->mutex);
+			return data.erase(validkey_maker(key));
+		}
+		void clear_invalid()
+		{
+			auto locked=std::lock_guard(this->mutex);
+			_clear_invalid();
+		}
+	private:
+		void _clear_invalid()
+		{
+			for( auto iter = this->data.begin(); iter!=this->data.end();  )
+			{
+				if(iter->first.is_invalid())
+					iter = this->data.erase(iter);
+				else
+					++iter;
+			}
+		}
 	};
 	#pragma region cache spezialisierungen
 	template<typename key_type,typename value_type,typename validkey_type=Pure_key<key_type>> struct CacheSingleThread : Cache<key_type,value_type,null_mutex,validkey_type>
@@ -132,6 +165,10 @@ namespace WS
 		using Cache::Cache;
 	};
 	template<typename key_type,typename value_type,int duration_value,typename duration_type=std::chrono::milliseconds, typename mutex_type=std::mutex> struct CacheDuration : Cache<key_type,value_type,mutex_type,Duration_key<key_type,duration_value,duration_type>>
+	{
+		using Cache::Cache;
+	};
+	template<typename key_type,typename value_type,int duration_value,typename duration_type=std::chrono::milliseconds, typename mutex_type=std::mutex> struct CacheDurationRefresh : Cache<key_type,value_type,mutex_type,DurationRefresh_key<key_type,duration_value,duration_type>>
 	{
 		using Cache::Cache;
 	};

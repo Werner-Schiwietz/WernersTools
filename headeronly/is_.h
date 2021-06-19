@@ -58,6 +58,37 @@ namespace WS
 	template<typename T> struct is_shared_ptr<std::shared_ptr<T> const volatile &&> : std::true_type{};//dämlich
 	template<typename T> static auto const is_shared_ptr_v = is_shared_ptr<T>::value;
 }
+namespace WS
+{
+	template<typename T> struct is_unique_ptr_simple : std::false_type{};
+	template<typename T> struct is_unique_ptr_simple<std::unique_ptr<T>> : std::true_type{};
+	template<typename T> struct is_unique_ptr_simple<std::unique_ptr<T> const> : std::true_type{};
+	template<typename T> struct is_unique_ptr_simple<std::unique_ptr<T> volatile> : std::true_type{};
+	template<typename T> struct is_unique_ptr_simple<std::unique_ptr<T> const volatile> : std::true_type{};
+	template<typename T> struct is_unique_ptr_simple<std::unique_ptr<T>&> : std::true_type{};
+	template<typename T> struct is_unique_ptr_simple<std::unique_ptr<T> const &> : std::true_type{};
+	template<typename T> struct is_unique_ptr_simple<std::unique_ptr<T> volatile &> : std::true_type{};
+	template<typename T> struct is_unique_ptr_simple<std::unique_ptr<T> const volatile &> : std::true_type{};
+	template<typename T> struct is_unique_ptr_simple<std::unique_ptr<T> &&> : std::true_type{};
+	template<typename T> struct is_unique_ptr_simple<std::unique_ptr<T> const &&> : std::true_type{};//dämlich, const rvalue, aber sonst roter test UT_is_shared_ptr_const
+	template<typename T> struct is_unique_ptr_simple<std::unique_ptr<T> volatile &&> : std::true_type{};//dämlich
+	template<typename T> struct is_unique_ptr_simple<std::unique_ptr<T> const volatile &&> : std::true_type{};//dämlich
+	template<typename T> static auto const is_unique_ptr_simple_v = is_unique_ptr_simple<T>::value;
+	template<typename T> struct is_unique_ptr : std::false_type{};
+	template<typename T,typename D> struct is_unique_ptr<std::unique_ptr<T,D>> : std::true_type{};
+	template<typename T,typename D> struct is_unique_ptr<std::unique_ptr<T,D> const> : std::true_type{};
+	template<typename T,typename D> struct is_unique_ptr<std::unique_ptr<T,D> volatile> : std::true_type{};
+	template<typename T,typename D> struct is_unique_ptr<std::unique_ptr<T,D> const volatile> : std::true_type{};
+	template<typename T,typename D> struct is_unique_ptr<std::unique_ptr<T,D>&> : std::true_type{};
+	template<typename T,typename D> struct is_unique_ptr<std::unique_ptr<T,D> const &> : std::true_type{};
+	template<typename T,typename D> struct is_unique_ptr<std::unique_ptr<T,D> volatile &> : std::true_type{};
+	template<typename T,typename D> struct is_unique_ptr<std::unique_ptr<T,D> const volatile &> : std::true_type{};
+	template<typename T,typename D> struct is_unique_ptr<std::unique_ptr<T,D> &&> : std::true_type{};
+	template<typename T,typename D> struct is_unique_ptr<std::unique_ptr<T,D> const &&> : std::true_type{};//dämlich, const rvalue, aber sonst roter test UT_is_shared_ptr_const
+	template<typename T,typename D> struct is_unique_ptr<std::unique_ptr<T,D> volatile &&> : std::true_type{};//dämlich
+	template<typename T,typename D> struct is_unique_ptr<std::unique_ptr<T,D> const volatile &&> : std::true_type{};//dämlich
+	template<typename T> static auto const is_unique_ptr_v = is_unique_ptr<T>::value;
+}
 
 namespace WS
 {

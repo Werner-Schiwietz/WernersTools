@@ -14,7 +14,7 @@
 
 //header 
 //headeronly\signal.h				diese datei
-//headeronly\mutex_automicflag.h	mutex fuer loak_guard nutzt atomic_flag
+//headeronly\mutex_atomicflag.h	mutex fuer loak_guard nutzt atomic_flag
 //headeronly\combiner_last.h		default_combiner
 //headeronly\auto_ptr.h				smart-pointer
 //evtl. noch
@@ -57,7 +57,7 @@ TEST_METHOD(UT_demo)
 }
 */
 
-#include "mutex_automicflag.h"
+#include "mutex_atomicflag.h"
 #include "combiner_last.h"
 #include "Auto_Ptr.h"
 #include "type_list.h"//type_list ist opional, braucht man nicht
