@@ -110,7 +110,7 @@ namespace BasisUnitTests
         {   //threadworker-thread ist nicht thread-safe, wird aber aus verschiedenen threads mit daten beschickt.
             //das muss synchronisiert werden
 
-            #pragma region die daten, die dem Service übergeben werden
+        #pragma region die daten, die dem Service übergeben werden
             struct working_data
             {
                 int id;
@@ -118,9 +118,9 @@ namespace BasisUnitTests
                 int & ergebnis;
                 working_data( int & ergebnis, int id, std::chrono::microseconds working_time ) : ergebnis(ergebnis), id(id), working_time(working_time) {}
             };
-            #pragma endregion 
+        #pragma endregion 
 
-            #pragma region der Service
+        #pragma region der Service
             std::atomic_flag not_threadsafe_indikator{};//sollten mehr als ein thred laufen, wird exception geworfen. das kann aber nie passieren.
             auto service_not_threadsafe = [&](working_data working_on)
             {
@@ -130,29 +130,32 @@ namespace BasisUnitTests
                 working_on.ergebnis = working_on.id%2;//irgendetwas prüfbares
                 not_threadsafe_indikator.clear();
             };
-            #pragma endregion 
-            
-            #pragma region die Pipe die die Daten zeitlich(FIFO) geordnet dem Service übergibt
+        #pragma endregion 
+
+        #pragma region die Pipe die die Daten zeitlich(FIFO) geordnet dem Service übergibt
             using pipe_data_processed_t = WS::pipe_data_processed<working_data>;
             WS::Pipe pipe = WS::make_pipe<pipe_data_processed_t>(WS::service_not_threadsafe_handler<working_data>{service_not_threadsafe});
-            #pragma endregion 
-    
-            #pragma region code des threads der daten an den nicht threadsafen Service übergeben muss
+        #pragma endregion 
+
+        #pragma region code des threads der daten an den nicht threadsafen Service übergeben muss
             WS::Semaphore alle_gleichzeitig_anlaufen_lassen;alle_gleichzeitig_anlaufen_lassen.set_blocked();
             auto threadworker = [&](std::chrono::milliseconds working_time, int id)
             {
                 int ergebnis = -1;
                 char buf[20];
                 Logger::WriteMessage( (std::string{"-> threadworker:"} + tostring(id,buf,10)).c_str() );
-                WS::Semaphore daten_verarbeitet{};
-                alle_gleichzeitig_anlaufen_lassen.wait();
-                pipe.AddData( WS::pipe_data_processed(daten_verarbeitet,pipe_data_processed_t::working_data_t{ergebnis,id,working_time}) );//hier wird der service per pipe mit daten beschickt. Es ist sichergestellt, dass die Daten hinter einander(FIFO) abgearbeitet werden
-                daten_verarbeitet.wait();
+                {
+                    auto daten_verarbeitet = WS::Semaphore {};
+
+                    alle_gleichzeitig_anlaufen_lassen.wait();
+                    pipe.AddData( WS::pipe_data_processed(daten_verarbeitet,pipe_data_processed_t::working_data_t{ergebnis,id,working_time}) );//hier wird der service per pipe mit daten beschickt. Es ist sichergestellt, dass die Daten hinter einander(FIFO) abgearbeitet werden
+                    (daten_verarbeitet).wait();
+                }
                 Logger::WriteMessage((std::string{"<- threadworker:"} + tostring(id,buf,10) + " ergbnis wie erwartet:" + (ergebnis==id%2?"true":"false")).c_str() );
             };
-            #pragma endregion 
+        #pragma endregion 
 
-            #pragma region hier werden die threads, die daten an den service schicken gestartet
+        #pragma region hier werden die threads, die daten an den service schicken gestartet
             using namespace std::literals::chrono_literals;
             std::vector<std::future<void>> threads;
             int lfd=0;
@@ -161,13 +164,13 @@ namespace BasisUnitTests
             threads.push_back( std::async(threadworker,5ms,++lfd) );
             threads.push_back( std::async(threadworker,100ms,++lfd) );
             threads.push_back( std::async(threadworker,5ms,++lfd) );
-            #pragma endregion 
+        #pragma endregion 
 
-            #pragma region alle threads zeitgleich anlaufen lassen und auf deren beendigung warten
+        #pragma region alle threads zeitgleich anlaufen lassen und auf deren beendigung warten
             alle_gleichzeitig_anlaufen_lassen.set_running();
             for( auto & thread : threads )
                 thread.wait();
-            #pragma endregion 
+        #pragma endregion 
         }
     };
 }

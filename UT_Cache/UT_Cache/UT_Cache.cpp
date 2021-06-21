@@ -3,20 +3,114 @@
 
 using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 
-#include "..\..\headeronly\mutex_atomicflag.h"
-#include "..\..\headeronly\return_type.h"
 #include "..\..\headeronly\cache.h"
 
+#include "..\..\headeronly\char_helper.h"
+
 #include <string>
+#include <iostream>
+#include <future>
+
+#pragma warning(push,4)
+namespace
+{
+	//cout umleitung////////////////////////////////////
+	class LoggerStreambuf : public std::streambuf
+	{
+	public:
+		virtual int_type overflow( int_type c = EOF ) {
+			static std::mutex mutex{};
+			auto locked = std::lock_guard(mutex);
+			static std::map<std::thread::id,std::string> buf;
+			if( c != EOF )
+			{
+				if( c != '\n' )
+					buf[std::this_thread::get_id()] += static_cast<char>(c);
+				else
+				{
+					Logger::WriteMessage( buf[std::this_thread::get_id()].c_str() );
+					buf.erase(std::this_thread::get_id());
+				}
+			}
+			return c;
+		}
+	};
+	template<typename streambuf_t=LoggerStreambuf>
+	class Cout2Output
+	{
+		streambuf_t dbgstream;
+		std::streambuf *default_stream;
+
+	public:
+		Cout2Output() {
+			default_stream = std::cout.rdbuf( &dbgstream );
+		}
+
+		~Cout2Output() {
+			std::cout.rdbuf( default_stream );
+		}
+	};
+	//cout umleitung////////////////////////////////////
+
+#pragma region Laufzeitüberwachung in der Testumgebung
+	class time_watch
+	{
+
+		std::chrono::system_clock::time_point	last_end_time;
+		std::thread								watchdog{};
+		enum{uninitializied,runing,ready}		watchdoc_status{uninitializied};
+		std::atomic_bool						zeitueberschreitung{false};
+		std::function<void(void)>				zeitueberschreitungscallback{};
+
+		static void watchdog_fn(time_watch * timewatch)
+		{
+			while(timewatch->watchdoc_status!=ready)
+			{
+				if( timewatch->watchdoc_status==runing )
+				{
+					if (timewatch->last_end_time < std::chrono::system_clock::now())
+					{
+						timewatch->zeitueberschreitung = true;
+						if (timewatch->zeitueberschreitungscallback)
+							timewatch->zeitueberschreitungscallback();
+						timewatch->watchdoc_status = ready;
+						return;
+					}
+				}
+				std::this_thread::yield();
+			}
+		}
+	public:
+		template <class _Rep, class _Period> time_watch(std::chrono::duration<_Rep, _Period> const & dura, std::function<void(void)> callback )
+			: zeitueberschreitungscallback(callback)
+		{
+			this->watchdog = std::thread(watchdog_fn,this);//überwachnungsthread für das MS-testsystem eigentlich ungeeeignet. es kommt mit laufenden threads nicht klar
+
+			last_end_time = std::chrono::time_point_cast<decltype(last_end_time)::duration>(std::chrono::system_clock::now() + dura);
+			watchdoc_status = runing;
+		}
+		template <class _Rep, class _Period> time_watch(std::chrono::duration<_Rep, _Period> const & dura) : time_watch(dura, std::function<void(void)>{}){}
+		time_watch(){}
+		~time_watch()
+		{
+			if(watchdoc_status==runing)
+				watchdoc_status = ready;
+			if(watchdoc_status==ready)
+				watchdog.join();
+		}
+		operator bool() const { return this->zeitueberschreitung==false;}
+	};
+#pragma endregion
+}
 
 
 namespace
 {
 	struct mykey 
 	{	using value_t = int;
-		value_t value{};
-		mykey(value_t value):value(value){}
-		bool operator<(mykey const & r ) const { return this->value < r.value; }
+	value_t value{};
+	mykey(value_t value):value(value){}
+	bool operator<(mykey const & r ) const { return this->value < r.value; }
 	};
 	struct mystring : std::string
 	{
@@ -159,11 +253,119 @@ namespace UTCache
 
 			//*const_ref_a.get_data2() = 7;//error C3892: 'const_ref_a': you cannot assign to a variable that is const
 		}
+		TEST_METHOD(UT_mutex_atomicflag__deadlock_detect)
+		{
+			Cout2Output<> coutumleiten{};
+			WS::mutex_atomicflag mutex{};
+
+			auto locked = WS::lock_guard(mutex);
+			try
+			{
+				auto locked2 = WS::lock_guard(mutex);
+				Assert::Fail(L"exception erwartet");
+			}
+			catch( std::exception& e)
+			{
+				std::cout << e.what() << std::endl;
+			}
+		}
+		TEST_METHOD(UT_recursive_mutex_atomicflag)
+		{
+			Cout2Output<> coutumleiten{};
+			WS::recursive_mutex_atomicflag mutex{};
+
+			Assert::IsFalse(mutex.islocked());
+			Assert::IsTrue(mutex.refcount() == 0);
+			{
+				auto locked = WS::lock_guard(mutex);
+				Assert::IsTrue(mutex.islocked());
+				Assert::IsTrue(mutex.refcount() == 1);
+				{
+					auto locked2 = WS::lock_guard(mutex);
+					Assert::IsTrue(mutex.islocked());
+					Assert::IsTrue(mutex.refcount() == 2);
+				}
+				Assert::IsTrue(mutex.islocked());
+				Assert::IsTrue(mutex.refcount() == 1);
+			}
+			Assert::IsFalse(mutex.islocked());
+			Assert::IsTrue(mutex.refcount() == 0);
+		}
+		TEST_METHOD(UT_recursive_mutex_atomicflag_im_thread)
+		{
+			constexpr size_t durchgaenge = 50;
+			constexpr size_t anzahlthreads = 20;//mehr als 3 macht auf unseren kisten keinen sinn, die laufen gar nicht an
+			using namespace std::chrono_literals;
+			auto dauer_eines_durchgangs = 20ms;
+
+			Cout2Output<> coutumleiten{};
+			std::map<std::thread::id,std::atomic_size_t> counter{};
+			WS::recursive_mutex_atomicflag mutex{};
+			bool stop_threads{false};
+			auto thread_fn = [&]()->bool
+			{
+			#define ret_if_false(value){if((value)==false)return false;}
+				auto id = std::this_thread::get_id();
+				while(stop_threads==false)
+				{
+					{
+						auto locked = WS::lock(mutex);
+						ret_if_false( mutex.lockingthread()==id );
+						auto locked2 = WS::lock(mutex);//recursive_mutex, sonst deadlock-exception
+						ret_if_false( mutex.lockingthread()==id );
+
+						++counter[id];
+
+						//expliciter unlock geht, geht auch mehrmals. ist hier sicher nicht nötig
+						Assert::IsTrue( locked.unlock());
+						Assert::IsFalse(locked.unlock());
+					}
+					using namespace std::chrono_literals;
+					//std::this_thread::sleep_for(20us);//zumindest kurz nicht gelockt halten, sonst  könnte es zu dazu kommen dass nur noch ein thread läuft die anderen warten, warum auch immer
+					std::this_thread::yield();
+				}
+				return true;
+			};
+
+			for(auto i=0; i<durchgaenge; ++i )
+			{
+				stop_threads = false;
+				counter.clear();
+
+				std::future<bool> threads[anzahlthreads];
+				for( auto &t : threads )
+					t = std::async(thread_fn);
+
+				time_watch timewatch{dauer_eines_durchgangs*2.9,[&](){stop_threads=true;}};//wenn schleife zu lange braucht wird test rot und läuft nicht endlos, dazu müssen abr die threads beendet werden, sonst hängt Assert::
+
+				std::this_thread::sleep_for(dauer_eines_durchgangs);
+				stop_threads = true;
+				std::cout << std::this_thread::get_id() << " stop threads refcount:" << mutex.refcount() <<  std::endl;
+
+				{
+					for(;;)
+					{
+						Assert::IsTrue(timewatch,L"methode läuft zu lange");
+
+						if(auto locked = WS::try_lock(mutex);locked.is_locked())
+						{
+							std::cout << "stop " << anzahlthreads << " threads" << std::endl;
+							for (auto& [id, counterper_thread] : counter)
+								std::cout << " thread:" << id << " counter:" << counterper_thread << std::endl;
+							break;
+						}
+					}
+				}
+
+				for( auto &t : threads )
+					Assert::IsTrue(t.get());
+			}
+		}
 	};
 	TEST_CLASS(UTCache)
 	{
 	public:
-		
+
 		TEST_METHOD(cache_int_mystring)
 		{
 			{
@@ -206,6 +408,30 @@ namespace UTCache
 			while( cache.Get(2).has_value() ){}
 			Assert::IsTrue( std::chrono::system_clock::now() - start_time > decltype(cache)::validkey_t::valid_duration() );
 		}
+		TEST_METHOD(cache_int_mystring_valid_DurationRefresh)
+		{
+			constexpr int valid = 100'000;
+			auto cache = WS::CacheDurationRefresh<mykey,mystring,valid,std::chrono::microseconds>{};
+
+			Assert::IsFalse( cache.Get(2).has_value() );
+			cache.Set(3,"welt");
+			auto start_time = std::chrono::system_clock::now();
+			char buf1[20];
+			char buf2[20];
+			int sleep = valid / 50;
+			int counter = 0;
+			cache.Set(2,"hallo");
+			while( cache.Get(2).has_value() )
+			{
+				//Logger::WriteMessage( (std::string(__FUNCTION__)+" Sleep:"+tostring(sleep,buf,10)+"µs").c_str());
+				//(void)cache.Get(2);
+				if( ((++counter)%5)==0 )
+					sleep*=2;
+				std::this_thread::sleep_for(std::chrono::microseconds(sleep));
+			}
+			Logger::WriteMessage( (std::string(__FUNCTION__)+" counter:"+tostring(counter,buf1,10)+" Sleep:"+tostring(sleep,buf2,10)+"µs").c_str());
+			Assert::IsTrue( counter==30 ); //&& sleep>=valid );
+		}
 		TEST_METHOD(cache_int_mystring_validkey_maker)
 		{
 			int validator=5;
@@ -240,7 +466,7 @@ namespace UTCache
 			{
 				cache.Set( 3, "welt" );
 				cache.Set( 2, "hallo" );
-				for( int i=100; i--> 0; )
+				for( int i2=100; i2--> 0; )
 				{
 					Assert::IsTrue( cache.Get( 2 ).has_value() );
 				}

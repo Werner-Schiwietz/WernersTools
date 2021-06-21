@@ -280,7 +280,7 @@ namespace UTSemaphore
 			{
 				Assert::Fail();
 			}
-			sema.blocked();
+			sema.set_blocked();
 			if( auto issignaled = sema.is_signaled(); issignaled || sema.is_blocked(issignaled)==false )
 			{
 				Assert::Fail();

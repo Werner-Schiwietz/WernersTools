@@ -103,7 +103,7 @@ namespace WS
 					};
 					throw deadlock_exception{};
 				}
-				while( this->flag.test_and_set() ){}
+				while( this->flag.test_and_set() ){std::this_thread::yield();}
 			}
 			this->locking_thread = std::this_thread::get_id();
 		}

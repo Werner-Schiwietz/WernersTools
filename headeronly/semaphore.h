@@ -85,8 +85,8 @@ namespace WS
 		using condition_variable_t	= std::condition_variable;
 		using mutex_t				= std::mutex;
 		//using mutex_t				= WS::mutex_atomicflag;//geht nicht wg. std::condition_variable kann nur mit std::mutex
-		using state_mutex_t			= WS::mutex_atomicflag;
-		//using state_mutex_t		= std::mutex;
+		using state_mutex_t			= WS::mutex_atomicflag;//mit yield in lock geht auch test _1000_pulse_auf_2000_threads. ohne blockiert der gesamte PC
+		//using state_mutex_t			= std::mutex;
 		using state_lock_guard		= WS::lock_guard<state_mutex_t>;
 	private:
 
