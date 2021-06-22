@@ -135,7 +135,7 @@ namespace WS
         pipe_data_processed(pipe_data_processed && r) noexcept : data_processed(r.data_processed), data(std::move(r.data)){std::swap(data_processed_isvalid,r.data_processed_isvalid);}
         pipe_data_processed& operator=(pipe_data_processed const&)=delete;
         pipe_data_processed& operator=(pipe_data_processed &&)=delete;
-        pipe_data_processed(semaphore_t& data_processed, working_data_t data ) noexcept : data_processed(data_processed), data(data) 
+        pipe_data_processed(semaphore_t& data_processed, working_data_t data ) noexcept : data_processed(data_processed), data(std::move(data)) 
         {
             this->data_processed.set_blocked();
             this->data_processed_isvalid = true;
@@ -184,6 +184,10 @@ namespace WS
     template<typename data_t> auto make_pipe( std::function<void(data_t&&)> worker_function )
     {
         return Pipe<data_t>{std_pipe_function_processor<data_t>, worker_function};
+    }
+    template<typename data_t> auto make_syncro_pipe( std::function<void(data_t&&)> worker_function )
+    {
+        return WS::make_pipe<pipe_data_processed<data_t>>(WS::service_not_threadsafe_handler<data_t>{worker_function});
     }
 }
 

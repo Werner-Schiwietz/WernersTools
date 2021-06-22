@@ -133,23 +133,32 @@ namespace BasisUnitTests
         #pragma endregion 
 
         #pragma region die Pipe die die Daten zeitlich(FIFO) geordnet dem Service übergibt
-            using pipe_data_processed_t = WS::pipe_data_processed<working_data>;
-            WS::Pipe pipe = WS::make_pipe<pipe_data_processed_t>(WS::service_not_threadsafe_handler<working_data>{service_not_threadsafe});
+            //using pipe_data_processed_t = WS::pipe_data_processed<working_data>;
+            //WS::Pipe pipe = WS::make_pipe<pipe_data_processed_t>(WS::service_not_threadsafe_handler<working_data>{service_not_threadsafe});
+            WS::Pipe pipe = WS::make_syncro_pipe<working_data>(service_not_threadsafe);//make_syncro_pipe lege nochmal eine datentyp vor working da und eine thread-function vor den workingthread
+            using pipe_t = std::remove_reference_t<decltype(pipe)>;
+            
         #pragma endregion 
 
         #pragma region code des threads der daten an den nicht threadsafen Service übergeben muss
-            WS::Semaphore alle_gleichzeitig_anlaufen_lassen;alle_gleichzeitig_anlaufen_lassen.set_blocked();
+            WS::Semaphore alle_gleichzeitig_anlaufen_lassen;alle_gleichzeitig_anlaufen_lassen.set_blocked();//dient nur dem test, damit die threads gleichzeitig loslaufen können
             auto threadworker = [&](std::chrono::milliseconds working_time, int id)
             {
                 int ergebnis = -1;
                 char buf[20];
                 Logger::WriteMessage( (std::string{"-> threadworker:"} + tostring(id,buf,10)).c_str() );
                 {
-                    auto daten_verarbeitet = WS::Semaphore {};
+                    //datentype für pipe.AddData(pipe_data_t&&). pipe_data_t ctor braucht eine semaphore als refernenz und ein rvalue working_data-objekt
+                    using pipe_data_t = WS::pipe_data_processed<working_data>;
+                    //or equivalent
+                    //using pipe_data_t = pipe_t::data_t;
 
-                    alle_gleichzeitig_anlaufen_lassen.wait();
-                    pipe.AddData( WS::pipe_data_processed(daten_verarbeitet,pipe_data_processed_t::working_data_t{ergebnis,id,working_time}) );//hier wird der service per pipe mit daten beschickt. Es ist sichergestellt, dass die Daten hinter einander(FIFO) abgearbeitet werden
-                    (daten_verarbeitet).wait();
+                    alle_gleichzeitig_anlaufen_lassen.wait();//alle teste warten erstmal damit sie zeitgleich loslaufen
+
+                    auto daten_verarbeitet = WS::Semaphore {};  //hier die semaphore für AddData
+                    pipe.AddData( pipe_data_t{daten_verarbeitet,working_data{ergebnis,id,working_time}} );//hier wird der service per pipe mit daten beschickt. Es ist sichergestellt, dass die Daten hinter einander(FIFO) abgearbeitet werden
+                    (daten_verarbeitet).wait();//warten, bis genau dieser datensatz im parallelen thread verarbeitet wurde. im ergebnis steht das ergebins der datenverarbeitung
+
                 }
                 Logger::WriteMessage((std::string{"<- threadworker:"} + tostring(id,buf,10) + " ergbnis wie erwartet:" + (ergebnis==id%2?"true":"false")).c_str() );
             };
