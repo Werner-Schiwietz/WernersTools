@@ -104,6 +104,7 @@ namespace WS
             member->terminate_detach_worker();
             //member->end_worker();
         }
+        Pipe(Pipe const& ) = delete;
         Pipe( std::function<void(Pipe<data_t>::data_ptr_t,std::function<void(data_t&&)>) > fn, std::function<void(data_t&&)> worker )
         {
             this->member->semaphore.set_blocked();
@@ -120,45 +121,6 @@ namespace WS
         std::optional<data_t> PopData(){return this->member->PopData();}
         void AddData( data_t && data ){this->member->AddData( std::move(data) );}
     };
-
-    #pragma region nicht threadsafe datenverarbeitung per pipe synchronisieren. siehe UT_Pipe.cpp-UT_using_not_threadsafe_service_from_threads
-    template<typename working_data_type> struct pipe_data_processed
-    {
-        using working_data_t = working_data_type;
-        using semaphore_t = WS::Semaphore;
-        semaphore_t&    data_processed;
-        bool            data_processed_isvalid{false};
-        working_data_t  data;
-
-        pipe_data_processed()=delete;
-        pipe_data_processed(pipe_data_processed const&)=delete;
-        pipe_data_processed(pipe_data_processed && r) noexcept : data_processed(r.data_processed), data(std::move(r.data)){std::swap(data_processed_isvalid,r.data_processed_isvalid);}
-        pipe_data_processed& operator=(pipe_data_processed const&)=delete;
-        pipe_data_processed& operator=(pipe_data_processed &&)=delete;
-        pipe_data_processed(semaphore_t& data_processed, working_data_t data ) noexcept : data_processed(data_processed), data(std::move(data)) 
-        {
-            this->data_processed.set_blocked();
-            this->data_processed_isvalid = true;
-        }
-        virtual ~pipe_data_processed()
-        {
-            if( this->data_processed_isvalid )
-            {
-                this->data_processed.set_running();
-            }
-        }
-    };
-    template<typename working_data_type> struct service_not_threadsafe_handler
-    {   
-        std::function<void(working_data_type)> worker;
-        service_not_threadsafe_handler(std::function<void(working_data_type)> worker) : worker(worker){}
-        void operator()( pipe_data_processed<working_data_type> working_on)
-        {
-            worker(std::move(working_on.data));
-        }
-    };
-    #pragma endregion
-
     template<typename data_t>void std_pipe_function_processor(typename Pipe<data_t>::data_ptr_t pipedata, std::function<void(data_t&&)> worker )
     {
         while(pipedata->threadstate!=Pipe<data_t>::enumThreadState::terminate)
@@ -185,9 +147,55 @@ namespace WS
     {
         return Pipe<data_t>{std_pipe_function_processor<data_t>, worker_function};
     }
+
+
+    #pragma region nicht threadsafe datenverarbeitung per pipe synchronisieren. siehe UT_Pipe.cpp-UT_using_not_threadsafe_service_from_threads
+    template<typename working_data_type> struct pipe_data_process
+    {
+        using working_data_t = working_data_type;
+        using semaphore_t = WS::Semaphore;
+        semaphore_t&    data_processed;
+        bool            data_processed_isvalid{false};
+        working_data_t  data;
+
+        pipe_data_process()=delete;
+        pipe_data_process(pipe_data_process const&)=delete;
+        pipe_data_process(pipe_data_process && r) noexcept : data_processed(r.data_processed), data(std::move(r.data)){std::swap(data_processed_isvalid,r.data_processed_isvalid);}
+        pipe_data_process& operator=(pipe_data_process const&)=delete;
+        pipe_data_process& operator=(pipe_data_process &&)=delete;
+        pipe_data_process(semaphore_t& data_processed, working_data_t data ) noexcept : data_processed(data_processed), data(std::move(data)) 
+        {
+            this->data_processed.set_blocked();
+            this->data_processed_isvalid = true;
+        }
+        virtual ~pipe_data_process()
+        {
+            if( this->data_processed_isvalid )
+            {
+                this->data_processed.set_running();
+            }
+        }
+    };
+    template<typename working_data_type> struct pipe_data_processed_handler
+    {   
+        std::function<void(working_data_type)> worker;
+        pipe_data_processed_handler(std::function<void(working_data_type)> worker) : worker(worker){}
+        void operator()( pipe_data_process<working_data_type> working_on)
+        {
+            worker(std::move(working_on.data));
+        }
+    };
+
     template<typename data_t> auto make_syncro_pipe( std::function<void(data_t&&)> worker_function )
     {
-        return WS::make_pipe<pipe_data_processed<data_t>>(WS::service_not_threadsafe_handler<data_t>{worker_function});
+        return WS::make_pipe<pipe_data_process<data_t>>(WS::pipe_data_processed_handler<data_t>{worker_function});
     }
-}
+    template<typename working_data_type> void process_data_and_wait( Pipe<pipe_data_process<working_data_type>> & pipe, working_data_type data )// die pipe wurde mit make_syncro_pipe erzeugt
+    {
+        auto daten_verarbeitet = WS::Semaphore {};  //hier die semaphore für AddData
+        pipe.AddData( pipe_data_process<working_data_type>{daten_verarbeitet,std::move(data)} );//hier wird der service per pipe mit daten beschickt. Es ist sichergestellt, dass die Daten hinter einander(FIFO) abgearbeitet werden
+        (daten_verarbeitet).wait();//warten, bis genau dieser datensatz im parallelen thread verarbeitet wurde. im ergebnis steht das ergebins der datenverarbeitung
+    }
+    #pragma endregion
+}//namespace WS
 
