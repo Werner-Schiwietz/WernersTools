@@ -112,11 +112,11 @@ namespace UTSemaphore
 			Assert::IsTrue( counter==0);
 
 			start_thread();
-			while( sema.Waiting()!=1)
+			while( sema.waiting()!=1)
 				std::this_thread::yield();
 
 			decltype(sema)::count_t started_thread_count = sema.pulse();//nicht auto, sonst wird der lock nicht freigegeben
-			while(sema.Waiting()!=started_thread_count)std::this_thread::yield();//pulse() wartet bis thread läuft, nicht bis die arbeit gemacht ist.
+			while(sema.waiting()!=started_thread_count)std::this_thread::yield();//pulse() wartet bis thread läuft, nicht bis die arbeit gemacht ist.
 			Assert::IsTrue( counter==started_thread_count);
 			counter=0;
 
@@ -128,7 +128,7 @@ namespace UTSemaphore
 
 			Assert::IsTrue( threads_running == anzahl_threads, L"es konnten nicht alle threads gestartet werden" );
 
-			while( sema.Waiting()!=threads_running)
+			while( sema.waiting()!=threads_running)
 				std::this_thread::yield();//warten bis alle im definierten warte-zustand sind
 
 			for( auto i=anzahl_pulse; i --> 0; )
@@ -136,7 +136,7 @@ namespace UTSemaphore
 				started_thread_count = sema.pulse();//funktioniert nur, wenn kein thread per therminate oder sonstige krummen dinge beendet wurde
 				Assert::IsTrue( started_thread_count == anzahl_threads );
 
-				while( sema.Waiting()!=threads_running)
+				while( sema.waiting()!=threads_running)
 					std::this_thread::yield();//warten bis alle wieder im definierten warte-zustand sind
 
 				Assert::IsTrue( counter==threads_running );
@@ -183,8 +183,8 @@ namespace UTSemaphore
 						if( --counter_inner == 0 )
 							ready=true;//threads beenden
 
-									   //Assert::IsTrue( sema.Waiting()==1);Der aktive Testlauf wurde abgebrochen. Grund: Der Testhostprozess ist abgestürzt.
-						if( sema.Waiting() != 1)
+									   //Assert::IsTrue( sema.waiting()==1);Der aktive Testlauf wurde abgebrochen. Grund: Der Testhostprozess ist abgestürzt.
+						if( sema.waiting() != 1)
 							throw std::runtime_error(__FUNCTION__ " muss hier 1 liefern");
 
 						sema.set_running();

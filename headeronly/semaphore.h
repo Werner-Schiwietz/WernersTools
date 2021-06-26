@@ -23,7 +23,7 @@
 //!!!VORSICHT die meisten WS::Semaphore-Methoden liefern auch den lock_guard auf den state_mutex zurück. Also den Rückgabewert nicht merken, oder ggf. unlock aufrufen
 //	wichtige funktionen
 //		WS::Semaphore::signaled(notify=Notify::all) or set_running. enum Notify als none, one, all gibt an, welche Notify-Funktion auf die condition_variable nach signaled gerufen wird
-//		WS::Semaphore::blocked() or set_running
+//		WS::Semaphore::reset() or set_blocked
 //		WS::Semaphore::wait() //if blocked
 //oder als taktgeber
 //		WS::Semaphore::pulse()//jeder wartende thread wird gestartet. nächste wait wartet garantiert, also genau ein durchlauf von wait zu wait in jedem thread. pulse kommt zum aufrufer zurück, wenn alle threads laufen, nicht wenn sie fertig sind
@@ -31,6 +31,8 @@
 //Fragen, für UnitTest. Ansonsten wird man die nicht brauchen.
 //		WS::Semaphore::is_signaled() or WS::Semaphore() or (bool)WS::Semaphore
 //		WS::Semaphore::is_blocked()
+//		WS::Semaphore::waiting() liefert die Anzahl  wartender threads
+
 
 // beispiel
 //void einfaches_daten_synchronisations_beispiel ()//ein datenlieferant und ein worker
@@ -91,7 +93,7 @@ namespace WS
 	private:
 
 		std::atomic_bool			running{false};
-		std::atomic<count_t>		waiting{0};//anzahl wartender threads, für pulse nötig
+		std::atomic<count_t>		waiting_counter{0};//anzahl wartender threads, für pulse nötig
 		mutex_t						wait_mutex{};
 		condition_variable_t		cv{};
 
@@ -177,7 +179,7 @@ namespace WS
 			_wait( lock_state() );
 		}
 
-		#pragma region running methoden
+		#pragma region running methoden. signaled same as set_running. pulse läst wartende thread genau einmal laufen und liefert die anzahl der wartenden threads zurück. die anzahl braucht man aber nur zu testzwecken
 		count_return_t	signaled(Notify eNotify,state_lock_guard locked)	{return {_set_signaled_and_wait_till_all_running(eNotify),std::move(locked)};}//liefert die anzahl der wartenden threads UND DEN LOCK. also vorsicht, den return-wert nicht aufheben
 		auto			signaled(Notify eNotify)							{return signaled(eNotify,lock(this->state_mutex));}
 		auto			signaled()											{return signaled(Notify::all,lock(this->state_mutex));}
@@ -194,11 +196,11 @@ namespace WS
 			}
 			return {started_thread_count,std::move(locked_state_mutex)};
 		}
-		auto pulse(){return pulse(lock(this->state_mutex));}//blockiert neue wait-aufrufe und damit das hochzählen von waiting}
+		auto pulse(){return pulse(lock(this->state_mutex));}//blockiert neue wait-aufrufe und damit das hochzählen von waiting_counter}
 		#pragma endregion 
 
-		count_return_t	Waiting(state_lock_guard locked){return {waiting,std::move(locked)};}//liefert anzahl der wartenden threads
-		auto			Waiting(){ return Waiting(lock(this->state_mutex)); }
+		count_return_t	waiting(state_lock_guard locked){return {waiting_counter,std::move(locked)};}//liefert anzahl der wartenden threads
+		auto			waiting(){ return waiting(lock(this->state_mutex)); }
 
 		void	notify(Notify notify)
 		{
@@ -223,13 +225,13 @@ namespace WS
 		{
 			if(running==false)
 			{
-				auto condition = [this,pulse_lock=std::move(pulse_lock)]() mutable //ohne mutable lambda klappt das mit dem verschieben des pulse_lock nicht, da die capture-parameter const wären
+				auto condition = [this,pulse_lock=std::move(pulse_lock)]() mutable //ohne mutable klappt das mit dem verschieben des pulse_lock nicht, da die lambda-capture-parameter const wären
 				{
 					bool running = this->_is_signaled();
 					if(  running==false && pulse_lock.is_locked() )
-						++waiting;//erster aufruf, wir warten. genau einmal waiting++
+						++waiting_counter;//erster aufruf, wir warten. genau einmal waiting_counter++
 					else if( running && pulse_lock.is_locked()==false )
-						--waiting;//nicht erster aufruf und wir warten nicht mehr
+						--waiting_counter;//nicht erster aufruf und wir warten nicht mehr
 
 					pulse_lock.unlock();//setzt beim ersten aufruf der check_funktion den mutext zurück, die semaphore ist wieder frei für veränderung, egal ob gewartet wird, oder nicht
 					return running;
@@ -243,9 +245,9 @@ namespace WS
 			if( eNotify!=Notify::none )
 			{
 				count_t counter = 0; 
-				while( this->waiting )//wartet noch ein thread
+				while( this->waiting_counter )//wartet noch ein thread
 				{
-					if( eNotify==Notify::one && this->waiting<threads_waiting )
+					if( eNotify==Notify::one && this->waiting_counter<threads_waiting )
 						return;//mind. einer ist losgelaufen
 
 					if( ++counter > threads_waiting )//warten wir schon lange?
@@ -261,7 +263,7 @@ namespace WS
 		{
 			if( _is_signaled()==false )
 			{
-				count_t const threads_waiting = this->waiting;//weil notify_all manchmal nicht die gewünschte wirkung erzielt. die anzahl wartenden threads vor signaled merken und weitergeben
+				count_t const threads_waiting = this->waiting_counter;//weil notify_all manchmal nicht die gewünschte wirkung erzielt. die anzahl wartenden threads vor signaled merken und weitergeben
 				_set_signaled(eNotify);
 				_wait_till_all_running( threads_waiting, eNotify);
 				return threads_waiting;
