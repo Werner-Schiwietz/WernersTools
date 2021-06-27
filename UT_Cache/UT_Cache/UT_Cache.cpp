@@ -347,7 +347,7 @@ namespace UTCache
 					{
 						Assert::IsTrue(timewatch,L"methode läuft zu lange");
 
-						if(auto locked = WS::try_lock(mutex);locked.is_locked())
+						if(auto locked = WS::try_lock(mutex))
 						{
 							std::cout << "stop " << anzahlthreads << " threads" << std::endl;
 							for (auto& [id, counterper_thread] : counter)

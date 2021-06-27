@@ -58,6 +58,7 @@ namespace WS
 			return false;
 		}
 		bool is_locked() const { return locked && this->mutex;}
+		operator bool() const{return is_locked();}
 	private:
 		template<typename mutex_type> friend class trylock_guard;
 		lock_guard(){}
