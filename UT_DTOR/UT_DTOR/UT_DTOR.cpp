@@ -5,6 +5,12 @@ using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 
 #include "..\..\headeronly\dtor_call.h"
 
+namespace WS
+{
+	template<class T>
+	typename std::add_lvalue_reference<T>::type decllval() noexcept;
+}
+
 namespace UT_DTOR
 {
 	TEST_CLASS(UT_Dtor)
@@ -22,7 +28,8 @@ namespace UT_DTOR
 					return std::move(ptr) ;
 					//geht
 
-					using x_t = decltype(CreateDtorCall( &cleanup::doit, &std::declval<cleanup>(), std::declval<std::unique_ptr<int>>() ));
+					//using x_t = decltype(CreateDtorCall( &cleanup::doit, &std::declval<cleanup>(), std::declval<std::unique_ptr<int>>() ));//warning C4238: nonstandard extension used: class rvalue used as lvalue
+					using x_t = decltype(CreateDtorCall( &cleanup::doit, &WS::decllval<cleanup>(), std::declval<std::unique_ptr<int>>() ));
 				}
 				//std::unique_ptr<int> doit( std::unique_ptr<int> & ptr ) &&
 				//{
@@ -35,7 +42,8 @@ namespace UT_DTOR
 				//using x_t = decltype(get_type());
 			};
 			//geht
-			using x_t = decltype(CreateDtorCall( &cleanup::doit, &std::declval<cleanup>(), std::declval<std::unique_ptr<int>>() ));
+			//using x_t = decltype(CreateDtorCall( &cleanup::doit, &std::declval<cleanup>(), std::declval<std::unique_ptr<int>>() ));//warning C4238: nonstandard extension used: class rvalue used as lvalue
+			using x_t = decltype(CreateDtorCall( &cleanup::doit, &WS::decllval<cleanup>(), std::declval<std::unique_ptr<int>>() ));
 
 			cleanup cleanup_obj;
 

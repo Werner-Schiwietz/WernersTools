@@ -29,18 +29,87 @@
 
 namespace WS
 {
-    template<typename data_type>
-    struct Pipe
+    template<typename data_type> struct fifo //nicht sychronisierter fifo-buffer
     {
         using data_t = data_type;
-        using mutex_t = std::mutex;
-        struct Data
+        template<typename ... not_used_ts>void AddData( data_t && data, not_used_ts && ... )
         {
+            this->data.push( std::move(data) );
+            static_assert(sizeof...(not_used_ts)==0);
+        }
+        std::optional<data_t> PopData()
+        {
+            if(this->size())//sind zu verarbeitende daten da
+            {
+                auto value = std::move(this->data.front());//daten holen
+                this->data.pop();//daten aus pool entfernen
+                return value;
+            }
+            return {};
+        }
+        auto size() const{ return data.size();}
+    private:
+        std::queue<data_type> data;
+    };
+    template<typename data_type> struct fifo_with_prio //nicht sychronisierter erweiterter fifo-buffer
+    {
+        using prio_t = size_t;
+        using data_t = data_type;
+        struct mydata_t
+        {
+            prio_t prio{};
+            data_t data;
+
+            //hier geht es nur um sortierung, nicht um die inhalte
+            bool operator<(mydata_t const & r)const{return this->prio<r.prio;}
+            bool operator==(mydata_t const & r)const{return this->prio==r.prio;}
+            bool operator!=(mydata_t const & r)const{return this->prio!=r.prio;}
+        };
+
+        template<typename ... not_used_ts>void AddData( data_t && data, prio_t prio=0,not_used_ts && ... )
+        {
+            static_assert(sizeof...(not_used_ts)==0);
+            auto iter = this->data.begin();
+            for(;iter!=this->data.end() && iter->prio <= prio; ++iter )//TODO kann man schneller machen
+            {}
+            this->data.insert(iter,mydata_t{prio,std::move(data)});
+        }
+        std::optional<data_t> PopData()
+        {
+            auto iter = this->data.begin();
+            if(iter!=this->data.end())//sind zu verarbeitende daten da
+            {
+                auto value = std::move((*iter).data);//daten holen
+                this->data.erase(iter);//daten aus pool entfernen
+                for(auto & v : this->data )
+                {
+                    if(v.prio)--v.prio;//prio der alten daten erhöhen
+                }
+                return value;
+            }
+            return {};
+        }
+        auto size() const{ return data.size();}
+    private:
+        std::deque<mydata_t> data;
+    };
+
+    template<typename data_type,typename datapool_type=WS::fifo<data_type>>
+    struct Pipe
+    {
+        using data_t        = data_type;
+        using datapool_t    = datapool_type;
+
+        template<typename pipdata_type> struct Data 
+        {
+            using pipdata_t = pipdata_type;
+            using mutex_t = std::mutex;
             enum enumThreadState{running,process_and_terminate,terminate} threadstate{enumThreadState::running};
-            WS::Semaphore       semaphore;
+            std::atomic_bool    block_processing{false};
+            WS::Semaphore       semaphore;//ohne daten wird verarbeitungsthread schlafen gelegt
             std::mutex          mutex;
             std::thread         thread_working;
-            std::queue<data_t>  data_pool;
+            pipdata_type        data_pool;
 
             void terminate_detach_worker(enumThreadState newState=enumThreadState::terminate)//es werden ggf. nicht alle pending-datas verarbeitet
             {
@@ -80,24 +149,21 @@ namespace WS
             std::optional<data_t> PopData()
             {
                 auto looked = std::lock_guard(this->mutex);
-                if(this->data_pool.size())//sind zu verarbeitende daten da
-                {
-                    auto data = std::move(this->data_pool.front());//daten holen
-                    this->data_pool.pop();//daten aus pool entfernen
-                    return data;
-                }
-                return {};
+                return this->data_pool.PopData();
             }
-            void AddData( data_t && data )
+            template<typename ... addional_ts> void AddData( data_t && data, addional_ts && ... params )
             {
                 auto looked = std::lock_guard(this->mutex);
-                data_pool.push( std::move(data) );
-                semaphore.set_running();//ggf. worker laufen lassen
+                data_pool.AddData( std::move(data),std::forward<addional_ts>(params)...);
+                if(block_processing==false)
+                    semaphore.set_running();//ggf. worker laufen lassen
             }
         };
-        using enumThreadState = typename Data::enumThreadState;
-        using data_ptr_t = std::shared_ptr<Data>;
-        data_ptr_t member{std::make_shared<Data>()};
+        using data_syncro_t = Data<datapool_t>;
+
+        using enumThreadState = typename data_syncro_t::enumThreadState;
+        using data_ptr_t = std::shared_ptr<data_syncro_t>;
+        data_ptr_t member{std::make_shared<data_syncro_t>()};
 
         ~Pipe()
         {
@@ -105,24 +171,41 @@ namespace WS
             //member->end_worker();
         }
         Pipe(Pipe const& ) = delete;
-        Pipe( std::function<void(Pipe<data_t>::data_ptr_t,std::function<void(data_t&&)>) > fn, std::function<void(data_t&&)> worker )
+        Pipe( std::function<void(Pipe<data_t,datapool_t>::data_ptr_t,std::function<void(data_t&&)>) > fn, std::function<void(data_t&&)> worker )
         {
             this->member->semaphore.set_blocked();
             this->member->thread_working = std::thread( fn, this->member, worker );
         }
-        Pipe( std::function<void(Pipe<data_t>::data_ptr_t)> fn )
+        Pipe( std::function<void(Pipe<data_t,datapool_t>::data_ptr_t)> fn )
         {
             this->member->semaphore.set_blocked();
             this->member->thread_working = std::thread( fn, std::ref(*this) );
         }
 
-        auto pending(){return member->pending();}//VORSICHT ret_value hält lock_guard
 
+        template<typename ... addional_ts> 
+        void AddData( data_t && data, addional_ts && ... params ){this->member->AddData( std::move(data),std::forward<addional_ts>(params)... );}//params ggf wenn nicht einfacher fifo benutzt wird zusätzliche daten
         std::optional<data_t> PopData(){return this->member->PopData();}
-        void AddData( data_t && data ){this->member->AddData( std::move(data) );}
+        
+    #pragma region funktionen zum testen
+        auto pending(){return member->pending();}//liefert ob, und wieviele daten zur verarbeitung bereitstehen. VORSICHT ret_value hält lock_guard
+        void set_processing_blocked()//verarbeitung auch mit daten blockieren
+        {
+            this->member->block_processing = true;
+            this->member->semaphore.set_blocked();
+        }
+        void set_processing()//verarbeitung mit daten ermöglichen
+        {
+            this->member->block_processing = false;
+            if( auto erg=this->member->pending() )
+                this->member->semaphore.set_running();
+        }
+    #pragma endregion
+
     };
-    template<typename data_t>void std_pipe_function_processor(typename Pipe<data_t>::data_ptr_t pipedata, std::function<void(data_t&&)> worker )
+    template<typename pipe_t>void std_pipe_function_processor(typename pipe_t::data_ptr_t pipedata, std::function<void(typename pipe_t::data_t&&)> worker )
     {
+        using data_t = typename pipe_t::data_t;
         while(pipedata->threadstate!=Pipe<data_t>::enumThreadState::terminate)
         {
             if( auto data = pipedata->PopData() )
@@ -143,9 +226,11 @@ namespace WS
         }
         //end-thread
     }
-    template<typename data_t> auto make_pipe( std::function<void(data_t&&)> worker_function )
+    template<typename data_t,typename datapool_t=WS::fifo<data_t>> 
+    auto make_pipe( std::function<void(data_t&&)> worker_function )
     {
-        return Pipe<data_t>{std_pipe_function_processor<data_t>, worker_function};
+        using pipe_t = Pipe<data_t,datapool_t>;
+        return pipe_t{std_pipe_function_processor<pipe_t>, worker_function};
     }
 
 
@@ -186,9 +271,10 @@ namespace WS
         }
     };
 
-    template<typename data_t> auto make_syncro_pipe( std::function<void(data_t&&)> worker_function )
+    template<typename data_t,typename datapool_t=WS::fifo<pipe_data_process<data_t>>> 
+    auto make_syncro_pipe( std::function<void(data_t&&)> worker_function )
     {
-        return WS::make_pipe<pipe_data_process<data_t>>(WS::pipe_data_processed_handler<data_t>{worker_function});
+        return WS::make_pipe<pipe_data_process<data_t>,datapool_t>(WS::pipe_data_processed_handler<data_t>{worker_function});
     }
     template<typename working_data_type> void process_data_and_wait( Pipe<pipe_data_process<working_data_type>> & pipe, working_data_type data )// die pipe wurde mit make_syncro_pipe erzeugt
     {

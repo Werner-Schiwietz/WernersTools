@@ -81,6 +81,92 @@ namespace BasisUnitTests
             }
             Logger::WriteMessage("<- UT_pipe");
         }
+        TEST_METHOD(UT_pipe_mit_prio_0)
+        {
+            Logger::WriteMessage("-> UT_pipe_mit_prio_0");
+            struct my_data{int value;};
+            int counter{0};
+
+            auto threadworker = []( my_data && data )
+            {      //doing-something
+
+                CString str;
+                str.Format( _T("%6d working on data "), data.value );
+                Logger::WriteMessage(str);
+
+                using namespace std::chrono_literals;
+                std::this_thread::sleep_for(4us);
+            };
+
+            {
+                auto pipe = WS::make_pipe<my_data,WS::fifo_with_prio<my_data>>( threadworker );
+
+                using namespace std::chrono_literals;
+                auto waiting = 0us;
+                //std::this_thread::sleep_for(2000ms);
+
+                while( counter<100 )
+                {
+                    CString str;
+                    str.Format( _T("%6d AddData"), ++counter );
+                    Logger::WriteMessage(str);
+
+                    if( (counter%10) == 0 )
+                        ++waiting;
+                    std::this_thread::sleep_for(waiting);
+
+                    pipe.AddData(my_data{counter});
+                    if( auto pending = pipe.pending() )
+                    {
+                        str.Format( _T("  %6d pending"), pending.count() );
+                        Logger::WriteMessage(str);
+                    }
+                }
+                pipe.member->processdata_endworker();//destructor macht nur soft-terminate und detach, dadurch kann der threadworker länger arbeiten als die eigentliche pipe lebt
+            }
+            Logger::WriteMessage("<- UT_pipe_mit_prio_0");
+        }
+        TEST_METHOD(UT_pipe_mit_prio)
+        {
+            Logger::WriteMessage("-> UT_pipe_mit_prio");
+            struct my_data{int value;size_t prio_fuer_die_aussgabe;};
+            std::vector<my_data> verarbeitet;
+            
+
+            auto threadworker = [&]( my_data && data )
+            {      //doing-something
+                verarbeitet.push_back(data);
+                CString str;
+                str.Format( _T("%6d working on data prio:%d"), data.value, data.prio_fuer_die_aussgabe );
+                Logger::WriteMessage(str);
+            };
+
+            {
+                auto pipe = WS::make_pipe<my_data,WS::fifo_with_prio<my_data>>( threadworker );
+                pipe.set_processing_blocked();
+                
+                for( int counter=0; counter < 100; ++counter )
+                {
+                    size_t prio = rand() % 5;
+                    pipe.AddData(my_data{counter,prio}, prio );
+                }
+
+                pipe.set_processing();
+
+                pipe.member->processdata_endworker();//destructor macht nur soft-terminate und detach, dadurch kann der threadworker länger arbeiten als die eigentliche pipe lebt
+
+                if(auto iter1 = verarbeitet.begin(); iter1!=verarbeitet.end() )
+                {
+                    for(auto iter2=iter1;++iter2!=verarbeitet.end();iter1=iter2)
+                    {
+                        Assert::IsTrue( iter1->prio_fuer_die_aussgabe<iter2->prio_fuer_die_aussgabe
+                                    ||  (iter1->prio_fuer_die_aussgabe==iter2->prio_fuer_die_aussgabe && iter1->value < iter2->value ) );
+                    }
+                }
+
+            }
+            Logger::WriteMessage("<- UT_pipe_mit_prio");
+        }
         TEST_METHOD(UT_pipe_Logger)
         {
             Logger::WriteMessage("-> UT_pipe_Logger");
