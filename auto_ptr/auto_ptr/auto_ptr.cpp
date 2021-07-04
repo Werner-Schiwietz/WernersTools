@@ -375,24 +375,24 @@ namespace autoptr
 		{
 			int i=5;
 			WS::auto_ptr<int> x{&i};
-			Assert::IsFalse( x.owner() );
+			Assert::IsFalse( x.is_owner() );
 			Assert::IsTrue(x==&i);
 			auto xx = x;
-			Assert::IsFalse(x.owner());
+			Assert::IsFalse(x.is_owner());
 			Assert::IsTrue(x == &i);
-			Assert::IsFalse(xx.owner());
+			Assert::IsFalse(xx.is_owner());
 			Assert::IsTrue(xx == &i);
 		}
 		TEST_METHOD(auto_ptr__copy_ownerless2)
 		{
 			int i = 5;
 			WS::auto_ptr<int> x{ &i };
-			Assert::IsFalse(x.owner());
+			Assert::IsFalse(x.is_owner());
 			Assert::IsTrue(x == &i);
 			auto xx = x;
-			Assert::IsFalse(x.owner());
+			Assert::IsFalse(x.is_owner());
 			Assert::IsTrue(x == &i);
-			Assert::IsFalse(xx.owner());
+			Assert::IsFalse(xx.is_owner());
 			Assert::IsTrue(xx == &i);
 		}
 		TEST_METHOD(auto_ptr__comp_nullptr)
@@ -411,15 +411,15 @@ namespace autoptr
 		{
 			auto fn = [](WS::auto_ptr<int>&& ptr)
 			{
-				Assert::IsTrue( ptr.owner() );
-				(void)ptr.transfer();//wenn owner, und das ist er hier, wird das objekt freigegeben
-				Assert::IsFalse(ptr.owner());
+				Assert::IsTrue( ptr.is_owner() );
+				(void)ptr.transfer();//wenn is_owner, und das ist er hier, wird das objekt freigegeben
+				Assert::IsFalse(ptr.is_owner());
 				Assert::IsFalse(ptr);
 			};
 
 			auto ptr= WS::auto_ptr<int>( new int( 5 ), true );
 			Assert::IsTrue( ptr );
-			Assert::IsTrue( ptr.owner() );
+			Assert::IsTrue( ptr.is_owner() );
 			fn( std::move( ptr ) );
 			Assert::IsFalse( ptr );
 		}
@@ -428,31 +428,31 @@ namespace autoptr
 			auto fn = [](WS::auto_ptr<int>& ptr)
 			{
 				Assert::IsTrue( ptr );
-				if( ptr.owner() )
+				if( ptr.is_owner() )
 				{
-					(void)ptr.transfer();//wenn owner, wird das objekt freigegeben
-					Assert::IsFalse(ptr.owner());
+					(void)ptr.transfer();//wenn is_owner, wird das objekt freigegeben
+					Assert::IsFalse(ptr.is_owner());
 					Assert::IsFalse(ptr);
 				}
 				else
 				{
-					(void)ptr.transfer();//wenn nicht owner, wird das objekt nicht freigegeben
-					Assert::IsFalse(ptr.owner());
+					(void)ptr.transfer();//wenn nicht is_owner, wird das objekt nicht freigegeben
+					Assert::IsFalse(ptr.is_owner());
 					Assert::IsTrue(ptr);
 				}
 			};
 
 			auto ptr= WS::auto_ptr<int>( new int( 5 ), true );
 			Assert::IsTrue( ptr );
-			Assert::IsTrue( ptr.owner() );
+			Assert::IsTrue( ptr.is_owner() );
 
 			auto ptr1 = ptr;
 			Assert::IsTrue( ptr1 );
-			Assert::IsFalse( ptr1.owner() );
+			Assert::IsFalse( ptr1.is_owner() );
 
 			fn( ptr1 );
 			Assert::IsTrue( ptr );
-			Assert::IsTrue( ptr.owner() );
+			Assert::IsTrue( ptr.is_owner() );
 			fn( ptr );
 			Assert::IsFalse( ptr );
 			Assert::IsFalse( ptr1 );
@@ -474,7 +474,7 @@ namespace autoptr
 			};
 			auto assignit = [&](WS::auto_ptr<int> && ptr)//dont do this, its senseless
 			{
-				ptr_owner = ptr;//ptr bleibt owner
+				ptr_owner = ptr;//ptr bleibt is_owner
 			};
 			auto releaseptr = [&]( WS::auto_ptr<int> && ptr )
 			{
@@ -483,15 +483,15 @@ namespace autoptr
 
 			auto ptr= WS::auto_ptr<int>( new int( 5 ), true );
 			Assert::IsTrue( ptr );
-			Assert::IsTrue( ptr.owner() );
+			Assert::IsTrue( ptr.is_owner() );
 
 			donothing( std::move( ptr ) );
 			Assert::IsTrue( ptr );
-			Assert::IsTrue( ptr.owner() );
+			Assert::IsTrue( ptr.is_owner() );
 
 			takeownership( std::move( ptr ) );
 			Assert::IsTrue( ptr );
-			Assert::IsFalse( ptr.owner() );
+			Assert::IsFalse( ptr.is_owner() );
 			Assert::IsTrue( ptr_owner.get() == ptr.get() );
 			Assert::IsTrue( ptr_owner == ptr );
 			Assert::IsTrue( ptr_owner == ptr.get() );
@@ -505,12 +505,12 @@ namespace autoptr
 			moveit( std::move(ptr) );
 			Assert::IsFalse( ptr );
 			Assert::IsTrue( ptr_owner );
-			Assert::IsTrue( ptr_owner.owner() );
+			Assert::IsTrue( ptr_owner.is_owner() );
 
 			ptr= WS::auto_ptr<int>( new int( 5 ), true );
 			assignit( std::move(ptr) );
 			Assert::IsTrue( ptr );
-			Assert::IsTrue( ptr.owner() );
+			Assert::IsTrue( ptr.is_owner() );
 			Assert::IsTrue( ptr_owner );
 			Assert::IsTrue( ptr_owner == ptr );
 		}
@@ -531,11 +531,11 @@ namespace autoptr
 
 			auto ptr= WS::auto_ptr<int>( new int( 5 ), true );
 			Assert::IsTrue( ptr );
-			Assert::IsTrue( ptr.owner() );
+			Assert::IsTrue( ptr.is_owner() );
 
 			donothing( ptr );
 			Assert::IsTrue( ptr );
-			Assert::IsTrue( ptr.owner() );
+			Assert::IsTrue( ptr.is_owner() );
 
 			donothing( ptr.transfer() );
 			Assert::IsFalse( ptr );
@@ -548,28 +548,28 @@ namespace autoptr
 
 			takeownership( ptr  );
 			Assert::IsTrue( ptr );
-			Assert::IsTrue( ptr.owner() );
+			Assert::IsTrue( ptr.is_owner() );
 			Assert::IsTrue( ptr_owner == ptr );
 			takeownership( ptr.transfer() );
 			Assert::IsTrue( ptr );
-			Assert::IsFalse( ptr.owner() );
+			Assert::IsFalse( ptr.is_owner() );
 			Assert::IsTrue( ptr_owner == ptr );
 
 			ptr= WS::auto_ptr<int>( new int( 5 ), true );
 			takeownership( std::move( ptr ) );
 			Assert::IsFalse( ptr );
-			Assert::IsTrue( ptr_owner.owner() );
+			Assert::IsTrue( ptr_owner.is_owner() );
 		}
 		TEST_METHOD(auto_ptr_assign)
 		{
-			{	//1 zuweisung x bleibt owner
+			{	//1 zuweisung x bleibt is_owner
 				WS::auto_ptr<int> x{ std::make_unique<int>(5) };
 				WS::auto_ptr<int> x2;
 				x2 = x;
 				Assert::IsTrue( x );
-				Assert::IsTrue( x.owner() );
+				Assert::IsTrue( x.is_owner() );
 				Assert::IsTrue( x2 );
-				Assert::IsFalse( x2.owner() );
+				Assert::IsFalse( x2.is_owner() );
 				Assert::IsTrue( x2==x );
 			}
 			{	//2 same as 1
@@ -577,41 +577,41 @@ namespace autoptr
 				WS::auto_ptr<int> x2;
 				x2 = x.ownerless();
 				Assert::IsTrue( x );
-				Assert::IsTrue( x.owner() );
+				Assert::IsTrue( x.is_owner() );
 				Assert::IsTrue( x2 );
-				Assert::IsFalse( x2.owner() );
+				Assert::IsFalse( x2.is_owner() );
 				Assert::IsTrue( x2==x );
 			}
-			{	//3 move x wird nullptr x2 wird owner
+			{	//3 move x wird nullptr x2 wird is_owner
 				WS::auto_ptr<int> x{ std::make_unique<int>(5) };
 				WS::auto_ptr<int> x2;
 				x2 = std::move(x);
 				Assert::IsFalse( x );
 				Assert::IsTrue( x2 );
-				Assert::IsTrue( x2.owner() );
+				Assert::IsTrue( x2.is_owner() );
 			}
-			{	//4 transfer x behält pointer x2 wird owner
+			{	//4 transfer x behält pointer x2 wird is_owner
 				WS::auto_ptr<int> x{ std::make_unique<int>(5) };
 				WS::auto_ptr<int> x2;
 				x2 = x.transfer();
 				Assert::IsTrue( x );
-				Assert::IsFalse( x.owner() );
+				Assert::IsFalse( x.is_owner() );
 				Assert::IsTrue( x2 );
-				Assert::IsTrue( x2.owner() );
+				Assert::IsTrue( x2.is_owner() );
 				Assert::IsTrue( x2==x );
 			}
 		}
 		TEST_METHOD(auto_ptr__ownership_transfer)
 		{
 			WS::auto_ptr<int> x{ std::make_unique<int>(5) };
-			Assert::IsTrue(x.owner());
+			Assert::IsTrue(x.is_owner());
 			auto xx = x.transfer();
-			Assert::IsFalse(x.owner());
-			Assert::IsTrue(xx.owner());
+			Assert::IsFalse(x.is_owner());
+			Assert::IsTrue(xx.is_owner());
 			auto xxx = x.transfer();
-			Assert::IsFalse(x.owner());
-			Assert::IsTrue(xx.owner());
-			Assert::IsFalse(xxx.owner());
+			Assert::IsFalse(x.is_owner());
+			Assert::IsTrue(xx.is_owner());
+			Assert::IsFalse(xxx.is_owner());
 			Assert::IsTrue(xx == x);
 			Assert::IsTrue(xx == xxx);
 		}
@@ -636,13 +636,13 @@ namespace autoptr
 			WS::auto_ptr<A> a = ab;
 			WS::auto_ptr<B> b = ab;
 
-			Assert::IsTrue( ab.owner() );
+			Assert::IsTrue( ab.is_owner() );
 			Assert::IsTrue(ab->foo()== 3);
 			Assert::IsTrue(a->foo() == 1);
 			Assert::IsTrue(b->foo() == 2);
 
 			b = ab.transfer();//ups
-			Assert::IsTrue( b.owner() );
+			Assert::IsTrue( b.is_owner() );
 			Assert::IsTrue(ab->foo()== 3);
 			Assert::IsTrue(a->foo() == 1);
 			Assert::IsTrue(b->foo() == 2);
@@ -665,7 +665,7 @@ namespace autoptr
 				X x1 = x;
 				ptr = x.auto_ptr_from_this();
 				Assert::IsNotNull(ptr.get());
-				Assert::IsFalse(ptr.owner());
+				Assert::IsFalse(ptr.is_owner());
 				Assert::IsTrue(ptr->value == x.value );
 			}
 			Assert::IsNull(ptr.get());
@@ -827,7 +827,7 @@ namespace autoptr
 			}
 
 			container.clear();
-			//nach clear alle gemerkten nicht owner pointer null
+			//nach clear alle gemerkten nicht is_owner pointer null
 			for( auto & ptr : ptrs )
 				Assert::IsFalse( ptr );
 		}
@@ -879,7 +879,7 @@ namespace autoptr
 			try
 			{
 				foo( WS::auto_ptr<Int>(ptr,false) ); 
-				Assert::Fail( L"exception erwartet, weil foo keinen owner als parameter erhaelt" );
+				Assert::Fail( L"exception erwartet, weil foo keinen is_owner als parameter erhaelt" );
 			}
 			catch(...){}
 			Assert::IsTrue( _startwert==10 );
@@ -888,13 +888,13 @@ namespace autoptr
 		}
 		TEST_METHOD(uebergebe_ptr_als_owner_per_shared_ptr)
 		{
-			auto fnTakeOverOwnershipAndReturnOwner=[]( WS::auto_ptr_owner_parameter<int> ptr )->WS::auto_ptr<int>//auto_ptr_owner_parameter wirft exception, wenn ptr nicht owner ist
+			auto fnTakeOverOwnershipAndReturnOwner=[]( WS::auto_ptr_owner_parameter<int> ptr )->WS::auto_ptr<int>//auto_ptr_owner_parameter wirft exception, wenn ptr nicht is_owner ist
 			{
 				return ptr;
 			};
 
 			WS::auto_ptr<int> ptr { std::shared_ptr<int>( new int( 5 ) ) };
-			Assert::IsFalse( ptr.owner() );
+			Assert::IsFalse( ptr.is_owner() );
 			Assert::IsTrue( ptr.is_shared_ptr() );
 			auto fnTest =[&ptr]( WS::auto_ptr<int> && ptr_shared )
 			{
@@ -922,15 +922,15 @@ namespace autoptr
 		}
 		TEST_METHOD(uebergebe_ptr_als_owner_per_transfer)
 		{
-			auto fnTakeOverOwnershipAndReturnOwner=[]( WS::auto_ptr_owner_parameter<int> ptr )->WS::auto_ptr<int>//auto_ptr_owner_parameter wirft exception, wenn ptr nicht owner ist
+			auto fnTakeOverOwnershipAndReturnOwner=[]( WS::auto_ptr_owner_parameter<int> ptr )->WS::auto_ptr<int>//auto_ptr_owner_parameter wirft exception, wenn ptr nicht is_owner ist
 			{
 				return ptr;
 			};
 			WS::auto_ptr<int> ptr = WS::auto_ptr_owner_parameter<int>( new int( 5 ) );
-			Assert::IsTrue( ptr.owner() );
+			Assert::IsTrue( ptr.is_owner() );
 			auto ptr_owner = fnTakeOverOwnershipAndReturnOwner( ptr.transfer() );//egal ob transfer oder direkt uebergeben
-			Assert::IsFalse( ptr.owner() );
-			Assert::IsTrue( ptr_owner.owner() );
+			Assert::IsFalse( ptr.is_owner() );
+			Assert::IsTrue( ptr_owner.is_owner() );
 			Assert::IsTrue( *ptr == 5 );
 			Assert::IsTrue( *ptr_owner == 5 );
 			Assert::IsTrue( ptr_owner==ptr );
@@ -940,16 +940,16 @@ namespace autoptr
 		}
 		TEST_METHOD(uebergebe_ptr_als_owner_per_referenz)
 		{
-			auto fnTakeOverOwnershipAndReturnOwner=[]( WS::auto_ptr_owner_parameter<int> ptr )//auto_ptr_owner_parameter wirft exception, wenn ptr nicht owner ist
+			auto fnTakeOverOwnershipAndReturnOwner=[]( WS::auto_ptr_owner_parameter<int> ptr )//auto_ptr_owner_parameter wirft exception, wenn ptr nicht is_owner ist
 			{
 				return WS::auto_ptr<int>(ptr);
 			};
 			{
 				WS::auto_ptr<int> ptr = WS::auto_ptr_owner_parameter<int>( new int( 5 ) );
-				Assert::IsTrue( ptr.owner() );
-				auto ptr_owner = fnTakeOverOwnershipAndReturnOwner( ptr );//egal ob transfer oder direkt uebergeben. ptr ist nicht mehr owner. waere er es bei aufruf nicht, flöge eine exception
-				Assert::IsFalse( ptr.owner() );
-				Assert::IsTrue( ptr_owner.owner() );
+				Assert::IsTrue( ptr.is_owner() );
+				auto ptr_owner = fnTakeOverOwnershipAndReturnOwner( ptr );//egal ob transfer oder direkt uebergeben. ptr ist nicht mehr is_owner. waere er es bei aufruf nicht, flöge eine exception
+				Assert::IsFalse( ptr.is_owner() );
+				Assert::IsTrue( ptr_owner.is_owner() );
 				Assert::IsTrue( *ptr == 5 );
 				Assert::IsTrue( *ptr_owner == 5 );
 				Assert::IsTrue( ptr_owner == ptr );
@@ -960,17 +960,17 @@ namespace autoptr
 		}
 		TEST_METHOD(uebergebe_ptr_als_owner_per_move)
 		{
-			auto fnTakeOverOwnershipAndReturnOwner=[]( WS::auto_ptr_owner_parameter<int> ptr )//auto_ptr_owner_parameter wirft exception, wenn ptr nicht owner ist
+			auto fnTakeOverOwnershipAndReturnOwner=[]( WS::auto_ptr_owner_parameter<int> ptr )//auto_ptr_owner_parameter wirft exception, wenn ptr nicht is_owner ist
 			{
 				return WS::auto_ptr<int>(ptr);
 			};
 			{
 				WS::auto_ptr<int> ptr = WS::auto_ptr_owner_parameter<int>( new int( 5 ) );
-				Assert::IsTrue( ptr.owner() );
+				Assert::IsTrue( ptr.is_owner() );
 				auto ptr_owner = fnTakeOverOwnershipAndReturnOwner( std::move(ptr) );//std::move führt hier zu ptr==nullptr, evtl besser transfer()
-				Assert::IsFalse( ptr.owner() );
-				Assert::IsTrue( ptr_owner.owner() );
-				Assert::IsTrue( ptr==nullptr );//std::move setzt ptr auf nullptr. wenn pointer stehen bleiben soll transfer() benutzen, s.o.
+				Assert::IsFalse( ptr.is_owner() );
+				Assert::IsTrue( ptr_owner.is_owner() );
+				Assert::IsTrue( ptr==nullptr );//std::move setzt ptr auf nullptr. wenn pointer stehen bleiben soll transfer()  benutzen oder nichts angeben, also als lvalue-reference, s.o.
 				(void)ptr_owner.transfer();//liefert owner_ptr als returnwert. da dieses nicht verwendet wird, wird verwaltetes objekt zerstört
 				Assert::IsTrue( ptr == nullptr );
 				Assert::IsTrue( ptr_owner == nullptr );
@@ -978,7 +978,7 @@ namespace autoptr
 		}
 		TEST_METHOD(uebergebe_ptr_als_owner_per_unique_ptr)
 		{
-			auto fnTakeOverOwnershipAndReturnOwner=[]( WS::auto_ptr_owner_parameter<int> ptr )//auto_ptr_owner_parameter wirft exception, wenn ptr nicht owner ist
+			auto fnTakeOverOwnershipAndReturnOwner=[]( WS::auto_ptr_owner_parameter<int> ptr )//auto_ptr_owner_parameter wirft exception, wenn ptr nicht is_owner ist
 			{
 				return WS::auto_ptr<int>(ptr);
 			};
@@ -988,13 +988,13 @@ namespace autoptr
 				Assert::IsTrue( ptr == nullptr );
 				Assert::IsTrue( ptr_owner != nullptr );
 				Assert::IsTrue( *ptr_owner == 5 );
-				Assert::IsTrue( ptr_owner.owner() );
+				Assert::IsTrue( ptr_owner.is_owner() );
 				(void)ptr_owner.transfer();//liefert owner_ptr als returnwert. da dieses nicht verwendet wird, wird verwaltetes objekt zerstört
 			}
 		}
 		TEST_METHOD(uebergebe_ptr_als_owner_per_unmanged_ptr)
 		{
-			auto fnTakeOverOwnershipAndReturnOwner=[]( WS::auto_ptr_owner_parameter<int> ptr )//auto_ptr_owner_parameter wirft exception, wenn ptr nicht owner ist
+			auto fnTakeOverOwnershipAndReturnOwner=[]( WS::auto_ptr_owner_parameter<int> ptr )//auto_ptr_owner_parameter wirft exception, wenn ptr nicht is_owner ist
 			{
 				return WS::auto_ptr<int>(ptr);
 			};
@@ -1002,7 +1002,7 @@ namespace autoptr
 				auto unmanged_ptr = new int( 5 );
 				Assert::IsTrue( *unmanged_ptr==5 );
 				auto ptr_owner = fnTakeOverOwnershipAndReturnOwner( unmanged_ptr );
-				Assert::IsTrue( ptr_owner.owner() );
+				Assert::IsTrue( ptr_owner.is_owner() );
 				Assert::IsTrue( *unmanged_ptr==5 );
 				(void)ptr_owner.transfer();//liefert owner_ptr als returnwert. da dieses nicht verwendet wird, wird verwaltetes objekt zerstört
 				Assert::IsTrue( ptr_owner == nullptr );
@@ -1020,10 +1020,10 @@ namespace autoptr
 			};
 			int i=5;
 			WS::auto_ptr<int> ptr( &i );
-			Assert::IsFalse( ptr.owner() );
+			Assert::IsFalse( ptr.is_owner() );
 			try
 			{
-				//fnTakeOverOwnershipAndReturnOwner wirft exception, wenn parameter nicht owner ist
+				//fnTakeOverOwnershipAndReturnOwner wirft exception, wenn parameter nicht is_owner ist
 				auto ptr_owner = fnTakeOverOwnershipAndReturnOwner( ptr );
 				Assert::Fail( L"exception erwartet" );
 			}
@@ -1041,13 +1041,13 @@ namespace autoptr
 			int *				p1 = nullptr;
 			WS::auto_ptr<int>	p2;
 			{
-				WS::auto_ptr<int> owner = ptr;//übertragung des objekt-pointers auf owner, ptr wird empty
+				WS::auto_ptr<int> is_owner = ptr;//übertragung des objekt-pointers auf is_owner, ptr wird empty
 				Assert::IsTrue( static_cast<WS::auto_ptr<int>>(ptr) == nullptr );
-				p1 = owner;
-				p2 = owner;
-				Assert::IsTrue( owner.owner() );
-				Assert::IsTrue( *owner == 6 );
-				Assert::IsFalse( p2.owner() );
+				p1 = is_owner;
+				p2 = is_owner;
+				Assert::IsTrue( is_owner.is_owner() );
+				Assert::IsTrue( *is_owner == 6 );
+				Assert::IsFalse( p2.is_owner() );
 				Assert::IsTrue( *p2 == 6 );
 				Assert::IsTrue( *p1 == 6 );
 			}
@@ -1057,7 +1057,7 @@ namespace autoptr
 		TEST_METHOD(release_as_unique_ptr)
 		{	//release sind schlechte funktionen, weil die pointer im zugriff bleiben, die zerstörung der objekt aber nicht bemerkt wird
 			WS::auto_ptr<int> ptr = WS::auto_ptr_owner_parameter<int>( new int( 5 ) );
-			Assert::IsTrue( ptr.owner() );
+			Assert::IsTrue( ptr.is_owner() );
 			{
 				auto p1 = ptr.release_as_unique_ptr();
 				Assert::IsTrue( p1.get()==ptr.get() );
@@ -1070,7 +1070,7 @@ namespace autoptr
 				auto ptr1 = WS::auto_ptr_owner_parameter<int>( new int( 5 ) );
 				ptr = ptr1.move();
 				Assert::IsTrue( static_cast<WS::auto_ptr<int>>(ptr1)==nullptr );
-				Assert::IsTrue( ptr.owner() );
+				Assert::IsTrue( ptr.is_owner() );
 				{
 					auto p1 = ptr.release_as_unique_ptr();
 					Assert::IsTrue( p1.get() );
@@ -1081,7 +1081,7 @@ namespace autoptr
 			{
 				WS::auto_ptr<int> ptr1 = WS::auto_ptr_owner_parameter<int>( new int( 5 ) );
 				ptr = ptr1;
-				Assert::IsFalse( ptr.owner() );
+				Assert::IsFalse( ptr.is_owner() );
 				{
 					auto p1 = ptr.release_as_unique_ptr();
 					Assert::IsFalse( p1.get() );
