@@ -469,6 +469,7 @@ namespace WS
 		{
 			return  operator bool() && this->share.share->valid.managed;
 		}
+		[[deprecated("decprecated.  use is_owner instead.")]]
 		bool owner() const//same as is_owner() //alleiniger eigentümer
 		{
 			return this->Ptr.get()!=nullptr;
