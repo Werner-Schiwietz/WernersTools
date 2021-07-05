@@ -104,8 +104,8 @@ namespace WS
         {
             using pipdata_t = pipdata_type;
             using mutex_t = std::mutex;
-            enum enumThreadState{running,process_and_terminate,terminate} threadstate{enumThreadState::running};
-            std::atomic_bool    block_processing{false};
+            enum enumThreadState{running,process_and_terminate,terminate,blocked};
+            std::atomic<enumThreadState> threadstate{enumThreadState::running};
             WS::Semaphore       semaphore;//ohne daten wird verarbeitungsthread schlafen gelegt
             std::mutex          mutex;
             std::thread         thread_working;
@@ -113,7 +113,7 @@ namespace WS
 
             void terminate_detach_worker(enumThreadState newState=enumThreadState::terminate)//es werden ggf. nicht alle pending-datas verarbeitet
             {
-                if( this->threadstate==enumThreadState::running )
+                if( this->threadstate==enumThreadState::running || this->threadstate==enumThreadState::blocked )
                 {
                     this->threadstate = newState;
                     this->semaphore.set_running(Semaphore::Notify::none);
@@ -122,7 +122,7 @@ namespace WS
             }
             void processdata_endworker(enumThreadState newState=enumThreadState::process_and_terminate)//wartet, bis alle daten verarbeitet sind und thread sich beendet hat
             {
-                if( this->threadstate==enumThreadState::running )
+                if( this->threadstate==enumThreadState::running || this->threadstate==enumThreadState::blocked )
                 {
                     if( newState!=enumThreadState::process_and_terminate && newState!=enumThreadState::terminate )
                         throw std::invalid_argument( __FUNCTION__ " entweder enumThreadState::process_and_terminate oder enumThreadState::terminate erwartet");
@@ -155,7 +155,7 @@ namespace WS
             {
                 auto looked = std::lock_guard(this->mutex);
                 data_pool.AddData( std::move(data),std::forward<addional_ts>(params)...);
-                if(block_processing==false)
+                if(this->threadstate==enumThreadState::running)
                     semaphore.set_running();//ggf. worker laufen lassen
             }
         };
@@ -191,12 +191,12 @@ namespace WS
         auto pending(){return member->pending();}//liefert ob, und wieviele daten zur verarbeitung bereitstehen. VORSICHT ret_value hält lock_guard
         void set_processing_blocked()//verarbeitung auch mit daten blockieren
         {
-            this->member->block_processing = true;
+            this->member->threadstate = enumThreadState::blocked;
             this->member->semaphore.set_blocked();
         }
         void set_processing()//verarbeitung mit daten ermöglichen
         {
-            this->member->block_processing = false;
+            this->member->threadstate = enumThreadState::running;
             if( auto erg=this->member->pending() )
                 this->member->semaphore.set_running();
         }

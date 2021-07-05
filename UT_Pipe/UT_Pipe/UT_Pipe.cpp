@@ -151,8 +151,7 @@ namespace BasisUnitTests
                     pipe.AddData(my_data{counter,prio}, prio );
                 }
 
-                pipe.set_processing();
-
+                //pipe.set_processing();//vor processdata_endworker nicht nötig
                 pipe.member->processdata_endworker();//destructor macht nur soft-terminate und detach, dadurch kann der threadworker länger arbeiten als die eigentliche pipe lebt
 
                 if(auto iter1 = verarbeitet.begin(); iter1!=verarbeitet.end() )
