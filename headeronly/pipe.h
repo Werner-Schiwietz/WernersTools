@@ -18,6 +18,14 @@
 //<mutex>
 //<condition_variable>
 
+//usage am einfachsten
+//auto pipe = WS::make_pipe<working_data_type>( std::function<void(working_data_type&&) );
+//pipe.AddData( working_data_type{} );
+//
+//oder, wenn auf die verarbeitung gewartet werden muss
+//
+//auto pipe = WS::make_syncro_pipe<working_data_type>( std::function<void(working_data_type&&) );
+//WS::process_data_and_wait( pipe, working_data_type{} );
 
 #include  <future>
 #include  <functional>
@@ -51,26 +59,27 @@ namespace WS
     private:
         std::queue<data_type> data;
     };
-    template<typename data_type> struct fifo_with_prio //nicht sychronisierter erweiterter fifo-buffer
+    template<typename data_type,typename prio_type=size_t> struct fifo_with_prio //nicht sychronisierter, erweiterter fifo-buffer, kleinere prio haben höhere priorität
     {
-        using prio_t = size_t;
+        using prio_t = prio_type;
         using data_t = data_type;
         struct mydata_t
         {
-            prio_t prio{};
+            prio_t prio;
             data_t data;
 
-            //hier geht es nur um sortierung, nicht um die inhalte
-            bool operator<(mydata_t const & r)const{return this->prio<r.prio;}
-            bool operator==(mydata_t const & r)const{return this->prio==r.prio;}
-            bool operator!=(mydata_t const & r)const{return this->prio!=r.prio;}
+            ////hier geht es nur um sortierung, nicht um die inhalte
+            //bool operator<(mydata_t const & r)const{return this->prio<r.prio;}
+            //bool operator==(mydata_t const & r)const{return this->prio==r.prio;}
+            //bool operator!=(mydata_t const & r)const{return this->prio!=r.prio;}
         };
 
-        template<typename ... not_used_ts>void AddData( data_t && data, prio_t prio=0,not_used_ts && ... )
+        template<typename ... not_used_ts>void AddData( data_t && data, prio_t prio=prio_t{},not_used_ts && ... )
         {
             static_assert(sizeof...(not_used_ts)==0);
             auto iter = this->data.begin();
-            for(;iter!=this->data.end() && iter->prio <= prio; ++iter )//TODO kann man schneller machen
+            //for(;iter!=this->data.end() && iter->prio <= prio; ++iter )//TODO kann man schneller machen
+            for(;iter!=this->data.end() && !(prio<iter->prio); ++iter )//TODO kann man schneller machen
             {}
             this->data.insert(iter,mydata_t{prio,std::move(data)});
         }
@@ -83,7 +92,8 @@ namespace WS
                 this->data.erase(iter);//daten aus pool entfernen
                 for(auto & v : this->data )
                 {
-                    if(v.prio)--v.prio;//prio der alten daten erhöhen
+                    if(v.prio)
+                        --v.prio;//prio der alten daten erhöhen
                 }
                 return value;
             }

@@ -99,7 +99,7 @@ namespace BasisUnitTests
             };
 
             {
-                auto pipe = WS::make_pipe<my_data,WS::fifo_with_prio<my_data>>( threadworker );
+                auto pipe = WS::make_pipe<my_data,WS::fifo_with_prio<my_data,int>>( threadworker );
 
                 using namespace std::chrono_literals;
                 auto waiting = 0us;
