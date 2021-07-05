@@ -9,6 +9,45 @@ using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 
 
 #include <optional>
+#include <sstream>
+#include <iostream>
+
+//cout umleitung////////////////////////////////////
+class LoggerStreambuf : public std::streambuf
+{
+
+public:
+	virtual int_type overflow( int_type c = EOF ) {
+		static std::string buf;
+		if( c != EOF )
+		{
+			if( auto ch = static_cast<char>(c); ch != '\n' )
+				buf += ch;
+			else
+			{
+				Logger::WriteMessage( buf.c_str() );
+				buf.clear();
+			}
+		}
+		return c;
+	}
+};
+template<typename streambuf_t=LoggerStreambuf>
+class Cout2Output
+{
+	streambuf_t dbgstream;
+	std::streambuf *default_stream;
+
+public:
+	Cout2Output() {
+		default_stream = std::cout.rdbuf( &dbgstream );
+	}
+
+	~Cout2Output() {
+		std::cout.rdbuf( default_stream );
+	}
+};
+//cout umleitung////////////////////////////////////
 
 namespace
 {
@@ -163,10 +202,13 @@ namespace UTSignal
 		END_TEST_METHOD_ATTRIBUTE()
 		TEST_METHOD(UT_Signal_connect_until_exception)//der speicher geht aus, bevor die map des signal voll ist
 		{
+			Cout2Output<> umleiten;
+			std::cout << __FUNCTION__ " das kann dauern" << std::endl;
+
 			WS::Signal<bool(int,int)> signal;
-			Logger::WriteMessage(__FUNCTION__ " das kann dauern" );
 			try
 			{
+				auto res_mem = std::unique_ptr<char[]>{ new char[1'000'000] };
 				for(;;)
 					(void)signal.connect(foo1).release();//never do this
 			}
@@ -174,7 +216,6 @@ namespace UTSignal
 			{
 				Logger::WriteMessage(__FUNCTION__);
 				Logger::WriteMessage(e.what());
-				
 			}
 		}
 		BEGIN_TEST_METHOD_ATTRIBUTE(UT_Signal_next_id_over_4Giga_times)
@@ -182,20 +223,29 @@ namespace UTSignal
 		END_TEST_METHOD_ATTRIBUTE()
 		TEST_METHOD(UT_Signal_next_id_over_4Giga_times)
 		{
+			Cout2Output<> umleiten;
+			std::cout << __FUNCTION__ " das kann dauern" << std::endl;
+
 			WS::Signal<bool(int,int)> signal;
 			decltype(signal)::Connection_Guard connection;
 
-			Logger::WriteMessage(__FUNCTION__ " das kann dauern" );
+
 			try
 			{
-				for(__int64 i=0;i<5'000'000'000i64;++i)
-					connection = signal.connect(foo1);
+				for(__int64 i=0,j=1;i<5'000'000'000i64;++i)
+				{
+					connection = signal.connect( foo1 );
+					if(!--j)
+					{
+						j=1'000'000;
+						std::cout << i << std::endl;
+					}
+				}
 			}
 			catch( std::exception & e )
 			{
 				Logger::WriteMessage(__FUNCTION__);
 				Logger::WriteMessage(e.what());
-
 			}
 		}
 		TEST_METHOD(UT_Signal_own_disconnect_und_method_calling)
