@@ -107,10 +107,11 @@ namespace
 namespace
 {
 	struct mykey 
-	{	using value_t = int;
-	value_t value{};
-	mykey(value_t value):value(value){}
-	bool operator<(mykey const & r ) const { return this->value < r.value; }
+	{	
+		using value_t = int;
+		value_t value{};
+		mykey(value_t value):value(value){}
+		bool operator<(mykey const & r ) const { return this->value < r.value; }
 	};
 	struct mystring : std::string
 	{
