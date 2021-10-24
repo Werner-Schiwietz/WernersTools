@@ -73,12 +73,19 @@ namespace WS { namespace XML
 	}
 
 	template<typename char_t> bool _is_char( char_t ch ) = delete;
-	bool _is_char( wchar_t ch )
+	template<> bool _is_char<wchar_t>( wchar_t ch )
 	{
 		return is_in( ch
 					  , L'\x09', L'\x0a', L'\x0d'
-					  , bereich(L'\x0021',L'\xD7FF') 
-					  , bereich(L'\xE000',L'\xFFFE') 
+					  , bereich(L'\x0020',L'\xD7FF') 
+					  , bereich(L'\xE000',L'\xFFFD') 
+		);
+	}
+	template<> bool _is_char<char>( char ch )
+	{
+		return is_in( static_cast<uint8_t>(ch) 
+					  , static_cast<uint8_t>(0x09), static_cast<uint8_t>(0x0a), static_cast<uint8_t>(0x0d)
+					  , bereich(static_cast<uint8_t>(0x20),static_cast<uint8_t>(0xFF))
 		);
 	}
 
@@ -399,7 +406,7 @@ namespace WS { namespace XML
 		operator bool() const {return this->end_tag == comment_end_tag<char_t>();}
 		bool operator !() const {return !operator bool();}
 		bool operator==( bool value ) const {return operator bool() == value;}
-		bool error() const { return WS::is_in(errorcode,enumError::missing_end); }
+		bool error() const { return this->errorcode != enumError::none; }
 
 	};
 	template<typename iterator_t> comment_eated<iterator_t> eat_comment( _iterator_access<iterator_t> & container_in )
@@ -412,15 +419,21 @@ namespace WS { namespace XML
 		{
 			while(container.empty()==false)
 			{
-				if( (retvalue.end_tag = eat( container, minus_minus<char_t>() )) == false )
-					++container.begin();
-				else if( eat( container, _close<char_t>() ) )
+				if( (retvalue.end_tag = eat( container, minus_minus<char_t>() )) )
 				{
-					++retvalue.end_tag.end();
+					if( eat( container, _close<char_t>() ) )
+						++retvalue.end_tag.end();
+					else
+						retvalue.errorcode = decltype(retvalue)::enumError::invalidminusminus;
 					break;
 				}
-				else 
-					retvalue.errorcode = decltype(retvalue)::enumError::invalidminusminus;
+				else if( retvalue.end_tag = eat_if(container,_is_char<char_t>) )
+				{
+				}
+				else
+				{
+					break;
+				}
 			}
 
 			if( retvalue && retvalue.error()==false )
@@ -428,7 +441,7 @@ namespace WS { namespace XML
 				container_in = container;
 				retvalue.content = _iterator_access<iterator_t>( retvalue.begin_tag.end(), retvalue.end_tag.begin() );
 			}
-			else
+			else if( retvalue.errorcode == decltype(retvalue)::enumError::none )
 			{	//comment begin without end
 				retvalue.errorcode = decltype(retvalue)::enumError::missing_end;
 			}
