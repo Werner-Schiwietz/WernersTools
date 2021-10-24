@@ -230,7 +230,7 @@ namespace WS
 		}
 		auto reversefind( value_t const & value ) const
 		{
-			_reverse_iterator_acces()
+			//_reverse_iterator_acces()
 			auto iter = end();
 			while( iter--!=begin() && *iter != value ){}
 			return iter;
@@ -264,7 +264,7 @@ namespace WS
 			last = first;
 		}
 	};
-	template<typename _iterator_access_t,typename buffer_t=std::basic_string<_iterator_access_t::value_t>> struct appender
+	template<typename _iterator_access_t,typename buffer_t=std::basic_string<typename _iterator_access_t::value_t>> struct appender
 	{
 		_iterator_access_t	value;
 		buffer_t			buffer;
@@ -293,24 +293,7 @@ namespace WS
 			usebuffer();
 			this->buffer += addone;		
 		}
-		WS::_iterator_access<typename _iterator_access_t::value_t const*> move()//kann einmal abgeholt werden, danach ist ggf das ergebnis leer. grund: ggf wird der buffer per move ins ergebnis geschoben.
-		{
-			using ret_t = WS::_iterator_access<typename _iterator_access_t::value_t const*>;
-			ret_t retvalue;
-			if( this->buffer.empty() )
-			{
-				auto b = &*this->value.begin();
-				auto e = b+this->value.len();
-				return ret_t{b,e,this->value.rvalue_lifetime_extender};
-			}
-			{
-				auto temp = iterator_access( std::move( this->buffer ) );//rvalue_lifetime_extender anlegen
-				auto b = &*temp.begin();
-				auto e = b+temp.len();//*temp.end() geht nicht
-				
-				return ret_t{b,e,temp.rvalue_lifetime_extender};
-			}
-		}
+		WS::_iterator_access<typename _iterator_access_t::value_t const*> move();//kann einmal abgeholt werden, danach ist ggf das ergebnis leer. grund: ggf wird der buffer per move ins ergebnis geschoben.
 	protected:
 		void usebuffer()
 		{
@@ -321,7 +304,6 @@ namespace WS
 					this->value.end() = this->value.begin();//value leeren
 				}
 		}
-
 	};
 
 	template<typename iterator_t, typename container_t> inline auto iterator_access( iterator_t first, iterator_t last, std::shared_ptr<container_t> && container ) { return _iterator_access<iterator_t>( first, last, std::move(container) ); }
@@ -365,6 +347,26 @@ namespace WS
 	}
 
 	template<typename char_t, size_t size> inline auto array_iterator_access( char_t (& Array)[size] ){ return _iterator_access<char_t*>( Array, size ); }
+
+	template<typename _iterator_access_t,typename buffer_t> 
+	WS::_iterator_access<typename _iterator_access_t::value_t const*> appender<_iterator_access_t,buffer_t>::move()
+	{
+		using ret_t = WS::_iterator_access<typename _iterator_access_t::value_t const*>;
+		ret_t retvalue;
+		if( this->buffer.empty() )
+		{
+			auto b = &*this->value.begin();
+			auto e = b+this->value.len();
+			return ret_t{b,e,this->value.rvalue_lifetime_extender};
+		}
+		{
+			auto temp = iterator_access( std::move( this->buffer ) );//rvalue_lifetime_extender anlegen
+			auto b = &*temp.begin();
+			auto e = b+temp.len();//*temp.end() geht nicht
+
+			return ret_t{b,e,temp.rvalue_lifetime_extender};
+		}
+	}
 }
 
 class TraceClass;

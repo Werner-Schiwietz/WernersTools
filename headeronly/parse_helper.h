@@ -165,6 +165,7 @@ namespace WS
 
 	template<typename T> struct rettype_eat_flanked : rettype_eat<T>
 	{
+		using base_t = rettype_eat<T>;
 		left_t<T> left{};
 		right_t<T> right{};
 
@@ -173,9 +174,9 @@ namespace WS
 		auto && setLeft ( left_t<T>  value ) && { this->left =value; return std::move(*this); }
 		auto && setRight( right_t<T> value ) && { this->right=value; return std::move(*this); }
 
-		using rettype_eat::rettype_eat;
+		using base_t::base_t;
 
-		rettype_eat_flanked( rettype_eat && r) : rettype_eat(r){}
+		rettype_eat_flanked( rettype_eat<T> && r) : base_t(r){}
 	};
 	template<typename T> rettype_eat_flanked<T> _eat_flanked( _iterator_access<T> & container, right_t<T> const & right_item, escape_t<T> const & escape_item )
 	{
@@ -378,7 +379,7 @@ namespace WS
 
 	template<typename T> auto eat_space( _iterator_access<T> & container )
 	{
-		using is_t = bool(*)(_iterator_access<T>::value_t);
+		using is_t = bool(*)(typename _iterator_access<T>::value_t);
 		return eat_while( container, (is_t)&WS::isspace );
 	}
 	template<typename T> struct rettype_skip
@@ -393,7 +394,7 @@ namespace WS
 	};
 	template<typename T> rettype_skip<T> skip_space( _iterator_access<T> & container )
 	{
-		using is_t = bool(*)(_iterator_access<T>::value_t);
+		using is_t = bool(*)(typename _iterator_access<T>::value_t);
 		return eat_space( container );
 	}
 }

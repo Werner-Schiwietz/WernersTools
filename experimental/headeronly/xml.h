@@ -362,12 +362,12 @@ namespace WS { namespace XML
 	};
 	template<typename iterator_t> struct complex_eated : eated_data<iterator_t>
 	{
-		operator bool() const {return end_tag.empty()==false;}
+		operator bool() const {return this->end_tag.empty()==false;}
 		bool operator !() const {return !operator bool();}
 		bool operator==( bool value ) const {return operator bool() == value;}
-		bool error() const { return *this==false && begin_tag.empty()==false; }
+		bool error() const { return *this==false && this->begin_tag.empty()==false; }
 	};
-	template<typename iterator_t> complex_eated<iterator_t> eat_complex( _iterator_access<iterator_t> & container_in, _iterator_access<iterator_t> const & begin_tag, _iterator_access<iterator_t> & end_tag )
+	template<typename iterator_t> complex_eated<iterator_t> eat_complex( _iterator_access<iterator_t> & container_in, _iterator_access<iterator_t> const & begin_tag, _iterator_access<iterator_t> const & end_tag )
 	{
 		complex_eated<iterator_t> retvalue;
 		using char_t = _iterator_access<iterator_t>::value_t;
@@ -395,7 +395,7 @@ namespace WS { namespace XML
 	{
 		enum class enumError{none,invalidminusminus,missing_end} errorcode = enumError::none;
 		using char_t = std::remove_pointer_t<iterator_t>;
-		operator bool() const {return end_tag == comment_end_tag<char_t>();}
+		operator bool() const {return this->end_tag == comment_end_tag<char_t>();}
 		bool operator !() const {return !operator bool();}
 		bool operator==( bool value ) const {return operator bool() == value;}
 		bool error() const { return WS::is_in(errorcode,enumError::missing_end); }
@@ -433,6 +433,10 @@ namespace WS { namespace XML
 			}
 		}
 		return retvalue;
+	}
+	template<typename iterator_t> comment_eated<iterator_t> eat_comment( _iterator_access<iterator_t> && container_in )//zu testzwecken
+	{
+		return eat_comment( container_in );
 	}
 	template<typename iterator_t> complex_eated<iterator_t> eat_prolog( _iterator_access<iterator_t> & container_in )
 	{
@@ -505,6 +509,10 @@ namespace WS { namespace XML
 		using char_t = _iterator_access<iterator_t>::value_t;
 		return eat_oneof( container_in, whitespace<char_t>() );
 	}
+	template<typename iterator_t> bool eat_whitespace( _iterator_access<iterator_t> && container_in )//zu testzwecken
+	{
+		return eat_whitespace( container_in );
+	}
 	template<typename iterator_t> _iterator_access<iterator_t>  eat_whitespaces( _iterator_access<iterator_t> & container_in )
 	{
 		using char_t = _iterator_access<iterator_t>::value_t;
@@ -530,6 +538,10 @@ namespace WS { namespace XML
 			retvalue.append( eat_while(container_in, _is_name_char<char_t>) );
 		}
 		return retvalue;
+	}
+	template<typename iterator_t> _iterator_access<iterator_t> eat_name( _iterator_access<iterator_t> && container_in )//zu testzwecken
+	{
+		return eat_name( container_in );
 	}
 	//attributname
 	template<typename iterator_t> _iterator_access<iterator_t> eat_token( _iterator_access<iterator_t> & container_in )
@@ -598,6 +610,10 @@ namespace WS { namespace XML
 			}
 		}
 		return retvalue;
+	}
+	template<typename iterator_access_t > attributvalue_eated<iterator_access_t> eat_attributvalue( iterator_access_t && container_in )//zu testzwecken
+	{
+		return eat_attributvalue( container_in );
 	}
 	template<typename iterator_t> struct attribut
 	{
