@@ -87,8 +87,8 @@ namespace UT_XML
                 }
                 {
                     auto name=L"_name1";
-                    auto toparse = WS::iterator_access(name);
-                    auto eaten = WS::XML::eat_name(toparse);
+                    auto toparse2 = WS::iterator_access(name);
+                    auto eaten = WS::XML::eat_name(toparse2);
                     Assert::IsTrue(eaten);
                     Assert::IsTrue(eaten==WS::iterator_access(name));
                 }

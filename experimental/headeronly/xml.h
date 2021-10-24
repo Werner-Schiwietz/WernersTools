@@ -3,6 +3,7 @@
 #include "..\..\headeronly\parse_helper.h"
 #include "..\..\headeronly\is_in.h"
 
+//https://www.w3.org/TR/xml/
 
 namespace WS { namespace XML 
 {
@@ -466,7 +467,7 @@ namespace WS { namespace XML
 				bool eatonevalue=false;
 				while( auto digit = std::isdigit(*container.begin()) )
 				{
-					return_char = return_char*10 + digit -'0';
+					return_char = return_char*10 + static_cast<char_t>(digit) - static_cast<char_t>('0');
 					eatonevalue = true;
 				}
 				return eatonevalue; 
