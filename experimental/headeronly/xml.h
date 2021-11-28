@@ -536,9 +536,6 @@ namespace WS { namespace XML
 		return retvalue;
 	}
 
-	template<typename iterator_t> bool _eat_basechar( _iterator_access<iterator_t> & container_in )
-	{
-	}
 	//tag-name
 	template<typename iterator_t> _iterator_access<iterator_t> eat_name( _iterator_access<iterator_t> & container_in )
 	{
