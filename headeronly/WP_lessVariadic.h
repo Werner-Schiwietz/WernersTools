@@ -25,6 +25,13 @@
 //		int(T,T) liefert kleiner 0 wenn l<r größer 0 wenn r<l und 0 wenn l==r
 //		WS::tribool(T,T) liefert kleiner true wenn l<r false wenn r<l und invalid wenn l==r
 
+namespace WS
+{
+	// FUNCTION TEMPLATE declval
+	template <class _Ty> std::add_lvalue_reference_t<_Ty> decllval() noexcept;
+	template <class _Ty> std::add_rvalue_reference_t<_Ty> declrval() noexcept;
+}
+
 namespace WS	
 {
 	namespace LTH_Helper//auch in signatur_test.h
@@ -44,17 +51,59 @@ namespace WS
 			static bool const value = chk<T>(nullptr);
 		};
 	}
+
+	template<typename T> auto Has_less_operator(unsigned long) -> std::false_type;
+	//template<typename T> auto Has_less_operator(int) -> decltype(operator<( WS::decllval<T>(), WS::decllval<T>()) , std::true_type{});
+	//template<typename T> auto Has_less_operator(int) -> decltype((WS::decllval<T>().operator<(WS::decllval<T>())), std::true_type{});
+	template<typename T> auto Has_less_operator(int) -> decltype((WS::decllval<T>() < WS::decllval<T>()), std::true_type{});
+	template<typename T> static bool constexpr Has_less_operator_v = decltype(Has_less_operator<T>(0))::value;
+
+	struct less_test{bool operator<(less_test const &)const;};
+	struct like_HKEY{int unused;}; 
+	static_assert( Has_less_operator_v<like_HKEY> == false );
+	static_assert( Has_less_operator_v<less_test> == true );
 }
 
 namespace WS	//std-compare-funktion für LTH. kann spezialisiert werden
 {	
-	template<typename value_t> tribool LTHCompare( value_t const & l, value_t const & r )
+	template<typename value_t> tribool LTHComparePointer( value_t const * l, value_t const * r ) 
+	{
+		if( l==r )
+			return {};
+		if( l==nullptr )
+			return true;
+		if( r==nullptr )
+			return false;
+		if constexpr ( Has_less_operator_v<value_t const> )
+		{
+			if( *l < *r )
+				return true;
+			if( *r < *l )
+				return false;
+		}
+		else//z.b. void* HEKY usw
+		{
+			if( l < r )
+				return true;
+			if( r < l )
+				return false;
+		}
+		return {};
+	}
+	template<typename value_t> tribool LTHCompareValue( value_t const & l, value_t const & r )
 	{
 		if( l < r )
 			return true;
 		if( r < l )
 			return false;
 		return WS::tribool{};
+	}
+	template<typename value_t> tribool LTHCompare( value_t const & l, value_t const & r )
+	{
+		if constexpr( std::is_pointer_v<value_t> )
+			return LTHComparePointer( l, r );
+		else 
+			return LTHCompareValue( l, r );
 	}
 	template<typename value_t, size_t size > tribool LTHCompare( value_t const (& l)[size], value_t const (& r)[size] )
 	{
@@ -91,6 +140,26 @@ namespace WS	//std-compare-funktion für LTH. kann spezialisiert werden
 	{
 		return LTHCharPtr( l, r );
 	}
+
+	template<> inline tribool LTHCompare<void const *>( void const * const & l, void const * const & r )
+	{
+		if( l==r )
+			return {};
+		if( l==nullptr )
+			return true;
+		if( r==nullptr )
+			return false;
+		if(l<r)
+			return true;
+		if(r<l)
+			return false;
+		return {};
+	}
+	//template<typename T> inline tribool LTHCompare( std::unique_ptr<T> const & l, std::unique_ptr<T> const & r )
+	//{
+	//	return LTHCompare(l.get(),r.get());
+	//}
+
 }
 
 namespace WS

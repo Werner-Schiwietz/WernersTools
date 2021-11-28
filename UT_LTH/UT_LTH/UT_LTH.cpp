@@ -9,6 +9,9 @@ using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 #include <vector>
 #include <type_traits>
 
+#include <windows.h>//au weia für HKEY
+//#include <winreg.h>
+
 namespace WS
 {
 	template<typename value_t, typename op_t, typename ret_t=decltype( std::declval<op_t>()(std::declval<value_t>(),std::declval<value_t>()) )> struct op_func
@@ -174,7 +177,32 @@ namespace UT_LTH
 	TEST_CLASS(UT_LTH)
 	{
 	public:
-		
+		TEST_METHOD(lth_verschiedene_typen)
+		{
+			Assert::IsTrue( WS::LTH(int{0},int{1}) );
+			Assert::IsTrue( WS::LTH(std::string{"10"},std::string{"2"}) );
+			Assert::IsFalse( WS::LTH(HKEY{0},HKEY{0}) );
+			Assert::IsTrue( HKEY_CURRENT_USER < HKEY_LOCAL_MACHINE );
+			Assert::IsTrue( WS::LTH(HKEY_CURRENT_USER,HKEY_LOCAL_MACHINE) );
+
+			{
+				auto v1 = std::make_unique<int>(1);
+				Assert::IsTrue( WS::LTH<int const*>(nullptr,v1.get()));
+				Assert::IsFalse( WS::LTH<int const*>(v1.get(),nullptr));
+				auto v2 = std::make_unique<int>(1);
+
+				Assert::IsFalse( WS::LTH(v1.get(),v2.get()) );//-> *l < *r
+				Assert::IsFalse( WS::LTH(v2.get(),v1.get()) );//-> *l < *r
+
+				Assert::IsTrue( WS::LTH((void*)v1.get(),(void*)v2.get()) ==(v1.get()<v2.get()) );//-> l < r
+				Assert::IsTrue( WS::LTH((void*)v2.get(),(void*)v1.get()) ==(v2.get()<v1.get()) );//-> l < r
+
+				//Assert::IsFalse( WS::LTH(v1,v2) );//pointer-vergleich?? oder inhalt
+				//Assert::IsFalse( WS::LTH(v2,v1) );//pointer-vergleich?? oder inhalt
+			}
+
+		}
+
 		TEST_METHOD(lth_ohne_op)
 		{
 			using namespace WS;
