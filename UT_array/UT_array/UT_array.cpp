@@ -12,6 +12,7 @@ using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 #define _CONTAINER_DEBUG_LEVEL 0
 
 #include "..\..\headeronly\array.h"
+#include <algorithm>
 
 namespace UTarray
 {
@@ -43,6 +44,24 @@ namespace UTarray
 			}
 			catch(...)
 			{}
+		}
+		TEST_METHOD(sort)
+		{
+			WS::array<int,5> wsarray{2,3,1,4,0};
+			std::sort(wsarray.begin(),wsarray.end());
+
+			int last=0;
+			for( auto v : wsarray )
+			{
+				Assert::IsTrue(last <= v);
+				last=v;
+			}
+			std::sort(wsarray._Unchecked_begin(),wsarray._Unchecked_end(),[](int l,int r){return r<l;});
+			for( auto v : wsarray )
+			{
+				Assert::IsTrue(v <= last);
+				last=v;
+			}
 		}
 	};
 }

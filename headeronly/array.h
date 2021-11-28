@@ -28,7 +28,7 @@ namespace WS
 		using const_pointer		= typename base_t::const_pointer;
 		using reference			= typename base_t::reference;
 		using const_reference	= typename base_t::const_reference;
-		using base_t::base_t;//ctor der basis direkt nutzen
+		//using base_t::base_t;//ctor der basis direkt nutzen, hat nur keinen
 
 		_NODISCARD _CONSTEXPR17 reference operator[](size_type index) & 
 		{
@@ -39,4 +39,12 @@ namespace WS
 			return this->at(index);
 		}
 	};
+
+#pragma region ctor aus <array> std::array-ctor kopiert
+#if _HAS_CXX17
+	template <class _First, class... _Rest>
+	array(_First, _Rest...) -> array<typename std::_Enforce_same<_First, _Rest...>::type, 1 + sizeof...(_Rest)>;
+#endif // _HAS_CXX17
+#pragma endregion
+
 }
