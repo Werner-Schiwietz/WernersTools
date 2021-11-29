@@ -5,6 +5,7 @@ using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 
 #include "..\..\headeronly\WP_lessVariadic.h"
 #include "..\..\headeronly\SignatureTest.h"
+#include "..\..\headeronly\Auto_Ptr.h"
 
 #include <vector>
 #include <type_traits>
@@ -184,12 +185,26 @@ namespace UT_LTH
 			Assert::IsFalse( WS::LTH(HKEY{0},HKEY{0}) );
 			Assert::IsTrue( HKEY_CURRENT_USER < HKEY_LOCAL_MACHINE );
 			Assert::IsTrue( WS::LTH(HKEY_CURRENT_USER,HKEY_LOCAL_MACHINE) );
+		}
+		TEST_METHOD(lth_smart_pointer_und_pointer)
+		{
+			Assert::IsTrue( WS::LTH<void*>((void*)1,(void*)2));
+			Assert::IsTrue( WS::LTH<void*>((void*)nullptr,(void*)2));
+			Assert::IsFalse( WS::LTH<void*>((void*)2,(void*)1));
+			Assert::IsFalse( WS::LTH<void*>((void*)2,(void*)2));
+			Assert::IsFalse( WS::LTH<void*>((void*)1,(void*)nullptr));
+			Assert::IsFalse( WS::LTH<void*>((void*)nullptr,(void*)nullptr));
+
 
 			{
 				auto v1 = std::make_unique<int>(1);
+				decltype(v1) v2;
 				Assert::IsTrue( WS::LTH<int const*>(nullptr,v1.get()));
 				Assert::IsFalse( WS::LTH<int const*>(v1.get(),nullptr));
-				auto v2 = std::make_unique<int>(1);
+				Assert::IsFalse( WS::LTH(v1,v2) );//pointer-vergleich?? oder inhalt
+				Assert::IsTrue( WS::LTH(v2,v1) );//pointer-vergleich?? oder inhalt
+
+				v2 = std::make_unique<int>(1);
 
 				Assert::IsFalse( WS::LTH(v1.get(),v2.get()) );//-> *l < *r
 				Assert::IsFalse( WS::LTH(v2.get(),v1.get()) );//-> *l < *r
@@ -197,10 +212,85 @@ namespace UT_LTH
 				Assert::IsTrue( WS::LTH((void*)v1.get(),(void*)v2.get()) ==(v1.get()<v2.get()) );//-> l < r
 				Assert::IsTrue( WS::LTH((void*)v2.get(),(void*)v1.get()) ==(v2.get()<v1.get()) );//-> l < r
 
-				//Assert::IsFalse( WS::LTH(v1,v2) );//pointer-vergleich?? oder inhalt
-				//Assert::IsFalse( WS::LTH(v2,v1) );//pointer-vergleich?? oder inhalt
+				Assert::IsFalse( WS::LTH<decltype(v1) const>(v1,v2) );//pointer-vergleich?? oder inhalt
+				Assert::IsFalse( WS::LTH(v2,v1) );//pointer-vergleich?? oder inhalt
 			}
+			{
+				auto v1 = std::make_shared<int>(1);
+				decltype(v1) v2;
+				Assert::IsTrue( WS::LTH<int const*>(nullptr,v1.get()));
+				Assert::IsFalse( WS::LTH<int const*>(v1.get(),nullptr));
+				Assert::IsFalse( WS::LTH(v1,v2) );//pointer-vergleich?? oder inhalt
+				Assert::IsTrue( WS::LTH(v2,v1) );//pointer-vergleich?? oder inhalt
 
+				v2 = std::make_shared<int>(1);
+
+				Assert::IsFalse( WS::LTH(v1.get(),v2.get()) );//-> *l < *r
+				Assert::IsFalse( WS::LTH(v2.get(),v1.get()) );//-> *l < *r
+
+				Assert::IsTrue( WS::LTH((void*)v1.get(),(void*)v2.get()) ==(v1.get()<v2.get()) );//-> l < r
+				Assert::IsTrue( WS::LTH((void*)v2.get(),(void*)v1.get()) ==(v2.get()<v1.get()) );//-> l < r
+
+				Assert::IsFalse( WS::LTH(v1,v2) );//pointer-vergleich?? oder inhalt
+				Assert::IsFalse( WS::LTH(v2,v1) );//pointer-vergleich?? oder inhalt
+			}
+			{
+				auto v1 = WS::auto_ptr<int>{std::make_unique<int>(1)};
+				decltype(v1) v2;
+				Assert::IsTrue( WS::LTH<int const*>(nullptr,v1.get()));
+				Assert::IsFalse( WS::LTH<int const*>(v1.get(),nullptr));
+				Assert::IsFalse( WS::LTH(v1,v2) );//pointer-vergleich?? oder inhalt
+				Assert::IsTrue( WS::LTH(v2,v1) );//pointer-vergleich?? oder inhalt
+
+				v2 = v1;
+
+				Assert::IsFalse( WS::LTH(v1.get(),v2.get()) );//-> *l < *r
+				Assert::IsFalse( WS::LTH(v2.get(),v1.get()) );//-> *l < *r
+
+				Assert::IsTrue( WS::LTH((void*)v1.get(),(void*)v2.get()) ==(v1.get()<v2.get()) );//-> l < r
+				Assert::IsTrue( WS::LTH((void*)v2.get(),(void*)v1.get()) ==(v2.get()<v1.get()) );//-> l < r
+
+				Assert::IsFalse( WS::LTH<WS::auto_ptr<int>>(v1,v2) );//pointer-vergleich?? oder inhalt
+				Assert::IsFalse( WS::LTH<WS::auto_ptr<int>const>(v2,v1) );//pointer-vergleich?? oder inhalt
+
+				{
+					int const * pv1 = v1.get();
+					using v_t = std::remove_const_t<std::remove_pointer_t<decltype(pv1)>>;
+					int * pv11 = const_cast<v_t*>(pv1);
+					//dynamic_cast<int *>(pv11);
+					//auto pv111 = dynamic_cast<int *>(pv11);
+					//pv1 = dynamic_cast<v_t const *>(const_cast<v_t*>(pv1));
+					//pv1 = dynamic_cast<int const *>(pv1);
+				}
+
+				{
+					int i=5;
+					int * p1 = &i;
+					int const * p2{};
+					p2 = p1;
+					static_assert( std::is_assignable<int,int >::value == false );
+					static_assert( std::is_assignable<int&, int>::value );
+					static_assert( std::is_assignable<int&,int const>::value );
+					static_assert( std::is_assignable<int *&, int*>::value );
+					static_assert( std::is_assignable<int *&,int const*>::value == false);
+					static_assert( std::is_assignable<int const *&,int const*>::value );
+					static_assert( std::is_assignable<int const *&,int *>::value );
+					static_assert( std::is_assignable<decltype(p1)&,decltype(p2)>::value == false);
+					static_assert( std::is_assignable<decltype(p2)&,decltype(p1)>::value );
+
+					struct A{};
+					struct B : A {};
+
+					static_assert( std::is_assignable<A const *&,A *>::value );
+					static_assert( std::is_assignable<A const *&,B *>::value );
+					static_assert( std::is_assignable<A *&,B const *>::value == false );
+					static_assert( std::is_assignable<B const *&,A *>::value == false );
+				}
+
+
+				Assert::IsFalse( WS::LTH<WS::auto_ptr<int const>>(v1,v2) );//pointer-vergleich?? oder inhalt
+				Assert::IsFalse( WS::LTH<WS::auto_ptr<int const>const>(v2,v1) );//pointer-vergleich?? oder inhalt
+			}
 		}
 
 		TEST_METHOD(lth_ohne_op)
@@ -475,7 +565,10 @@ namespace UT_LTH
 				Assert::IsTrue( WS::LTH( 2,2, test::gth_fn<int>, string{"hallo"}, string{"welt"},	&string::gth) == false );
 			}
 
-			Assert::IsTrue( WS::LTH( 2,2, test::gth_fn<int>, string{"hallo"}, string{"welt"},	WS::LTHCompare<char const *>	) );
+			Assert::IsFalse( WS::LTH( 2,2, test::gth_fn<int> ) );
+			Assert::IsTrue( WS::LTH( string{"hallo"}, string{"welt"},	WS::LTHCompare<char const *> ) );
+
+			Assert::IsTrue( WS::LTH( 2,2, test::gth_fn<int>, string{"hallo"}, string{"welt"},	WS::LTHCompare<char const *> ) );
 			//Assert::IsTrue( WS::LTH( 2,2, test::gth_fn<short>, string{"hallo"}, string{"welt"},	WS::LTHCompare<char const *>	) );//compile-error
 		}
 		TEST_METHOD(UT_op_func)

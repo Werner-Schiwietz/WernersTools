@@ -133,8 +133,13 @@ namespace WS
 			//reinterpret_cast nötig, weil nested und ReferenzCounter<T>::ReferenzCounterShare* fuer den compiler etwas anders als ReferenzCounter<U>::ReferenzCounterShare* ist
 			this->share = reinterpret_cast<ReferenzCounterShare*>(r.share ? r.share->AddRef() : nullptr);
 			if(valid())
-				//je nach ableitung kann schon mal eine andere adresse heraus kommen
-				this->pointer = dynamic_cast<pointer_type>( r.get() );
+			{
+				if constexpr( std::is_assignable_v<pointer_type&,ReferenzCounter<U>::pointer_type>)
+					this->pointer = r.get();
+				else
+					//je nach ableitung kann schon mal eine andere adresse heraus kommen
+					this->pointer = dynamic_cast<pointer_type>( r.get() );
+			}
 		}
 
 		bool valid() const noexcept

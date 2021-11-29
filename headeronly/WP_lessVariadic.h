@@ -12,6 +12,7 @@
 
 #include "tribool.h"
 #include "char_helper.h"
+#include "is_.h"
 
 #include <functional>
 
@@ -100,6 +101,11 @@ namespace WS	//std-compare-funktion für LTH. kann spezialisiert werden
 	}
 	template<typename value_t> tribool LTHCompare( value_t const & l, value_t const & r )
 	{
+		if constexpr( WS::is_dereferenceable_v<value_t> )
+		{
+			if constexpr( std::is_same<decltype(&*l),value_t>::value==false )
+				return LTHCompare( &*l, &*r );//z.B. smarte pointer wie std::unique_ptr std::shared_ptr WS::auto_ptr
+		}
 		if constexpr( std::is_pointer_v<value_t> )
 			return LTHComparePointer( l, r );
 		else 
@@ -155,7 +161,9 @@ namespace WS	//std-compare-funktion für LTH. kann spezialisiert werden
 			return false;
 		return {};
 	}
-	//template<typename T> inline tribool LTHCompare( std::unique_ptr<T> const & l, std::unique_ptr<T> const & r )
+
+	//compiler macht das, aber nicht nur für smart_ptr, sondern auch für std::string, also 
+	//template<template<typename...> typename smart_ptr, typename value_t, typename ... others> inline tribool LTHCompare( smart_ptr<value_t,others...> const & l, smart_ptr<value_t,others...> const & r )
 	//{
 	//	return LTHCompare(l.get(),r.get());
 	//}
