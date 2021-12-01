@@ -63,6 +63,15 @@ namespace UTarray
 				last=v;
 			}
 		}
+		TEST_METHOD(get)
+		{
+			//WS::array<int,5> wsarray{0,1,2,3,4,5};//error C2078: too many initializers
+			WS::array<int,5> wsarray{0,1,2,3};
+			Assert::IsTrue( 0 == std::get<0>(wsarray) );
+			Assert::IsTrue( 3 == std::get<3>(wsarray) );
+			Assert::IsTrue( 0 == std::get<4>(wsarray) );
+			//[[maybe_unused]]auto v5 = std::get<5>(wsarray);//error C2338: array index out of bounds
+		}
 	};
 }
 #pragma pop_macro("_CONTAINER_DEBUG_LEVEL")
