@@ -207,6 +207,24 @@ namespace
 	{
 		return tostring( v, buf, size, radix );
 	}
+#if _HAS_CXX17
+	template<typename string_type,typename value_type> string_type tostring(value_type value)
+	{
+		static_assert(std::is_pointer_v<string_type> == false, "it must be a string-class like std::wstring CString ..." );
+		if constexpr ( std::is_constructible_v<string_type,char const *> )
+		{
+			char buf[20];
+			return tostring(value,buf,10);
+		}
+		else if constexpr ( std::is_constructible_v<string_type,wchar_t const *> )
+		{
+			wchar_t buf[20];
+			return tostring( value, buf, 10 );
+		}
+		else
+			static_assert(false,"what?");
+	}
+#endif
 }
 #pragma endregion
 
