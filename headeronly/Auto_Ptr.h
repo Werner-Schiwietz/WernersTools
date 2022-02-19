@@ -497,6 +497,11 @@ namespace WS
 		}
 	};
 
+	template<typename T> auto HasMethod_auto_ptr_from_this(unsigned long) -> std::false_type;
+	template<typename T> auto HasMethod_auto_ptr_from_this(int) -> decltype(std::declval<T>().auto_ptr_from_this(), std::true_type{});
+	template<typename T> static bool constexpr HasMethod_auto_ptr_from_this_v = decltype(HasMethod_auto_ptr_from_this<T>(0))::value;
+
+	
 	template<typename T> class managed_auto_ptr : public auto_ptr<T>
 	{
 	public:
@@ -512,27 +517,51 @@ namespace WS
 		managed_auto_ptr( managed_auto_ptr && r ) noexcept : auto_ptr(std::move(r)) 
 		{
 		}
-		managed_auto_ptr( auto_ptr<T> const & r ) : auto_ptr<T>(r) 
+		managed_auto_ptr( auto_ptr<T> const & r ) : auto_ptr<T>(r)
 		{
 			if( *this && this->is_managed()==false )
-				throw std::invalid_argument( __FUNCTION__ " managed auto_ptr erwartet");
+			{
+				*this = nullptr;
+				if constexpr ( HasMethod_auto_ptr_from_this_v<T> )
+					*this = r.get();
+				else
+					throw std::invalid_argument( __FUNCTION__ " managed auto_ptr erwartet");
+			}
 		}
 		managed_auto_ptr( auto_ptr<T> && r ) : auto_ptr<T>(std::move(r))
 		{
 			if( *this && this->is_managed()==false )
-				throw std::invalid_argument( __FUNCTION__ " managed auto_ptr erwartet");
+			{
+				*this = nullptr;
+				if constexpr ( HasMethod_auto_ptr_from_this_v<T> )
+					*this = r.get();
+				else
+					throw std::invalid_argument( __FUNCTION__ " managed auto_ptr erwartet");
+			}
 		}
 		template<typename U>
-		managed_auto_ptr( auto_ptr<U> const & r ) : auto_ptr(r) 
+		managed_auto_ptr( auto_ptr<U> const & r ) : auto_ptr<T>(r)
 		{
 			if( *this && this->is_managed()==false )
-				throw std::invalid_argument( __FUNCTION__ " managed auto_ptr erwartet");
+			{
+				*this = nullptr;
+				if constexpr ( HasMethod_auto_ptr_from_this_v<U> )
+					*this = r.get();
+				else
+					throw std::invalid_argument( __FUNCTION__ " managed auto_ptr erwartet");
+			}
 		}
 		template<typename U>
-		managed_auto_ptr( auto_ptr<U> && r ) : auto_ptr(std::move(r))
+		managed_auto_ptr( auto_ptr<U> && r ) : auto_ptr<T>(std::move(r))
 		{
 			if( *this && this->is_managed()==false )
-				throw std::invalid_argument( __FUNCTION__ " managed auto_ptr erwartet");
+			{
+				*this = nullptr;
+				if constexpr ( HasMethod_auto_ptr_from_this_v<U> )
+					*this = r.get();
+				else
+					throw std::invalid_argument( __FUNCTION__ " managed auto_ptr erwartet");
+			}
 		}
 		template<typename U>
 		managed_auto_ptr( enable_auto_ptr_from_this<U> & r ) : auto_ptr<T>( r.auto_ptr_from_this() ) {}

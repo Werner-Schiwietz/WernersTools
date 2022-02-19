@@ -280,6 +280,59 @@ namespace autoptr
 			Assert::IsFalse(Aptr);
 			Assert::IsFalse(Bptr);
 		}
+		TEST_METHOD(managed_auto_ptr_auto_ptr_from_this_from_unmanaged_auto_ptr)
+		{
+			class A : public WS::enable_auto_ptr_from_this<A>
+			{};
+			class B : public A
+			{};
+			class C{};
+
+			WS::managed_auto_ptr<A> Aptr;
+			WS::managed_auto_ptr<B> Bptr;
+			WS::managed_auto_ptr<C> Cptr;
+
+			A a;
+			B b;
+			C c;
+			Aptr = &a;
+			Bptr = &a;
+			Bptr = &b;
+			//Cptr = &c;//error C2679: binary '=': no operator found which takes a right-hand operand of type 'BasisUnitTests::UT_managed_auto_ptr::managed_auto_ptr_auto_ptr_from_this_from_unmanaged_auto_ptr::C *' (or there is no acceptable conversion)
+			Aptr = a;
+			Bptr = a;
+			Bptr = b;
+			//Cptr = c;//error C2679: binary '=': no operator found which takes a right-hand operand of type 'BasisUnitTests::UT_managed_auto_ptr::managed_auto_ptr_auto_ptr_from_this_from_unmanaged_auto_ptr::C' (or there is no acceptable conversion)
+
+			WS::auto_ptr<B> B2ptr;//unmanaged_auto_ptr, die konnte man bis 2022-02-19 einem managed_auto_ptr nicht zuweisen. nun geht es, wenn T von enable_auto_ptr_from_this abgeleitet ist
+			WS::auto_ptr<C> C2ptr;//unmanaged_auto_ptr, die konnte man bis 2022-02-19 einem managed_auto_ptr nicht zuweisen. nun geht es, wenn T von enable_auto_ptr_from_this abgeleitet ist
+			WS::auto_ptr<A> A2ptr;//unmanaged_auto_ptr, die konnte man bis 2022-02-19 einem managed_auto_ptr nicht zuweisen. nun geht es, wenn T von enable_auto_ptr_from_this abgeleitet ist
+			A2ptr = &a;
+			//B2ptr = &a;//error C2679: binary '=': no operator found which takes a right-hand operand of type 'BasisUnitTests::UT_managed_auto_ptr::managed_auto_ptr_auto_ptr_from_this_from_unmanaged_auto_ptr::A *' (or there is no acceptable conversion)
+			B2ptr = &b;
+			C2ptr = &c;
+
+			Aptr = A2ptr;
+			Assert::IsTrue(Aptr.is_managed());
+			Bptr = B2ptr;
+			Assert::IsTrue(Aptr.is_managed());
+			Bptr = A2ptr;
+			Assert::IsTrue(Bptr==nullptr);
+			try
+			{
+				Cptr = C2ptr;//von C kann kein managed_auto_ptr erzeugt werden -> exception
+				Assert::Fail(L"exception erwartet");
+			}
+			catch(...){}
+
+			Aptr = std::make_unique<A>();
+			Assert::IsTrue(Aptr.is_managed());
+			Assert::IsTrue(Aptr.is_owner());
+			//Bptr = std::make_unique<A>();//error C2679: binary '=': no operator found which takes a right-hand operand of type 'std::unique_ptr<T,std::default_delete<T>>' (or there is no acceptable conversion)
+			Cptr = std::make_unique<C>();
+			Assert::IsTrue(Cptr.is_managed());
+			Assert::IsTrue(Cptr.is_owner());
+		}
 	};
 	TEST_CLASS(autoptr)
 	{

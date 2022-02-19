@@ -38,13 +38,13 @@ namespace stdex_//nicht schlau, der anwender soll dereferenzieren, wenn er von e
 	template<class T> auto make_shared( std::shared_ptr<T> & ptr)
 	{
 		if( ptr == nullptr )
-			return std::shared_ptr<T>{}
+			return std::shared_ptr<T>{};
 		return make_shared( *ptr );
 	}
 	template<class T> auto make_shared( std::shared_ptr<T> const & ptr)
 	{
 		if( ptr == nullptr )
-			return std::shared_ptr<T>{}
+			return std::shared_ptr<T>{};
 		return make_shared( *ptr );
 	}
 	template<class T> auto make_shared( std::shared_ptr<T> && ptr)
@@ -106,14 +106,15 @@ namespace UTsharedextended
 				auto a = A{};
 				auto const & ca = a;
 				{
-				#pragma warning(suppress:4239)//warning C4239: nonstandard extension used: 'initializing': conversion from 'UTAllerei::UT_shared_ptr::A' to 'UTAllerei::UT_shared_ptr::A &'
-					A & ra = A{6};ra;//keine gute idee, referenz auf ein rvalue, aber der compiler macht den dtor erst später??
-					Assert::IsTrue(ra.value==6);
+					//geht nicht mehr mit Visual Studio 2022 (v143)
+					#pragma warning(suppress:4239)//warning C4239: nonstandard extension used: 'initializing': conversion from 'UTAllerei::UT_shared_ptr::A' to 'UTAllerei::UT_shared_ptr::A &'
+					//A & ra = A{6};ra;//keine gute idee, referenz auf ein rvalue, aber der compiler macht den dtor erst später??
+					//Assert::IsTrue(ra.value==6);
 
 					getA7();//hier wird der destructor von A sofort durchlaufen
-				#pragma warning(suppress:4239)//warning C4239: nonstandard extension used: 'initializing': conversion from 'UTAllerei::UT_shared_ptr::A' to 'UTAllerei::UT_shared_ptr::A &'
-					A & ra7 = getA7();ra7;//keine gute idee, referenz auf ein rvalue, aber der compiler macht den dtor erst später??
-					Assert::IsTrue(ra7.value==7);
+					#pragma warning(suppress:4239)//warning C4239: nonstandard extension used: 'initializing': conversion from 'UTAllerei::UT_shared_ptr::A' to 'UTAllerei::UT_shared_ptr::A &'
+					//A & ra7 = getA7();ra7;//keine gute idee, referenz auf ein rvalue, aber der compiler macht den dtor erst später??
+					//Assert::IsTrue(ra7.value==7);
 				}
 				int v = A{};v;
 				//int & v = A{};//error C2440: 'initializing': cannot convert from 'UTAllerei::UT_shared_ptr::A' to 'int &'
@@ -310,6 +311,7 @@ namespace UTsharedextended
 			Assert::IsTrue( px2->str=="Welt" );
 			//p1.operator*();//error C2672: 'std::shared_ptr<UTsharedextended::UT_sharedextended::UT_test_shard_ptr_array::A [2]>::operator *': no matching overloaded function found
 			//auto p11 = stdex::make_shared(*p1);//error C2100: illegal indirection
+			auto p11 = stdex::make_shared(p1.get());//kopie von p1[0]
 
 		}
 	};

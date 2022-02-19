@@ -259,6 +259,10 @@ namespace UTSemaphore
 			std::reference_wrapper<A> ra = a;
 			//Assert::IsTrue( ra.foo() == 5 );//error C2039: 'foo': is not a member of 'std::reference_wrapper<UTSemaphore::UTSemaphore::std__reference_wrapper1::A>'
 			Assert::IsTrue( ra.get().foo() == 5 );
+			Assert::IsTrue( ((A&)ra).foo() == 5 );
+			auto callfoo=[](A& ra){return ra.foo();};
+			Assert::IsTrue( callfoo(ra) == 5 );
+
 			static_cast<decltype(ra)::type&>(ra).foo();
 			A{}(ra).foo();
 			//A(ra).foo();
