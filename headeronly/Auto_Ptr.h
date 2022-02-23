@@ -193,9 +193,9 @@ namespace WS
 			, SharedPtr(r.SharedPtr)
 		{
 		}
-		auto_ptr( auto_ptr && r ) noexcept : auto_ptr()
+		auto_ptr( auto_ptr && r ) noexcept : auto_ptr(r)
 		{
-			swap( r );
+			_transfer(r);
 		}
 	public:
 		template<typename T> friend class enable_auto_ptr_from_this;
@@ -352,6 +352,8 @@ namespace WS
 			std::swap(this->Ptr,r.Ptr);
 			std::swap(this->SharedPtr,r.SharedPtr);
 		}
+		void swap( auto_ptr && r ) noexcept { swap(r); }
+
 		operator pointer_type() const
 		{
 			return share.get();
@@ -457,10 +459,13 @@ namespace WS
 			return retvalue;
 		}
 		//transfer, this behaelt pointer, verliert ggf. aber ownership. bei SharedPtr wird die strong referenz erhöht
+		private:
+			void _transfer(auto_ptr & r){this->Ptr=std::move(r.Ptr);}//ggf. owner-transfer
+		public:
 		auto_ptr transfer()
 		{
 			auto_ptr retvalue( *this );
-			retvalue.Ptr = std::move(this->Ptr);
+			retvalue._transfer(*this);
 			return retvalue;
 		}
 		//ownerless wie transfer, this behaelt pointer und ggf. ownership. bei SharedPtr wird die strong referenz erhöht. zuweisung macht genau das gleiche
@@ -631,8 +636,8 @@ namespace WS
 		template<typename U> 
 		auto_ptr_owner_parameter( U && r ) : auto_ptr_owner_parameter( auto_ptr<T>( std::move(r) ) ){}									// fn( std::unique_ptr<int>(new int{5}) );
 
-		operator auto_ptr<T>() { return std::move( data ); }//einmaliger aufruf, danach ist data==nullptr
-		auto_ptr<T> move() {return std::move( data ); }//einmaliger aufruf, danach ist data==nullptr
+		operator auto_ptr<T>() { return move(); }//einmaliger aufruf, danach ist data==nullptr
+		auto_ptr<T> move() {auto retvalue=std::move(data);data=nullptr;return retvalue; }//einmaliger aufruf, danach ist data==nullptr
 	};
 
 	template<typename dest_t,typename source_t> auto_ptr<dest_t> dynamic_pointer_cast( auto_ptr<source_t> const & r )

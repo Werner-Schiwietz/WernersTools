@@ -556,9 +556,10 @@ namespace autoptr
 
 			ptr= WS::auto_ptr<int>( new int( 5 ), true );
 			moveit( std::move(ptr) );
-			Assert::IsFalse( ptr );
+			Assert::IsTrue( ptr );
 			Assert::IsTrue( ptr_owner );
 			Assert::IsTrue( ptr_owner.is_owner() );
+			Assert::IsTrue( ptr_owner==ptr );
 
 			ptr= WS::auto_ptr<int>( new int( 5 ), true );
 			assignit( std::move(ptr) );
@@ -610,7 +611,7 @@ namespace autoptr
 
 			ptr= WS::auto_ptr<int>( new int( 5 ), true );
 			takeownership( std::move( ptr ) );
-			Assert::IsFalse( ptr );
+			Assert::IsTrue( ptr );
 			Assert::IsTrue( ptr_owner.is_owner() );
 		}
 		TEST_METHOD(auto_ptr_assign)
@@ -639,9 +640,11 @@ namespace autoptr
 				WS::auto_ptr<int> x{ std::make_unique<int>(5) };
 				WS::auto_ptr<int> x2;
 				x2 = std::move(x);
-				Assert::IsFalse( x );
+				Assert::IsTrue( x );
 				Assert::IsTrue( x2 );
 				Assert::IsTrue( x2.is_owner() );
+				Assert::IsFalse( x.is_owner() );
+				Assert::IsTrue( x2 == x );
 			}
 			{	//4 transfer x behält pointer x2 wird is_owner
 				WS::auto_ptr<int> x{ std::make_unique<int>(5) };
@@ -1023,7 +1026,7 @@ namespace autoptr
 				auto ptr_owner = fnTakeOverOwnershipAndReturnOwner( std::move(ptr) );//std::move führt hier zu ptr==nullptr, evtl besser transfer()
 				Assert::IsFalse( ptr.is_owner() );
 				Assert::IsTrue( ptr_owner.is_owner() );
-				Assert::IsTrue( ptr==nullptr );//std::move setzt ptr auf nullptr. wenn pointer stehen bleiben soll transfer()  benutzen oder nichts angeben, also als lvalue-reference, s.o.
+				Assert::IsTrue( ptr == ptr_owner );
 				(void)ptr_owner.transfer();//liefert owner_ptr als returnwert. da dieses nicht verwendet wird, wird verwaltetes objekt zerstört
 				Assert::IsTrue( ptr == nullptr );
 				Assert::IsTrue( ptr_owner == nullptr );
