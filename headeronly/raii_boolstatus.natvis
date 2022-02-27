@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+  <!--
+  raii_boolstatus.natvis benutzerdefinierte Watchansicht zu raii_boolstatus.h
+  von Werner Schiwietz
+  kann z.B. den Projektdateien hinzugefügt werden
+  -->
+<AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
+  <Type Name="WS::raii_boolstatus">
+    <DisplayString Condition="valuePtr._Ptr->_Storage._Value==0">Status:TRUE(running)</DisplayString>
+    <DisplayString Condition="0>valuePtr._Ptr->_Storage._Value" >Status:invalid</DisplayString>
+    <DisplayString                                              >Status:FALSE(blocked)</DisplayString>
+  </Type>
+</AutoVisualizer>
