@@ -9,6 +9,8 @@
 //DIE AUTOREN ODER URHEBERRECHTSINHABER SIND IN KEINEM FALL HAFTBAR FÜR ANSPRÜCHE, SCHÄDEN ODER ANDERE VERPFLICHTUNGEN, OB IN EINER VERTRAGS- ODER 
 //HAFTUNGSKLAGE, EINER UNERLAUBTEN HANDLUNG ODER ANDERWEITIG, DIE SICH AUS, AUS ODER IN VERBINDUNG MIT DER SOFTWARE ODER DER NUTZUNG ODER ANDEREN 
 //GESCHÄFTEN MIT DER SOFTWARE ERGEBEN. 
+
+//VORSICHT: ich konnte keine Vorteile gegenüber std::mutex erkennen. std::mutex ist sogar schneller.Es können auch sehr viele angelegt werden (im UT_RAII_Mutex 100'000'000)
 					//usage 
 					// mutex_atomicflag	locker {};
 					// als WS::lock_guard, der kann per move weitergegeben werden
@@ -76,7 +78,7 @@ namespace WS
 		}
 	};
 	template <class mutex_type> [[nodiscard]]lock_guard<mutex_type> lock( mutex_type & mutex){ return lock_guard<mutex_type>{mutex};}
-	template <class mutex_type> [[nodiscard]]lock_guard<mutex_type> try_lock( mutex_type & mutex){ return trylock_guard<typename mutex_type>{mutex};}
+	template <class mutex_type> [[nodiscard]]lock_guard<mutex_type> try_lock( mutex_type & mutex){ return trylock_guard<mutex_type>{mutex};}
 
 	class mutex_atomicflag
 	{

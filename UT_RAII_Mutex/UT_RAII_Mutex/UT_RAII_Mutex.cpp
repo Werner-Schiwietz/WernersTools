@@ -7,6 +7,7 @@
 
 #include "..\..\headeronly\semaphore.h"
 #include "..\..\headeronly\raii_mutex.h"
+#include "..\..\headeronly\mutex_atomicflag.h"
 
 
 using namespace Microsoft::VisualStudio::CppUnitTestFramework;
@@ -66,6 +67,26 @@ template<typename mutex_t>struct doublelock
 		}
 	}
 };
+
+template<typename mutex_t>void lock(size_t runden )
+{
+	mutex_t mutex;
+
+	for(auto i=runden; i-->0; )
+	{
+		auto x=std::lock_guard{mutex};x;
+	}
+}
+template<typename mutex_t>void createarray_and_lock(size_t size )
+{
+	auto mutexPtr= std::make_unique<mutex_t[]>(size);
+	auto guardPtr= std::make_unique<std::unique_lock<mutex_t>[]>(size);
+	for(auto i=size; i --> 0 ;)
+	{
+		guardPtr[i]=std::unique_lock<mutex_t>{mutexPtr[i]};
+	}
+}
+
 
 namespace UT_WP_TimedMutex
 {
@@ -221,6 +242,52 @@ namespace UT_WP_TimedMutex
 
 			locked = WS::try_lock(m);
 			Assert::IsTrue(locked);
+		}
+
+		TEST_METHOD(UT_100000_WS_raii_mutex_std_recursive_mutex)
+		{
+			lock<WS::raii_mutex<std::recursive_mutex>>(100'000);
+		}
+		TEST_METHOD(UT_100000_std_recursive_mutex)
+		{
+			lock<std::recursive_mutex>(100'000);
+		}
+		TEST_METHOD(UT_100000_WS_raii_mutex_WS_recursive_mutex_atomicflag)
+		{
+			lock<WS::raii_mutex<WS::recursive_mutex_atomicflag>>(100'000);
+		}
+		TEST_METHOD(UT_100000_WS_recursive_mutex_atomicflag)
+		{
+			lock<WS::recursive_mutex_atomicflag>(100'000);
+		}
+		TEST_METHOD(UT_100000_WS_raii_mutex_std_mutex)
+		{
+			lock<WS::raii_mutex<std::mutex>>(100'000);
+		}
+		TEST_METHOD(UT_100000_std_mutex)
+		{
+			lock<std::mutex>(100'000);
+		}
+		TEST_METHOD(UT_100000_WS_raii_mutex_WS_mutex_atomicflag)
+		{
+			lock<WS::raii_mutex<WS::mutex_atomicflag>>(100'000);
+		}
+		TEST_METHOD(UT_100000_WS_mutex_atomicflag)
+		{
+			lock<WS::mutex_atomicflag>(100'000);
+		}
+
+		TEST_METHOD(UT_with_100000000_std_mutex)
+		{
+			constexpr size_t size = 100'000'000;
+			using mutex_t=std::mutex;
+			createarray_and_lock<mutex_t>(size);
+		}
+		TEST_METHOD(UT_with_100000000_WS_mutex_atomicflag)
+		{
+			constexpr size_t size = 100'000'000;
+			using mutex_t=WS::mutex_atomicflag;
+			createarray_and_lock<mutex_t>(size);
 		}
 
 	};
