@@ -105,7 +105,7 @@ namespace WS
 				}
 				while( this->flag.test_and_set() ){std::this_thread::yield();}
 			}
-			//merken, welcher thread den locl hält
+			//merken, welcher thread den lock hält
 			this->locking_thread = std::this_thread::get_id();
 		}
 		void unlock(){ this->locking_thread=decltype(this->locking_thread){};this->flag.clear(); }
