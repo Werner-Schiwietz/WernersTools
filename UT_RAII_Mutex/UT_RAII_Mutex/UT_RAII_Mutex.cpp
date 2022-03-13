@@ -243,7 +243,18 @@ namespace UT_WP_TimedMutex
 			locked = WS::try_lock(m);
 			Assert::IsTrue(locked);
 		}
+	};
+}
 
+namespace UT_WP_mutex_atomic_vs_std_mutex
+{
+	TEST_CLASS(UT_WP_mutex)
+	{
+
+	public:
+		TEST_CLASS_INITIALIZE(Init)
+		{
+		}
 		TEST_METHOD(UT_100000_WS_raii_mutex_std_recursive_mutex)
 		{
 			lock<WS::raii_mutex<std::recursive_mutex>>(100'000);
@@ -290,5 +301,34 @@ namespace UT_WP_TimedMutex
 			createarray_and_lock<mutex_t>(size);
 		}
 
+	};
+}
+namespace UT_WP_mutex_atomic
+{
+	TEST_CLASS(UT_WP_mutex)
+	{
+
+	public:
+		TEST_CLASS_INITIALIZE(Init)
+		{
+		}
+		TEST_METHOD(UT_samethread_deadlock)
+		{
+			deadlocktestStatus status{};
+			using namespace std::literals;
+
+			{
+				auto worker = std::async(	std::launch::async, doublelock<WS::mutex_atomicflag>{status} );
+				auto waittingstate = worker.wait_for(200ms);
+				Assert::IsTrue( waittingstate==std::future_status::ready);
+				Assert::IsTrue( status==deadlocktestStatus::exception);
+			}
+			{
+				auto worker = std::async(	std::launch::async, doublelock<WS::recursive_mutex_atomicflag>{status} );
+				auto waittingstate = worker.wait_for(200ms);
+				Assert::IsTrue( waittingstate==std::future_status::ready);
+				Assert::IsTrue( status==deadlocktestStatus::ready);
+			}
+		}
 	};
 }

@@ -96,18 +96,16 @@ namespace WS
 		}
 		void lock()
 		{ 
-			auto const id = this->locking_thread;//raise cond. vermeiden
 			if( flag.test_and_set()==true )
 			{
-				if( id == std::this_thread::get_id() )
+				if( this->locking_thread == std::this_thread::get_id() )
 				{
-					struct deadlock_exception : std::exception{
-						deadlock_exception() : std::exception(__FUNCTION__ " deadlock detected") {};
-					};
-					throw deadlock_exception{};
+					struct deadlock_exception : std::exception{using std::exception::exception;};
+					throw deadlock_exception{__FUNCTION__ " deadlock detected"};
 				}
 				while( this->flag.test_and_set() ){std::this_thread::yield();}
 			}
+			//merken, welcher thread den locl hält
 			this->locking_thread = std::this_thread::get_id();
 		}
 		void unlock(){ this->locking_thread=decltype(this->locking_thread){};this->flag.clear(); }
@@ -141,8 +139,13 @@ namespace WS
 	public:
 		bool try_lock()
 		{
-			if(  flag.test_and_set()==true )
-				return false;
+			if( flag.test_and_set()==true )
+			{
+				if( this->locking_thread != std::this_thread::get_id() )
+				{
+					return false;
+				}
+			}
 
 			addref();
 			this->locking_thread = std::this_thread::get_id();
@@ -150,15 +153,8 @@ namespace WS
 		}
 		void lock()
 		{ 
-			if(  flag.test_and_set()==true )
-			{
-				if( this->locking_thread != std::this_thread::get_id() )
-				{	
-					while( flag.test_and_set()){std::this_thread::yield();}
-				}
-			}
-			addref();
-			this->locking_thread = std::this_thread::get_id();
+			while( try_lock()==false )
+				std::this_thread::yield();
 		}
 		void unlock()
 		{ 
