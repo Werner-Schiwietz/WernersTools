@@ -208,18 +208,46 @@ namespace
 		return tostring( v, buf, size, radix );
 	}
 #if _HAS_CXX17
-	template<typename string_type,typename value_type> string_type tostring(value_type value)
+	/// <summary>
+	/// konvertiert einen integral-type in einen verwalteten string-type.
+	/// voraussetzung, der stringtyp hat einen ctor string_type{char_type const*}
+	///  also std::is_constructible_v<string_type,char const *> muss für char_type 'char' true liefern
+	/// </summary>
+	/// <example>
+	/// <code>
+	///		std::string string = tpstring<std::string>( 5 );//default-radix 10 -> "5"
+	///		std::wstring string = tpstring<std::wstring,2>( 5 );//radix 2 -> "101"
+	///		CString string = tpstring<CString,8>( 0765 );//radix 8(octal) -> "765"
+	///		CString string = tpstring<CString,16>( 0765 );//radix 16(hex) -> "1f5"
+	/// </code>
+	/// </example>
+
+
+	//_mypow is unused
+	template<unsigned int basis,unsigned int exp,typename ret_type=unsigned int> constexpr ret_type _mypow()
+	{
+		if constexpr ( exp==0 )
+			return 1;
+		else
+			return basis * _mypow<basis,exp-1,ret_type>();
+	}
+	template<typename integral_t,int radix> constexpr size_t tostring_buffersize()
+	{
+		return sizeof(integral_t) * 8 + 1;//anzahl bits was für radix 2 passt ist für radix 10 evtl nunnötig groß aber kein problem
+	}
+	template<typename string_type,int radix=10,typename value_type> string_type tostring(value_type value)
 	{
 		static_assert(std::is_pointer_v<string_type> == false, "it must be a string-class like std::wstring CString ..." );
+		static_assert(radix>1, "radix invalid" );
 		if constexpr ( std::is_constructible_v<string_type,char const *> )
 		{
-			char buf[20];
-			return tostring(value,buf,10);
+			char buf[tostring_buffersize<value_type,radix>()];
+			return tostring(value,buf,radix);
 		}
 		else if constexpr ( std::is_constructible_v<string_type,wchar_t const *> )
 		{
-			wchar_t buf[20];
-			return tostring( value, buf, 10 );
+			wchar_t buf[tostring_buffersize<value_type,radix>()];
+			return tostring( value, buf, radix );
 		}
 		else
 			static_assert(false,"what?");
