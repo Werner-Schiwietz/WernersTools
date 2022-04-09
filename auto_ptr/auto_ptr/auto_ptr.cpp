@@ -338,7 +338,12 @@ namespace autoptr
 			Aptr = std::make_unique<A>();
 			Assert::IsTrue(Aptr.is_managed());
 			Assert::IsTrue(Aptr.is_owner());
-			Bptr = std::make_unique<A>();//geht seit 2022-04-09, allerdings wird Bptr immer nullptr sein, weil der dynamic_cast<B*>(aPtr) nullptr liefert
+			Bptr = std::make_unique<A>();//geht seit 2022-04-09, allerdings wird Bptr immer nullptr sein, weil der dynamic_cast<B*>(&a) nullptr liefert
+			Assert::IsFalse(Bptr);
+			std::unique_ptr<A> AuniquePtr{ std::make_unique<B>() };
+			Bptr = std::move(AuniquePtr);
+			Assert::IsTrue(Bptr);
+			//Bptr = std::make_unique<C>();//kann nicht gehen, da C mit B keine klassenbeziehung hat
 			{
 				WS::auto_ptr<A> x2(std::make_unique<B>());//geht seit 2022-04-09
 				WS::auto_ptr<A> x{WS::auto_ptr<B>{std::make_unique<B>()}};//so ging es schon immer
@@ -347,6 +352,13 @@ namespace autoptr
 
 			Aptr = WS::auto_ptr<B>{std::make_unique<B>()};//so ging es schon immer
 			Aptr = std::make_unique<B>();//geht seit 2022-04-09
+			{
+				WS::managed_auto_ptr<A> AxPtr{std::make_unique<B>()};
+				Assert::IsTrue(AxPtr);
+				AxPtr = std::make_unique<B>();
+				Assert::IsTrue(AxPtr);
+				
+			}
 			Assert::IsTrue(Aptr.is_managed());
 			Assert::IsTrue(Aptr.is_owner());
 			Cptr = std::make_unique<C>();
