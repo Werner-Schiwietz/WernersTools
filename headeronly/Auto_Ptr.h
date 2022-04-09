@@ -12,12 +12,12 @@
 //GESCHÄFTEN MIT DER SOFTWARE ERGEBEN.  
 
 //WS::auto_ptr by Werner Schiwietz 
-//WS::auto_ptr ist eine abwandlung vom std::unique_ptr
+//WS::auto_ptr ist eine starke erweiterung vom std::unique_ptr
 //im konstruktor kann entschieden werden, ob die resource übernommen wird oder nicht. also das NICHT ist der unterschied zum std::unique_ptr
 //z.B. auto_ptr<CZotZeile>( pZeile, false ) das auto_ptr-Objekt benutzt pZeile gibt das objekt aber nicht frei. oder auto_ptr<CZotZeile>( pZeile )
 //z.B. auto_ptr<CZotZeile>( pZeile, true ) das auto_ptr-Objekt benutzt pZeile und ruft delete pZeile im destruktor auf
-//z.B. auto_ptr<CZotZeile>( std::move(stdunique_ptr) ) das auto_ptr-Objekt übernimmt den std::unique_ptr inhalt std::unique_ptr nur mit default_delete
-//z.B. auto_ptr<CZotZeile>( stdshared_ptr) ) das auto_ptr-Objekt übernimmt eine strong referenz  des std::shared_ptr. es gibt keinen owner der letzte shared_ptr gibt objekt frei
+//z.B. auto_ptr<CZotZeile>( std::move(std::unique_ptr) ) das auto_ptr-Objekt übernimmt den std::unique_ptr inhalt std::unique_ptr nur mit default_delete
+//z.B. auto_ptr<CZotZeile>( std::shared_ptr) ) das auto_ptr-Objekt übernimmt eine strong referenz  des std::shared_ptr. es gibt keinen owner der letzte shared_ptr gibt objekt frei
 //z.B. auto_ptr<char[]>( pString, true ) das auto_ptr-Objekt pString ist mit new char[x] angelegt worden und wird im dtor mit delete [] pString freigegeben
 //
 //wird konsequent WS::auto_ptr verwendet (also ein owner und 0-n nichtowner bzw  shared_ptr und weak_ptr) wird nicht mehr auf freigegebene, dangle pointer zugegriffen. diese sind statt dessen ggf. nullptr.
@@ -219,6 +219,10 @@ namespace WS
 		auto_ptr( std::unique_ptr<T> && Ptr ) 
 			: share(Ptr.get(),Managed(true))
 			, Ptr(std::move(Ptr))
+		{}
+		template<typename U>
+		auto_ptr( std::unique_ptr<U> && Ptr ) 
+			: auto_ptr(auto_ptr<U>{std::move(Ptr)})
 		{}
 		explicit auto_ptr( std::shared_ptr<T> sharedptr ) //bei sharedpointer muss sich z.zt ggf. der aufrufer um den cast kümmern, dass kann ich sonst nicht mehr testen
 			: share(sharedptr.get(),Managed(true))
@@ -576,7 +580,8 @@ namespace WS
 		managed_auto_ptr( enable_auto_ptr_from_this<U> * r ) : auto_ptr<T>( r?r->auto_ptr_from_this():nullptr ) {}
 		template<typename U>
 		managed_auto_ptr( enable_auto_ptr_from_this<U> const * r ) : auto_ptr<T>( r?r->auto_ptr_from_this():nullptr ) {}
-		managed_auto_ptr( std::unique_ptr<T> && Ptr ) noexcept : auto_ptr<T>( std::move(Ptr) ) {}
+		template<typename U>
+		managed_auto_ptr( std::unique_ptr<U> && Ptr ) noexcept : auto_ptr<T>( auto_ptr<U>{std::move(Ptr)} ) {}
 
 		explicit managed_auto_ptr( std::shared_ptr<T> sharedptr ) noexcept : auto_ptr( std::move(sharedptr) ) {}//bei sharedpointer muss sich z.zt ggf. der aufrufer um den cast kümmern, dass kann ich sonst nicht mehr testen
 		//auto_ptr(auto_ptr const& r) : auto_ptr(r.ownerless()){}

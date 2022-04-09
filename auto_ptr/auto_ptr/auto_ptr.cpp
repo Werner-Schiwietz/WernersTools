@@ -283,10 +283,12 @@ namespace autoptr
 		TEST_METHOD(managed_auto_ptr_auto_ptr_from_this_from_unmanaged_auto_ptr)
 		{
 			class A : public WS::enable_auto_ptr_from_this<A>
-			{};
+			{public:virtual ~A(){}};
 			class B : public A
-			{};
-			class C{};
+			{public:virtual ~B(){}};
+			class C
+			{public:virtual ~C(){}};
+
 
 			WS::managed_auto_ptr<A> Aptr;
 			WS::managed_auto_ptr<B> Bptr;
@@ -318,17 +320,35 @@ namespace autoptr
 			Assert::IsTrue(Aptr.is_managed());
 			Bptr = A2ptr;
 			Assert::IsTrue(Bptr==nullptr);
-			try
 			{
-				Cptr = C2ptr;//von C kann kein managed_auto_ptr erzeugt werden -> exception
-				Assert::Fail(L"exception erwartet");
+				WS::auto_ptr<C> C3ptr;
+				Cptr = C3ptr;
+				C3ptr = std::make_unique<C>();
+				Cptr = C3ptr;
+				Assert::IsTrue( Cptr.is_managed() );
+				Assert::IsFalse( Cptr.is_owner() );
+				try
+				{
+					Cptr = C2ptr;//von C kann kein managed_auto_ptr erzeugt werden -> exception
+					Assert::Fail( L"exception erwartet" );
+				}
+				catch( ... ) {}
 			}
-			catch(...){}
 
 			Aptr = std::make_unique<A>();
 			Assert::IsTrue(Aptr.is_managed());
 			Assert::IsTrue(Aptr.is_owner());
-			//Bptr = std::make_unique<A>();//error C2679: binary '=': no operator found which takes a right-hand operand of type 'std::unique_ptr<T,std::default_delete<T>>' (or there is no acceptable conversion)
+			Bptr = std::make_unique<A>();//geht seit 2022-04-09, allerdings wird Bptr immer nullptr sein, weil der dynamic_cast<B*>(aPtr) nullptr liefert
+			{
+				WS::auto_ptr<A> x2(std::make_unique<B>());//geht seit 2022-04-09
+				WS::auto_ptr<A> x{WS::auto_ptr<B>{std::make_unique<B>()}};//so ging es schon immer
+				x = std::make_unique<B>();
+			}
+
+			Aptr = WS::auto_ptr<B>{std::make_unique<B>()};//so ging es schon immer
+			Aptr = std::make_unique<B>();//geht seit 2022-04-09
+			Assert::IsTrue(Aptr.is_managed());
+			Assert::IsTrue(Aptr.is_owner());
 			Cptr = std::make_unique<C>();
 			Assert::IsTrue(Cptr.is_managed());
 			Assert::IsTrue(Cptr.is_owner());
