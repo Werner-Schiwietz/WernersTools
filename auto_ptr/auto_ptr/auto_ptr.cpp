@@ -9,6 +9,7 @@ using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 
 #include <vector>
 #include <deque>
+#include <set>
 #include <list>
 #include <forward_list>
 
@@ -364,6 +365,45 @@ namespace autoptr
 			Cptr = std::make_unique<C>();
 			Assert::IsTrue(Cptr.is_managed());
 			Assert::IsTrue(Cptr.is_owner());
+		}
+		TEST_METHOD(managed_auto_ptr_sorted_set)
+		{
+			class A : public WS::enable_auto_ptr_from_this<A>
+			{
+			public:
+				int v=5;
+				A(){}
+				A(int v):v(v){}
+				virtual ~A(){}
+			};
+
+			std::set<WS::managed_auto_ptr<A>> set;
+			A a1{5},a2{4},a3{6};
+			set.insert(a1);
+			set.insert(a2);
+			set.insert(WS::managed_auto_ptr<A>{a3});//so ohne roten kringel
+			WS::managed_auto_ptr<A> middle_ptr = *(++set.begin());//!!nicht sicher ob a1 a2 oder a3 middle werden wird!!
+			A & middle = *middle_ptr;
+			auto testSortierung = [&]()->bool
+			{
+				auto v = set.begin();
+				for( auto prev=v++;v!=set.end();++v,++prev )
+				{
+					if( (*prev<*v) == false )
+						return false;
+				}
+				return true;
+			};
+			Assert::IsTrue(testSortierung());
+
+			Assert::IsTrue(middle_ptr);
+			middle.~A();//explicit dtor, without delete. just for testing, never do things like this
+			Assert::IsFalse(middle_ptr);
+			Assert::IsTrue(testSortierung());//obwohl der mittlere ptr im set nullptr liefert ist die sortierung noch korrekt
+			new(&middle) A{2};//palcement new. auf speicher von middle den ctor ausführen. dadurch bekommt der managed_auto_ptr KEINE neue speicheradresse
+			Assert::IsFalse(middle_ptr);
+			Assert::AreEqual(middle.v,2);
+
 		}
 	};
 	TEST_CLASS(autoptr)

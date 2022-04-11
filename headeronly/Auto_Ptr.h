@@ -520,10 +520,10 @@ namespace WS
 		//managed_auto_ptr( pointer_type ) = delete;
 		managed_auto_ptr() noexcept : auto_ptr<T>() {}
 		managed_auto_ptr(std::nullptr_t) noexcept : auto_ptr<T>() {}
-		managed_auto_ptr( managed_auto_ptr const & r ) noexcept : auto_ptr(r) 
+		managed_auto_ptr( managed_auto_ptr const & r ) noexcept : auto_ptr<T>(r) 
 		{
 		}
-		managed_auto_ptr( managed_auto_ptr && r ) noexcept : auto_ptr(std::move(r)) 
+		managed_auto_ptr( managed_auto_ptr && r ) noexcept : auto_ptr<T>(std::move(r)) 
 		{
 		}
 		managed_auto_ptr( auto_ptr<T> const & r ) : auto_ptr<T>(r)
