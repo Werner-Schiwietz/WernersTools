@@ -46,6 +46,7 @@
 //#define LINE_STRING1(x) LINE_STRING2(x)	//nötig, damit __LINE__ zur Zahl wird
 //#define _LINE_ LINE_STRING1(__LINE__)		//in pragma message kann _LINE_ verwendet wwerden
 
+
 namespace WS
 {
 	template<typename pointer_t> struct ReferenzCounter
@@ -206,9 +207,21 @@ namespace WS
 		}
 		auto_ptr( pointer_type p, take_ownership autodelete, Managed managed )
 			: share(p,managed)
-			, Ptr(autodelete ? p : nullptr){}
+			, Ptr(autodelete ? p : nullptr)
+		{
 
-		auto_ptr( pointer_type p, take_ownership autodelete ) : auto_ptr( p, autodelete, Managed(autodelete) ){}
+			if constexpr ( HasMethod_auto_ptr_from_this_v<T> && is_enable_auto_ptr_from_this<T>::value==false )
+			{
+				if( p )
+				{
+					this->share = (**this).auto_ptr_from_this().share;
+				}
+			}
+		}
+
+		auto_ptr( pointer_type p, take_ownership autodelete ) : auto_ptr( p, autodelete, Managed(autodelete) )
+		{
+		}
 
 		//explicit
 		auto_ptr( pointer_type p ) : auto_ptr( p, take_ownership(false) ){}
@@ -219,7 +232,15 @@ namespace WS
 		auto_ptr( std::unique_ptr<T> && Ptr ) 
 			: share(Ptr.get(),Managed(true))
 			, Ptr(std::move(Ptr))
-		{}
+		{
+			if constexpr (HasMethod_auto_ptr_from_this_v<T>)
+			{
+				if( *this )
+				{
+					this->share = (**this).auto_ptr_from_this().share;
+				}
+			}
+		}
 		template<typename U>
 		auto_ptr( std::unique_ptr<U> && Ptr ) 
 			: auto_ptr(auto_ptr<U>{std::move(Ptr)})
@@ -364,7 +385,11 @@ namespace WS
 		}
 
 		//std::add_lvalue_reference_t<std::remove_pointer_t<pointer_type>>& operator *() const //ohne implementierung kommt genau das gleiche raus
-		std::remove_pointer_t<pointer_type> & operator *() const //ohne implementierung kommt genau das gleiche raus, man kann aber keinen breakpoint setzen
+		element_type const & operator *() const 
+		{
+			return *share.get();
+		}
+		element_type & operator *() 
 		{
 			return *share.get();
 		}
@@ -509,6 +534,12 @@ namespace WS
 	template<typename T> auto HasMethod_auto_ptr_from_this(unsigned long) -> std::false_type;
 	template<typename T> auto HasMethod_auto_ptr_from_this(int) -> decltype(std::declval<T>().auto_ptr_from_this(), std::true_type{});
 	template<typename T> static bool constexpr HasMethod_auto_ptr_from_this_v = decltype(HasMethod_auto_ptr_from_this<T>(0))::value;
+
+	template<typename> struct is_enable_auto_ptr_from_this : std::false_type {};
+	template<template <typename...> class Tmpl, typename Arg>
+	struct is_enable_auto_ptr_from_this<Tmpl<Arg>> : std::bool_constant<std::is_same_v<Tmpl<Arg>,WS::enable_auto_ptr_from_this<Arg>>> {};
+	template<typename T> static bool constexpr is_enable_auto_ptr_from_this_v = is_enable_auto_ptr_from_this<T>::value;
+
 
 	
 	template<typename T> class managed_auto_ptr : public auto_ptr<T>

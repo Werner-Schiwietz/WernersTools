@@ -782,6 +782,95 @@ namespace autoptr
 			Assert::IsTrue( (void const *)pa == (void const *)pab || (void const *)pb == (void const *)pab );
 
 		}
+		TEST_METHOD(auto_ptr_from_this_delete)
+		{
+			struct A : WS::enable_auto_ptr_from_this<A>{};
+			struct B : A{};
+			struct C{virtual ~C(){}};
+			struct D : C{};
+
+			{
+				WS::auto_ptr<C> Ptr = std::make_unique<C>();
+				delete Ptr;
+				Assert::IsTrue( Ptr );	//dangling pointer
+				Ptr.release();			//prevent double free
+			}
+
+			{
+				WS::auto_ptr<A> Ptr = std::make_unique<A>();
+				Assert::IsTrue(Ptr.is_owner());
+				auto Ptr2 = Ptr;
+				Assert::IsFalse(Ptr2.is_owner());
+				WS::auto_ptr<A> aPtr1 = Ptr->auto_ptr_from_this();
+				WS::managed_auto_ptr<A> aPtr2 = *Ptr;
+				Assert::IsFalse(aPtr1.is_owner());
+				Assert::IsFalse(aPtr2.is_owner());
+				delete Ptr;//since 2020-04-15 no problem when its base-class is enable_auto_ptr_from_this
+				Assert::IsFalse( Ptr );
+				Ptr.release();
+				Assert::IsFalse( aPtr1 );
+				Assert::IsFalse( aPtr2 );
+
+				Ptr = std::make_unique<A>();
+				Ptr2 = Ptr;
+				aPtr1 = Ptr->auto_ptr_from_this();
+				aPtr2 = *Ptr;
+				Ptr = nullptr;//speicher freigeben und alle pointer auf null
+				Assert::IsFalse( Ptr );
+				Assert::IsFalse( aPtr1 );
+				Assert::IsFalse( aPtr2 );
+
+				Ptr = std::make_unique<B>();
+				Ptr2 = Ptr;
+				aPtr1 = Ptr->auto_ptr_from_this();
+				aPtr2 = *Ptr;
+				delete Ptr;
+				Assert::IsFalse( Ptr );
+				Ptr.release();
+				Assert::IsFalse( aPtr1 );
+				Assert::IsFalse( aPtr2 );
+
+				Ptr = std::make_unique<B>();
+				Ptr2 = Ptr;
+				aPtr1 = Ptr->auto_ptr_from_this();
+				aPtr2 = *Ptr;
+				Ptr = nullptr;//speicher freigeben und alle pointer auf null
+				Assert::IsFalse( Ptr );
+				Assert::IsFalse( aPtr1 );
+				Assert::IsFalse( aPtr2 );
+
+				{
+					WS::auto_ptr<B> bPtr = std::make_unique<A>();
+					Assert::IsFalse(bPtr);
+				}
+				{
+					auto vecPtr = std::make_unique<std::vector<A>>();
+					WS::auto_ptr<std::vector<A>> vec = std::move(vecPtr);
+				}
+				{
+					WS::auto_ptr<C> cPtr1 = std::unique_ptr<C>{};
+					WS::auto_ptr<C> cPtr2 = std::unique_ptr<D>{};
+					WS::auto_ptr<D> dPtr1 = std::unique_ptr<C>{};
+					WS::auto_ptr<D> dPtr2 = std::unique_ptr<D>{};
+
+					Assert::IsFalse(cPtr1);
+					Assert::IsFalse(cPtr2);
+					Assert::IsFalse(dPtr1);
+					Assert::IsFalse(dPtr2);
+				}
+				{
+					WS::auto_ptr<C> cPtr1 = std::make_unique<C>();
+					WS::auto_ptr<C> cPtr2 = std::make_unique<D>();
+					WS::auto_ptr<D> dPtr1 = std::make_unique<C>();
+					WS::auto_ptr<D> dPtr2 = std::make_unique<D>();
+
+					Assert::IsTrue(cPtr1);
+					Assert::IsTrue(cPtr2);
+					Assert::IsFalse(dPtr1);
+					Assert::IsTrue(dPtr2);
+				}
+			}
+		}
 		TEST_METHOD(auto_ptr_from_this)
 		{
 			struct X : WS::enable_auto_ptr_from_this<X>{ int value; X(){} X(int v):value(v){}};
