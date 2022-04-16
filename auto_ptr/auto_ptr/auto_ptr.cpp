@@ -104,15 +104,17 @@ namespace _Immer_Rot
 			std::vector<Enum> vec{GetList()};
 			std::vector<Enum> vec2{Enum::v2,Enum::v1};
 
-			for( auto iter = x.begin(); iter!=x.end(); ++iter )
+			auto & container = x;//red eine std::initializer_list darf nicht zwischen gespeichert werden
+			//auto & container = vec;//green
+			//auto & container = vec2;//green
+
+			for( auto iter = container.begin(); iter!=container.end(); ++iter )
 				cout << *iter << ' ';
-			for( auto e : x )
+			for( auto e : container )
 				cout << e << ' ';
 			cout << std::endl;
 			Logger::WriteMessage( cout.str().c_str() );
 
-			auto & container = x;//red
-								 //auto & container = vec2;//green
 			auto i = container.begin();
 			Assert::IsTrue( i != container.end() );
 			Assert::IsTrue( *i == Enum::v2 );
@@ -784,20 +786,28 @@ namespace autoptr
 		}
 		TEST_METHOD(auto_ptr_from_this_delete)
 		{
-			struct A : WS::enable_auto_ptr_from_this<A>{};
-			struct B : A{};
-			struct C{virtual ~C(){}};
-			struct D : C{};
+			int acounter=0;
+			int ccounter=0;
+			struct A : WS::enable_auto_ptr_from_this<A>{int& counter;~A(){--counter;}A(int& counter):counter(++counter){}};
+			struct B : A{B(int& counter):A(counter){}};
+			struct C{int& counter;virtual ~C(){--counter;}C(int& counter):counter(++counter){}};
+			struct D : C{D(int& counter):C(counter){}};
 
 			{
-				WS::auto_ptr<C> Ptr = std::make_unique<C>();
+				Assert::AreEqual(ccounter,0);
+				WS::auto_ptr<C> Ptr = std::make_unique<C>(ccounter);
+				Assert::AreEqual(ccounter,1);
 				delete Ptr;
+				Assert::AreEqual(ccounter,0);
 				Assert::IsTrue( Ptr );	//dangling pointer
 				Ptr.release();			//prevent double free
+				Assert::AreEqual(ccounter,0);
 			}
 
 			{
-				WS::auto_ptr<A> Ptr = std::make_unique<A>();
+				Assert::AreEqual(acounter,0);
+				WS::auto_ptr<A> Ptr = std::make_unique<A>(acounter);
+				Assert::AreEqual(acounter,1);
 				Assert::IsTrue(Ptr.is_owner());
 				auto Ptr2 = Ptr;
 				Assert::IsFalse(Ptr2.is_owner());
@@ -805,42 +815,51 @@ namespace autoptr
 				WS::managed_auto_ptr<A> aPtr2 = *Ptr;
 				Assert::IsFalse(aPtr1.is_owner());
 				Assert::IsFalse(aPtr2.is_owner());
-				delete Ptr;//since 2020-04-15 no problem when its base-class is enable_auto_ptr_from_this
+				Assert::AreEqual(acounter,1);
+				delete Ptr;//since 2020-04-16 no problem when its base-class is enable_auto_ptr_from_this
+				Assert::AreEqual(acounter,0);
+				Ptr = nullptr;
+				Assert::AreEqual(acounter,0);
 				Assert::IsFalse( Ptr );
-				Ptr.release();
 				Assert::IsFalse( aPtr1 );
 				Assert::IsFalse( aPtr2 );
 
-				Ptr = std::make_unique<A>();
+				Ptr = std::make_unique<A>(acounter);
+				Assert::AreEqual(acounter,1);
 				Ptr2 = Ptr;
 				aPtr1 = Ptr->auto_ptr_from_this();
 				aPtr2 = *Ptr;
 				Ptr = nullptr;//speicher freigeben und alle pointer auf null
+				Assert::AreEqual(acounter,0);
 				Assert::IsFalse( Ptr );
 				Assert::IsFalse( aPtr1 );
 				Assert::IsFalse( aPtr2 );
 
-				Ptr = std::make_unique<B>();
+				Ptr = std::make_unique<B>(acounter);
+				Assert::AreEqual(acounter,1);
 				Ptr2 = Ptr;
 				aPtr1 = Ptr->auto_ptr_from_this();
 				aPtr2 = *Ptr;
 				delete Ptr;
+				Assert::AreEqual(acounter,0);
 				Assert::IsFalse( Ptr );
-				Ptr.release();
 				Assert::IsFalse( aPtr1 );
 				Assert::IsFalse( aPtr2 );
 
-				Ptr = std::make_unique<B>();
+				Ptr = std::make_unique<B>(acounter);
+				Assert::AreEqual(acounter,1);
 				Ptr2 = Ptr;
 				aPtr1 = Ptr->auto_ptr_from_this();
 				aPtr2 = *Ptr;
 				Ptr = nullptr;//speicher freigeben und alle pointer auf null
+				Assert::AreEqual(acounter,0);
 				Assert::IsFalse( Ptr );
 				Assert::IsFalse( aPtr1 );
 				Assert::IsFalse( aPtr2 );
 
 				{
-					WS::auto_ptr<B> bPtr = std::make_unique<A>();
+					WS::auto_ptr<B> bPtr = std::make_unique<A>(acounter);
+					Assert::AreEqual(acounter,0);
 					Assert::IsFalse(bPtr);
 				}
 				{
@@ -859,17 +878,21 @@ namespace autoptr
 					Assert::IsFalse(dPtr2);
 				}
 				{
-					WS::auto_ptr<C> cPtr1 = std::make_unique<C>();
-					WS::auto_ptr<C> cPtr2 = std::make_unique<D>();
-					WS::auto_ptr<D> dPtr1 = std::make_unique<C>();
-					WS::auto_ptr<D> dPtr2 = std::make_unique<D>();
+					WS::auto_ptr<C> cPtr1 = std::make_unique<C>(ccounter);
+					WS::auto_ptr<C> cPtr2 = std::make_unique<D>(ccounter);
+					WS::auto_ptr<D> dPtr1 = std::make_unique<C>(ccounter);
+					WS::auto_ptr<D> dPtr2 = std::make_unique<D>(ccounter);
+					Assert::AreEqual(ccounter,3);
 
 					Assert::IsTrue(cPtr1);
 					Assert::IsTrue(cPtr2);
 					Assert::IsFalse(dPtr1);
 					Assert::IsTrue(dPtr2);
 				}
+				Assert::AreEqual(ccounter,0);
 			}
+			Assert::AreEqual(acounter,0);
+			Assert::AreEqual(ccounter,0);
 		}
 		TEST_METHOD(auto_ptr_from_this)
 		{

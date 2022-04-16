@@ -202,6 +202,8 @@ namespace WS
 		template<typename T> friend class enable_auto_ptr_from_this;
 		~auto_ptr()
 		{
+			if( get()==nullptr && Ptr )
+				Ptr.release();//ist wohl per 'delete pointer;' freigegeben worden
 			if( Ptr || SharedPtr.use_count()==1 )
 				share.SetNullptr();
 		}
