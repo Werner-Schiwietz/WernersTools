@@ -784,6 +784,43 @@ namespace autoptr
 			Assert::IsTrue( (void const *)pa == (void const *)pab || (void const *)pb == (void const *)pab );
 
 		}
+		TEST_METHOD(auto_ptr_dangling_pointer)
+		{
+			int acounter=0;
+			int ccounter=0;
+			struct A : WS::enable_auto_ptr_from_this<A>{int& counter;~A(){--counter;}A(int& counter):counter(++counter){}};
+			struct B : A{B(int& counter):A(counter){}};
+			struct C{int& counter;virtual ~C(){--counter;}C(int& counter):counter(++counter){}};
+			struct D : C{D(int& counter):C(counter){}};
+
+			{
+				WS::auto_ptr<A> aPtr;
+				WS::auto_ptr<C> cPtr;
+				{
+					Assert::IsFalse(aPtr);
+					Assert::IsFalse(cPtr);
+					Assert::AreEqual(acounter,0);
+					Assert::AreEqual(ccounter,0);
+					A a{acounter};
+					C c{ccounter};
+					Assert::AreEqual(acounter,1);
+					Assert::AreEqual(ccounter,1);
+					aPtr = &a;
+					cPtr = &c;
+					Assert::IsTrue(aPtr);
+					Assert::IsTrue(cPtr);
+					Assert::AreEqual(acounter,1);
+					Assert::AreEqual(ccounter,1);
+				}
+				//a und c sind zerstört
+				Assert::AreEqual(acounter,0);
+				Assert::AreEqual(ccounter,0);
+
+				//aPtr ist nullptr, aber cPtr ist nicht NULL
+				Assert::IsFalse(aPtr);//nullptr, weil A von enable_auto_ptr_from_this abgeleitet ist
+				Assert::IsTrue(cPtr);//tja, dangling pointer
+			}
+		}
 		TEST_METHOD(auto_ptr_from_this_delete)
 		{
 			int acounter=0;
