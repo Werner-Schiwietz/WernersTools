@@ -788,7 +788,7 @@ namespace autoptr
 		{
 			int acounter=0;
 			int ccounter=0;
-			struct A : WS::enable_auto_ptr_from_this<A>{int& counter;~A(){--counter;}A(int& counter):counter(++counter){}};
+			struct A : WS::enable_auto_ptr_from_this<A>{int& counter;virtual ~A(){--counter;}A(int& counter):counter(++counter){}};
 			struct B : A{B(int& counter):A(counter){}};
 			struct C{int& counter;virtual ~C(){--counter;}C(int& counter):counter(++counter){}};
 			struct D : C{D(int& counter):C(counter){}};
@@ -825,7 +825,7 @@ namespace autoptr
 		{
 			int acounter=0;
 			int ccounter=0;
-			struct A : WS::enable_auto_ptr_from_this<A>{int& counter;~A(){--counter;}A(int& counter):counter(++counter){}};
+			struct A : WS::enable_auto_ptr_from_this<A>{int& counter;virtual ~A(){--counter;}A(int& counter):counter(++counter){}};
 			struct B : A{B(int& counter):A(counter){}};
 			struct C{int& counter;virtual ~C(){--counter;}C(int& counter):counter(++counter){}};
 			struct D : C{D(int& counter):C(counter){}};
