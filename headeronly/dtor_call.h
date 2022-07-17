@@ -372,29 +372,33 @@ namespace WS
 		}
 		AutoResource& operator=(AutoResource const &) = delete;
 		AutoResource& operator=(AutoResource && r) { Move<eMovetype>(std::move(r)); return *this; }
-
-		template<enumDtor_call_Movetype =eMovetype>void SetResource( resource_t const & valueNeu ) = delete;
-		template<>void SetResource<enumDtor_call_Movetype::First>( resource_t const & valueNeu )
+	
+	private:
+		template<typename recource_type>void _SetResource( recource_type && valueNeu )
 		{
-			if( callrestore )
-				this->restore(this->value);
 			callrestore = true;
-			value = valueNeu;
+			value = std::forward<recource_type>(valueNeu);
 		}
-		template<>void SetResource<enumDtor_call_Movetype::Last>( resource_t const & valueNeu )
+	public:
+		template<typename recource_type>void SetResource( recource_type && valueNeu )
 		{
-			if( callrestore )
-				this->restore( valueNeu );
-		}
-		template<>void SetResource<enumDtor_call_Movetype::OnlyFirst>( resource_t const & valueNeu )
-		{
-			if( callrestore == false )
+			if constexpr (eMovetype==enumDtor_call_Movetype::First)
 			{
-				callrestore = true;
-				this->value = valueNeu;
+				release();
+				_SetResource(std::forward<>(valueNeu))
+			}
+			else if constexpr (eMovetype==enumDtor_call_Movetype::Last)
+			{
+				release();
+			}
+			else if constexpr (eMovetype==enumDtor_call_Movetype::OnlyFirst)
+			{
+				if( callrestore == false )
+				{
+					_SetResource(std::forward<>(valueNeu))
+				}
 			}
 		}
-
 		void swap(AutoResource & r)
 		{
 			std::swap(this->value, r.value);
@@ -415,8 +419,8 @@ namespace WS
 		{
 			if (callrestore)
 			{
-				restore(value);
 				callrestore = false;
+				restore(value);
 			}
 		}
 		void discard()

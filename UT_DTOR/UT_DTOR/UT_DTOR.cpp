@@ -60,3 +60,35 @@ namespace UT_DTOR
 		}
 	};
 }
+
+namespace UT_AutoResource
+{
+	TEST_CLASS(UT_AutoResource)
+	{
+	public:
+		TEST_METHOD(LockResource1)
+		{
+			auto locked = WS::LockResource(
+				[](int )->int
+				{
+					return 1;
+				}(5),
+				[](int v)->void
+				{
+					Assert::IsTrue(v==1);
+				}  );
+
+			Assert::IsTrue(locked == 1);
+			locked.release();
+		}
+		//TEST_METHOD(LockResource_void)
+		//{
+		//	auto locked = WS::LockResource<void(void)>(
+		//		[](void)->void
+		//	{
+		//	}  );
+
+		//	locked.release();
+		//}
+	};
+}
