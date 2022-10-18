@@ -81,14 +81,18 @@ namespace UT_AutoResource
 			Assert::IsTrue(locked == 1);
 			locked.release();
 		}
-		//TEST_METHOD(LockResource_void)
-		//{
+		TEST_METHOD(LockResource_void)
+		{
+			auto res1 = WS::LockResource<void(int)>( [](int){} );
+			//auto res2 = WS::LockResource<void(void)>( [](void){} );
+
+			auto dtorcall = CreateDtorCall([](){});
 		//	auto locked = WS::LockResource<void(void)>(
 		//		[](void)->void
 		//	{
 		//	}  );
 
 		//	locked.release();
-		//}
+		}
 	};
 }

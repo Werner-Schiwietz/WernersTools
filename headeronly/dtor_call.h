@@ -389,7 +389,7 @@ namespace WS
 			}
 			else if constexpr (eMovetype==enumDtor_call_Movetype::Last)
 			{
-				release();
+				restore(valueNeu);
 			}
 			else if constexpr (eMovetype==enumDtor_call_Movetype::OnlyFirst)
 			{
@@ -456,10 +456,10 @@ namespace WS
 	};
 
 	template<typename signatur>struct template_signatur;
-	template<typename return_t, typename parameter_t>struct template_signatur<return_t(parameter_t)>
+	template<typename return_type, typename parameter_type>struct template_signatur<return_type(parameter_type)>
 	{
-		typedef return_t return_t;
-		typedef parameter_t parameter_t;
+		using return_t = return_type;
+		using parameter_t = parameter_type;
 	};
 
 	//soll vorab ein restoreobjekt angelegt werden, muss als erster template-parameter die signatur der restore-funktion angegeben werden
