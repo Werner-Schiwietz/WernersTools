@@ -125,7 +125,7 @@ namespace WS
 			enum enumThreadState{running,process_and_terminate,terminate,blocked};
 			std::atomic<enumThreadState> threadstate{enumThreadState::running};
 			WS::Semaphore       semaphore;//ohne daten wird verarbeitungsthread schlafen gelegt
-			std::mutex          mutex;
+			mutex_t		        mutex;
 			std::thread         thread_working;
 			pipedata_type		data_pool;
 
@@ -150,7 +150,7 @@ namespace WS
 				}
 			}
 
-			auto pending()
+			auto pending(WS::lock_guard<mutex_t> locked)
 			{
 				struct pending_ret_t : WS::compare_bool
 				{
@@ -160,21 +160,29 @@ namespace WS
 					pending_ret_t( WS::lock_guard<mutex_t> && locked, size_t datasets ) : locked(std::move(locked)), datasets(datasets){}
 					auto count() const {return datasets;}
 					bool to_bool() const override{ return datasets>0; }
-				}ret_value( WS::lock_guard(this->mutex), this->data_pool.size() );
+				}ret_value( std::move(locked), this->data_pool.size() );
 				return ret_value;
+			}
+			auto pending()
+			{
+				return pending(WS::lock_guard(this->mutex));
 			}
 
 			std::optional<data_t> PopData()
 			{
-				auto looked = std::lock_guard(this->mutex);
-				return this->data_pool.PopData();
+				auto looked = WS::lock_guard(this->mutex);
+				auto data = this->data_pool.PopData();
+				auto moredata = pending(std::move(looked));//moredata hält den look
+				if( moredata == false )
+					this->semaphore.set_blocked();
+				return data;
 			}
 			template<typename ... addional_ts> void AddData( data_t && data, addional_ts && ... params )
 			{
 				auto looked = std::lock_guard(this->mutex);
 				data_pool.AddData( std::move(data),std::forward<addional_ts>(params)...);
 				if(this->threadstate==enumThreadState::running)
-					semaphore.set_running();//ggf. worker laufen lassen
+					this->semaphore.set_running();//ggf. worker laufen lassen
 			}
 		};
 		using data_syncro_t = Data<datapool_t>;
@@ -239,7 +247,12 @@ namespace WS
 			else
 			{
 				//keine daten mehr da. schlafen legen, mit neuen daten werden wir geweckt
-				pipedata->semaphore.set_blocked_and_wait();
+				//pipedata->semaphore.set_blocked_and_wait();
+				pipedata->semaphore.wait();
+				//if(auto erg = pipedata->pending())
+				//{
+				//	erg.count();
+				//}
 			}
 		}
 		//end-thread
