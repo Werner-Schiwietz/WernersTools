@@ -11,8 +11,15 @@ using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 #include "..\..\headeronly\SignatureTest.h"
 
 #include <string>
+#include <guiddef.h>
 
 #pragma warning(push,4)
+
+template<typename T> T xxxx()
+{
+	static_assert(false);
+}
+
 
 namespace UTPaserFkt
 {
@@ -234,7 +241,9 @@ namespace UTPaserFkt
 				if( auto erg=WS::eat_till( toparse, *erg1.begin(), '\\' ) )
 				{
 					Assert::IsTrue( WS::eat( toparse, *erg1.begin() ) );
-					Assert::IsTrue( erg==WS::iterator_access( "hallo" ) ); 
+					Assert::IsTrue( erg.eaten==WS::iterator_access( "hallo" ) ); //so geht es
+					//Assert::IsTrue( ((decltype(erg.eaten))erg)==WS::iterator_access( "hallo" ) ); //so geht es
+					//Assert::IsTrue( erg==WS::iterator_access( "hallo" ) ); //error, ging in früherer compilerversion
 					return;
 				}
 
@@ -468,7 +477,7 @@ namespace UTPaserFkt
 				auto erg = WS::skip_space( toparse );
 				Assert::IsTrue( toparse == WS::iterator_access("hallo") );
 				Assert::IsTrue( erg );
-				Assert::IsTrue( erg == WS::iterator_access("   \t") );
+				Assert::IsTrue( erg.eaten == WS::iterator_access("   \t") );
 				erg = WS::skip_space( toparse );
 				Assert::IsTrue( erg );
 				Assert::IsTrue( erg.eaten.empty() );
@@ -478,7 +487,7 @@ namespace UTPaserFkt
 				auto erg = WS::skip_space( toparse );
 				Assert::IsTrue( toparse == WS::iterator_access(L"hallo") );
 				Assert::IsTrue( erg );
-				Assert::IsTrue( erg == WS::iterator_access(L"   \t") );
+				Assert::IsTrue( erg.eaten == WS::iterator_access(L"   \t") );
 				erg = WS::skip_space( toparse );
 				Assert::IsTrue( erg );
 				Assert::IsTrue( erg.eaten.empty() );
@@ -582,5 +591,63 @@ namespace UTPaserFkt
 				{}
 			}
 		}
+		TEST_METHOD( UT_parse_guid )
+		{
+			//GUID guid; 
+			auto guid = L"{12345678-9ABC-DEF0-1234-56789ABCDEF0}";
+			auto toparse = WS::iterator_access(guid);
+
+			{
+				auto erg = WS::eat(toparse,L'{');
+				Assert::IsTrue( erg );
+			}
+			{
+				auto erg = WS::eat_integer<int,16>(toparse);
+				Assert::IsTrue( erg );
+				Assert::IsTrue( erg.value == 0x12345678 );
+			}
+			{
+				auto erg = WS::eat(toparse,L'-');
+				Assert::IsTrue( erg );
+			}
+			{
+				auto erg = WS::eat_integer<unsigned _int16,16>(toparse);
+				Assert::IsTrue( erg );
+				Assert::IsTrue( erg.value == 0x9abc );
+			}
+			{
+				auto erg = WS::eat(toparse,L'-');
+				Assert::IsTrue( erg );
+			}
+			{
+				auto erg = WS::eat_integer<unsigned _int16,16>(toparse);
+				Assert::IsTrue( erg );
+				Assert::IsTrue( erg.value == 0xdef0 );
+			}
+			{
+				auto erg = WS::eat(toparse,L'-');
+				Assert::IsTrue( erg );
+			}
+			{
+				auto erg = WS::eat_integer<unsigned _int16,16>(toparse);
+				Assert::IsTrue( erg );
+				Assert::IsTrue( erg.value == 0x1234 );
+			}
+			{
+				auto erg = WS::eat(toparse,L'-');
+				Assert::IsTrue( erg );
+			}
+			{
+				auto erg = WS::eat_integer<unsigned _int64,16>(toparse);
+				Assert::IsTrue( erg );
+				Assert::IsTrue( erg.value == 0x56789ABCDEF0ui64 );
+			}
+			{
+				auto erg = WS::eat(toparse,L'}');
+				Assert::IsTrue( erg );
+			}
+		}
+
 	};
+
 }

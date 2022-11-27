@@ -63,6 +63,8 @@ namespace WS
 		}
 	};
 
+
+
 	template<typename T> bool _eat_unchecked( _iterator_access<T> & container, typename _iterator_access<T>::value_t const & item )
 	{
 		if( *container.begin() == item )
@@ -72,6 +74,18 @@ namespace WS
 		}
 		return false;
 	}	
+
+	//erstes item wegnehmen
+	template<typename T> bool eat( _iterator_access<T> & container )
+	{
+		if( *container.begin() != *container.end() )
+		{
+			++container.begin();
+			return true;
+		}
+		return false;
+	}	
+
 	template<typename T> bool eat( _iterator_access<T> & container, typename _iterator_access<T>::value_t const & item )
 	{
 		if( container.begin() != container.end() )
@@ -355,21 +369,25 @@ namespace WS
 		bool operator !() { return !parsed; }
 		operator integer_t(){ return value; }
 	};
-	template<typename integer_t,typename T> rettype_eat_integer<integer_t,T> eat_integer( _iterator_access<T> & container ) noexcept(false)//wirft bei ueberlauf exception
+	template<typename integer_t,int radix=10,typename T> rettype_eat_integer<integer_t,T> eat_integer( _iterator_access<T> & container ) noexcept(false)//wirft bei ueberlauf exception
 	{
 		rettype_eat_integer<integer_t,T> ret_value{container};
 
-		using char_t = _iterator_access<T>::value_t;
-		using function_t = bool(*)(char_t);
-
-		while( auto erg=eat_if( container, (function_t)&ist_digit ) )
+		while( container.begin() != container.end() )
 		{
-			auto old = ret_value.value;
-			ret_value.value = static_cast<integer_t>(ret_value.value*10 + *erg.begin() - char_t( '0' ));
-			if( ret_value.value<old )
-				throw std::out_of_range( __FUNCTION__ " overflow" );
-			++ret_value.parsed.end();
+			if( auto erg = digit<radix>(*ret_value.parsed.end()) )
+			{
+				auto old = ret_value.value;
+				ret_value.value = ret_value.value * radix + static_cast<integer_t>(erg.value);
+				if( ret_value.value<old )
+					throw std::out_of_range( __FUNCTION__ " overflow" );
+				++ret_value.parsed.end();
+				++container.begin();
+			}
+			else
+				break;
 		}
+
 		return ret_value;
 	}
 	template<typename integer_t,typename T> rettype_eat_integer<integer_t,T> eat_integer( _iterator_access<T> && container ) noexcept(false)//wirft bei ueberlauf exception

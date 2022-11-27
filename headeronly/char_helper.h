@@ -31,6 +31,71 @@
 typedef char	CHAR8;
 typedef wchar_t CHAR16;
 
+struct rettype_digit
+{
+	bool	is=false;
+	int		value{};
+
+	rettype_digit(int value):value(value),is(true){}
+	rettype_digit(){}
+
+	operator bool() const{ return is;}
+	bool operator !() const{ return !is;}
+};
+template<int radix=10> rettype_digit digit( char ch );
+template<> rettype_digit digit<8>( char ch )
+{
+
+	if( ! (ch<'0' ||'7'< ch) )
+		return {ch-'0'};
+	return {};
+}
+template<> rettype_digit digit<10>( char ch )
+{
+	if( ! (ch<'0' ||'9'< ch) )
+		return {ch-'0'};
+	return {};
+}
+template<> rettype_digit digit<16>( char ch )
+{
+	if( ! (ch<'0' ||'9'< ch) )
+		return {ch-'0'};
+
+	if( ! (ch<'A' ||'F'< ch) )
+		return {ch-'A' + 10};
+
+	if( ! (ch<'a' ||'f'< ch) )
+		return {ch-'a' + 10};
+	return {};
+}
+
+template<int radix=10> rettype_digit digit( wchar_t ch );
+template<> rettype_digit digit<8>( wchar_t ch )
+{
+
+	if( ! (ch<L'0' || L'7'< ch) )
+		return {ch-L'0'};
+	return {};
+}
+template<> rettype_digit digit<10>( wchar_t ch )
+{
+	if( ! (ch<L'0' || L'9'< ch) )
+		return {ch-L'0'};
+	return {};
+}
+template<> rettype_digit digit<16>( wchar_t ch )
+{
+	if( ! (ch<L'0' || L'9'< ch) )
+		return {ch-L'0'};
+
+	if( ! (ch<L'A' || L'F'< ch) )
+		return {ch-L'A' + 10};
+
+	if( ! (ch<L'a' || L'f'< ch) )
+		return {ch-L'a' + 10};
+	return {};
+}
+
 inline bool ist_digit( char ch )
 {
 	return !!isdigit( (int)(unsigned char)ch );
