@@ -43,20 +43,20 @@ struct rettype_digit
 	bool operator !() const{ return !is;}
 };
 template<int radix=10> rettype_digit digit( char ch );
-template<> rettype_digit digit<8>( char ch )
+template<> inline rettype_digit digit<8>( char ch )
 {
 
 	if( ! (ch<'0' ||'7'< ch) )
 		return {ch-'0'};
 	return {};
 }
-template<> rettype_digit digit<10>( char ch )
+template<> inline rettype_digit digit<10>( char ch )
 {
 	if( ! (ch<'0' ||'9'< ch) )
 		return {ch-'0'};
 	return {};
 }
-template<> rettype_digit digit<16>( char ch )
+template<> inline rettype_digit digit<16>( char ch )
 {
 	if( ! (ch<'0' ||'9'< ch) )
 		return {ch-'0'};
@@ -70,20 +70,20 @@ template<> rettype_digit digit<16>( char ch )
 }
 
 template<int radix=10> rettype_digit digit( wchar_t ch );
-template<> rettype_digit digit<8>( wchar_t ch )
+template<> inline rettype_digit digit<8>( wchar_t ch )
 {
 
 	if( ! (ch<L'0' || L'7'< ch) )
 		return {ch-L'0'};
 	return {};
 }
-template<> rettype_digit digit<10>( wchar_t ch )
+template<> inline rettype_digit digit<10>( wchar_t ch )
 {
 	if( ! (ch<L'0' || L'9'< ch) )
 		return {ch-L'0'};
 	return {};
 }
-template<> rettype_digit digit<16>( wchar_t ch )
+template<> inline rettype_digit digit<16>( wchar_t ch )
 {
 	if( ! (ch<L'0' || L'9'< ch) )
 		return {ch-L'0'};
