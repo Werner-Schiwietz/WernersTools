@@ -25,10 +25,12 @@ namespace WS
 {
 	enum class parse_error
 	{
-		none,
-		incomplete,
-		tillitem_not_found,
-		invalid_escape_sequence
+		  none
+		, incomplete
+		, tillitem_not_found
+		, invalid_escape_sequence
+		, interger_overflow
+		, length
 	};
 	template<typename T> struct rettype_eat
 	{
@@ -36,7 +38,8 @@ namespace WS
 		_iterator_access<T> eaten_till_error;
 		parse_error error = parse_error::none;
 
-		operator bool() { return eaten; }
+		operator bool() { return this->error == parse_error::none; }
+		bool operator !() { return this->error != parse_error::none; }
 		operator _iterator_access<T>() { return eaten; }
 		operator parse_error() { return error; }
 
@@ -359,34 +362,43 @@ namespace WS
 		return retvalue;
 	}
 
-	template<typename integer_t,typename T> struct rettype_eat_integer
+	template<typename integer_t,typename T> struct rettype_eat_integer : rettype_eat<T>
 	{
+		using base_t = rettype_eat<T>;
 		integer_t			value = integer_t{0};
-		_iterator_access<T> parsed;
+
 		rettype_eat_integer() {};
-		rettype_eat_integer(_iterator_access<T> & container) : parsed{container.begin(),container.begin(),container.rvalue_lifetime_extender} {};
-		operator bool() { return parsed; }
-		bool operator !() { return !parsed; }
+		rettype_eat_integer(_iterator_access<T> & container) : base_t{container,container.begin(),container.begin()} {};
+
 		operator integer_t(){ return value; }
 	};
 	template<typename integer_t,int radix=10,typename T> rettype_eat_integer<integer_t,T> eat_integer( _iterator_access<T> & container ) noexcept(false)//wirft bei ueberlauf exception
 	{
 		rettype_eat_integer<integer_t,T> ret_value{container};
+		ret_value.error = parse_error::incomplete;
 
 		while( container.begin() != container.end() )
 		{
-			if( auto erg = digit<radix>(*ret_value.parsed.end()) )
+			if( auto erg = digit<radix>(*ret_value.eaten.end()) )
 			{
+				ret_value.error = parse_error::none;//mindestens eine Zahl gefunden
+
 				auto old = ret_value.value;
 				ret_value.value = ret_value.value * radix + static_cast<integer_t>(erg.value);
 				if( ret_value.value<old )
-					throw std::out_of_range( __FUNCTION__ " overflow" );
-				++ret_value.parsed.end();
-				++container.begin();
+				{
+					ret_value.error = parse_error::interger_overflow;
+					ret_value.eaten_till_error = ret_value.eaten;
+					return ret_value;
+					//throw std::out_of_range( __FUNCTION__ " overflow" );
+				}
+				++ret_value.eaten.end();
 			}
 			else
 				break;
 		}
+		
+		container.begin() = ret_value.eaten.end();
 
 		return ret_value;
 	}

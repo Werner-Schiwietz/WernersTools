@@ -582,13 +582,9 @@ namespace UTPaserFkt
 //#pragma warning(suppress:4996)
 //				xi = *x.GetNextEntry();
 
-				try
-				{
-					auto erg = WS::eat_integer<__int8>( toparse );
-					Assert::Fail( L"should overflow" );
-				}
-				catch(...)
-				{}
+				auto erg = WS::eat_integer<__int8>( toparse );
+				Assert::IsFalse( erg );
+				Assert::IsTrue( erg.error==WS::parse_error::interger_overflow );
 			}
 		}
 		TEST_METHOD( UT_parse_guid )
