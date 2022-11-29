@@ -12,6 +12,7 @@ using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 
 #include <string>
 #include <guiddef.h>
+#include <rpc.h>
 
 #pragma warning(push,4)
 
@@ -589,17 +590,124 @@ namespace UTPaserFkt
 		}
 		TEST_METHOD( UT_parse_guid )
 		{
-			//GUID guid; 
-			auto guid = L"{12345678-9ABC-DEF0-1234-56789ABCDEF0}";
-			auto toparse = WS::iterator_access(guid);
+			auto eat_guid = [](auto guidstring)
+			{
+				auto toparse = guidstring;
 
+				using iterator_t = decltype(guidstring)::iterator_t;
+				struct rettype_eat_guid : WS::rettype_eat<iterator_t>
+				{
+					using base_t = WS::rettype_eat<iterator_t>;
+					_GUID  guid {};
+
+					rettype_eat_guid(WS::_iterator_access<iterator_t> & container) : base_t{container,container.begin(),container.begin()} {};
+
+					operator _GUID const &() const { return guid; }
+				}ret_value{toparse};
+
+				if( auto erg = WS::eat(toparse,L'{'); !erg )
+				{
+					ret_value.eaten_till_error = ret_value.eaten;
+					return ret_value;
+				}
+
+				if( auto erg = WS::eat_integer<unsigned _int32,16>(toparse); !erg || erg.eaten.len()!=8 )
+				{
+					ret_value.eaten_till_error = ret_value.eaten;
+					return ret_value;
+				}
+				else 
+					ret_value.guid.Data1 = erg.value;
+
+				if( auto erg = WS::eat(toparse,L'-'); !erg )
+				{
+					ret_value.eaten_till_error = ret_value.eaten;
+					return ret_value;
+				}
+				if( auto erg = WS::eat_integer<unsigned _int16,16>(toparse); !erg || erg.eaten.len()!=4 )
+				{
+					ret_value.eaten_till_error = ret_value.eaten;
+					return ret_value;
+				}
+				else 
+				{
+					ret_value.guid.Data2 = erg.value;
+				}
+
+				if( auto erg = WS::eat(toparse,L'-'); !erg )
+				{
+					ret_value.eaten_till_error = ret_value.eaten;
+					return ret_value;
+				}
+				if( auto erg = WS::eat_integer<unsigned _int16,16>(toparse); !erg || erg.eaten.len()!=4 )
+				{
+					ret_value.eaten_till_error = ret_value.eaten;
+					return ret_value;
+				}
+				else 
+					ret_value.guid.Data3 = erg.value;
+
+				if( auto erg = WS::eat(toparse,L'-'); !erg )
+				{
+					ret_value.eaten_till_error = ret_value.eaten;
+					return ret_value;
+				}
+				auto erg3_1 = WS::eat_integer<unsigned _int16,16>(toparse);
+				if( !erg3_1 || erg3_1.eaten.len()!=4 )
+				{
+					ret_value.eaten_till_error = ret_value.eaten;
+					return ret_value;
+				}
+				if( auto erg = WS::eat(toparse,L'-'); !erg )
+				{
+					ret_value.eaten_till_error = ret_value.eaten;
+					return ret_value;
+				}
+				auto erg3_2 = WS::eat_integer<unsigned _int64,16>(toparse);
+				if( !erg3_2 || erg3_2.eaten.len()!=12 )
+				{
+					ret_value.eaten_till_error = ret_value.eaten;
+					return ret_value;
+				}
+				if( auto erg = WS::eat(toparse,L'}'); !erg )
+				{
+					ret_value.eaten_till_error = ret_value.eaten;
+					return ret_value;
+				}
+
+				ret_value.guid.Data4[0]= static_cast<unsigned char>(erg3_1.value>>8);
+				ret_value.guid.Data4[1]= static_cast<unsigned char>(erg3_1.value);
+				auto v = erg3_2.value;
+				for( int i=6; i --> 0; )
+				{
+					ret_value.guid.Data4[i+2]= static_cast<unsigned char>(v);
+					v>>=8;
+				}
+
+				return ret_value;
+			};
+			//GUID guid; 
+			auto guidtext		= L"{12345678-9ABC-DEF0-1234-56789ABCDEF0}hallo";
+			auto guidtextpure	= L"12345678-9ABC-DEF0-1234-56789ABCDEF0";
+			auto toparse = WS::iterator_access(guidtext);
+			{
+				auto erg = eat_guid(toparse);
+				Assert::IsTrue( erg );
+				_GUID guid{};
+
+				UuidFromString(reinterpret_cast<RPC_WSTR>(const_cast<std::remove_const_t<std::remove_pointer_t<decltype(guidtextpure)>>*>(guidtextpure)),&guid);
+				Assert::IsTrue( erg.guid == guid );
+			}
+
+			toparse = WS::iterator_access(guidtext);
 			{
 				auto erg = WS::eat(toparse,L'{');
 				Assert::IsTrue( erg );
 			}
 			{
-				auto erg = WS::eat_integer<int,16>(toparse);
+				auto erg = WS::eat_integer<unsigned _int32,16>(toparse);
 				Assert::IsTrue( erg );
+				Assert::IsTrue( erg.eaten.len()==8 );
 				Assert::IsTrue( erg.value == 0x12345678 );
 			}
 			{
@@ -609,6 +717,7 @@ namespace UTPaserFkt
 			{
 				auto erg = WS::eat_integer<unsigned _int16,16>(toparse);
 				Assert::IsTrue( erg );
+				Assert::IsTrue( erg.eaten.len()==4 );
 				Assert::IsTrue( erg.value == 0x9abc );
 			}
 			{
@@ -618,6 +727,7 @@ namespace UTPaserFkt
 			{
 				auto erg = WS::eat_integer<unsigned _int16,16>(toparse);
 				Assert::IsTrue( erg );
+				Assert::IsTrue( erg.eaten.len()==4 );
 				Assert::IsTrue( erg.value == 0xdef0 );
 			}
 			{
@@ -627,6 +737,7 @@ namespace UTPaserFkt
 			{
 				auto erg = WS::eat_integer<unsigned _int16,16>(toparse);
 				Assert::IsTrue( erg );
+				Assert::IsTrue( erg.eaten.len()==4 );
 				Assert::IsTrue( erg.value == 0x1234 );
 			}
 			{
@@ -636,6 +747,7 @@ namespace UTPaserFkt
 			{
 				auto erg = WS::eat_integer<unsigned _int64,16>(toparse);
 				Assert::IsTrue( erg );
+				Assert::IsTrue( erg.eaten.len()==12 );
 				Assert::IsTrue( erg.value == 0x56789ABCDEF0ui64 );
 			}
 			{
