@@ -30,7 +30,10 @@ namespace WS
 		, tillitem_not_found
 		, invalid_escape_sequence
 		, interger_overflow
+		, invalid
 		, length
+		, left_without_right
+		, delimiter
 	};
 	template<typename T> struct rettype_eat
 	{

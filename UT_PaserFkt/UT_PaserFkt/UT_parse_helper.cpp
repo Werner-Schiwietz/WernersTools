@@ -16,12 +16,154 @@ using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 
 #pragma warning(push,4)
 
-template<typename T> T xxxx()
+template<typename T> T X()
 {
 	static_assert(false);
+	return T{};
 }
 
+namespace WS
+{
+	template<typename iterator_t> auto eat_guid( WS::_iterator_access<iterator_t> & guidstring, typename WS::_iterator_access<iterator_t>::value_t delimiter= WS::_iterator_access<iterator_t>::value_t( '-' ) )
+	{
+		auto toparse = guidstring;
+		using value_t = WS::_iterator_access<iterator_t>::value_t;
+		auto left_parentheses = value_t{'{'};
+		auto right_parentheses = value_t{'}'};
 
+		//using iterator_t = std::remove_reference_t<decltype(guidstring)>::iterator_t;
+		struct rettype_eat_guid : WS::rettype_eat<iterator_t>
+		{
+			using base_t = WS::rettype_eat<iterator_t>;
+			_GUID	guid{};
+			bool	with_parenthese = false;
+
+			rettype_eat_guid( WS::_iterator_access<iterator_t> & container ) : base_t{container,container.begin(),container.begin()} {}
+
+			operator _GUID const & () const { return guid; }
+		}ret_value{toparse};
+
+		ret_value.with_parenthese = WS::eat( toparse, left_parentheses );
+		ret_value.eaten.end()=toparse.begin();
+
+		if( auto erg = WS::eat_integer<unsigned _int32, 16>( toparse ); !erg || erg.eaten.len()!=8 )
+		{
+			ret_value.error = parse_error::length;
+			ret_value.eaten_till_error = ret_value.eaten;
+			return ret_value;
+		}
+		else
+		{
+			ret_value.guid.Data1 = erg.value;
+		}
+		ret_value.eaten.end()=toparse.begin();
+
+		if( auto erg = WS::eat( toparse, delimiter ); !erg )
+		{
+			ret_value.error = parse_error::delimiter;
+			ret_value.eaten_till_error = ret_value.eaten;
+			return ret_value;
+		}
+		ret_value.eaten.end()=toparse.begin();
+
+		if( auto erg = WS::eat_integer<unsigned _int16, 16>( toparse ); !erg || erg.eaten.len()!=4 )
+		{
+			ret_value.error = parse_error::length;
+			ret_value.eaten_till_error = ret_value.eaten;
+			return ret_value;
+		}
+		else
+		{
+			ret_value.guid.Data2 = erg.value;
+		}
+		ret_value.eaten.end()=toparse.begin();
+
+		if( auto erg = WS::eat( toparse, delimiter ); !erg )
+		{
+			ret_value.error = parse_error::delimiter;
+			ret_value.eaten_till_error = ret_value.eaten;
+			return ret_value;
+		}
+		ret_value.eaten.end()=toparse.begin();
+
+		if( auto erg = WS::eat_integer<unsigned _int16, 16>( toparse ); !erg || erg.eaten.len()!=4 )
+		{
+			ret_value.error = parse_error::length;
+			ret_value.eaten_till_error = ret_value.eaten;
+			return ret_value;
+		}
+		else
+			ret_value.guid.Data3 = erg.value;
+		ret_value.eaten.end()=toparse.begin();
+
+		if( auto erg = WS::eat( toparse, delimiter ); !erg )
+		{
+			ret_value.error = parse_error::delimiter;
+			ret_value.eaten_till_error = ret_value.eaten;
+			return ret_value;
+		}
+		ret_value.eaten.end()=toparse.begin();
+
+		auto erg3_1 = WS::eat_integer<unsigned _int16, 16>( toparse );
+		if( !erg3_1 || erg3_1.eaten.len()!=4 )
+		{
+			ret_value.error = parse_error::length;
+			ret_value.eaten_till_error = ret_value.eaten;
+			return ret_value;
+		}
+		ret_value.eaten.end()=toparse.begin();
+
+		if( auto erg = WS::eat( toparse, delimiter ); !erg )
+		{
+			ret_value.error = parse_error::delimiter;
+			ret_value.eaten_till_error = ret_value.eaten;
+			return ret_value;
+		}
+		ret_value.eaten.end()=toparse.begin();
+
+		auto erg3_2 = WS::eat_integer<unsigned _int64, 16>( toparse );
+		if( !erg3_2 || erg3_2.eaten.len()!=12 )
+		{
+			ret_value.error = parse_error::length;
+			ret_value.eaten_till_error = ret_value.eaten;
+			return ret_value;
+		}
+		ret_value.eaten.end()=toparse.begin();
+
+		if( ret_value.with_parenthese )
+		{
+			if( auto erg = WS::eat( toparse, right_parentheses ); !erg )
+			{
+				ret_value.error = WS::parse_error::left_without_right;
+				ret_value.eaten_till_error = ret_value.eaten;
+				return ret_value;
+			}
+			ret_value.eaten.end()=toparse.begin();
+		}
+
+		ret_value.guid.Data4[0]= static_cast<unsigned char>(erg3_1.value>>8);
+		ret_value.guid.Data4[1]= static_cast<unsigned char>(erg3_1.value);
+		auto v = erg3_2.value;
+		for( int i=6; i--> 0; )
+		{
+			ret_value.guid.Data4[i+2]= static_cast<unsigned char>(v);
+			v>>=8;
+		}
+
+		guidstring.begin()=toparse.begin();
+		return ret_value;
+	}
+	template<typename iterator_t> auto eat_guid( WS::_iterator_access<iterator_t> && guidstring, typename WS::_iterator_access<iterator_t>::value_t delimiter= WS::_iterator_access<iterator_t>::value_t( '-' ) )
+	{
+		return eat_guid( guidstring, delimiter );
+	}
+	template<typename char_t> auto eat_guid( char_t const * guidstring )
+	{
+		auto toparse = WS::iterator_access( guidstring );
+		return eat_guid( toparse );
+	}
+}
+ 
 namespace UTPaserFkt
 {
 	template<typename container_t
@@ -590,115 +732,62 @@ namespace UTPaserFkt
 		}
 		TEST_METHOD( UT_parse_guid )
 		{
-			auto eat_guid = [](auto guidstring)
-			{
-				auto toparse = guidstring;
-
-				using iterator_t = decltype(guidstring)::iterator_t;
-				struct rettype_eat_guid : WS::rettype_eat<iterator_t>
-				{
-					using base_t = WS::rettype_eat<iterator_t>;
-					_GUID  guid {};
-
-					rettype_eat_guid(WS::_iterator_access<iterator_t> & container) : base_t{container,container.begin(),container.begin()} {};
-
-					operator _GUID const &() const { return guid; }
-				}ret_value{toparse};
-
-				if( auto erg = WS::eat(toparse,L'{'); !erg )
-				{
-					ret_value.eaten_till_error = ret_value.eaten;
-					return ret_value;
-				}
-
-				if( auto erg = WS::eat_integer<unsigned _int32,16>(toparse); !erg || erg.eaten.len()!=8 )
-				{
-					ret_value.eaten_till_error = ret_value.eaten;
-					return ret_value;
-				}
-				else 
-					ret_value.guid.Data1 = erg.value;
-
-				if( auto erg = WS::eat(toparse,L'-'); !erg )
-				{
-					ret_value.eaten_till_error = ret_value.eaten;
-					return ret_value;
-				}
-				if( auto erg = WS::eat_integer<unsigned _int16,16>(toparse); !erg || erg.eaten.len()!=4 )
-				{
-					ret_value.eaten_till_error = ret_value.eaten;
-					return ret_value;
-				}
-				else 
-				{
-					ret_value.guid.Data2 = erg.value;
-				}
-
-				if( auto erg = WS::eat(toparse,L'-'); !erg )
-				{
-					ret_value.eaten_till_error = ret_value.eaten;
-					return ret_value;
-				}
-				if( auto erg = WS::eat_integer<unsigned _int16,16>(toparse); !erg || erg.eaten.len()!=4 )
-				{
-					ret_value.eaten_till_error = ret_value.eaten;
-					return ret_value;
-				}
-				else 
-					ret_value.guid.Data3 = erg.value;
-
-				if( auto erg = WS::eat(toparse,L'-'); !erg )
-				{
-					ret_value.eaten_till_error = ret_value.eaten;
-					return ret_value;
-				}
-				auto erg3_1 = WS::eat_integer<unsigned _int16,16>(toparse);
-				if( !erg3_1 || erg3_1.eaten.len()!=4 )
-				{
-					ret_value.eaten_till_error = ret_value.eaten;
-					return ret_value;
-				}
-				if( auto erg = WS::eat(toparse,L'-'); !erg )
-				{
-					ret_value.eaten_till_error = ret_value.eaten;
-					return ret_value;
-				}
-				auto erg3_2 = WS::eat_integer<unsigned _int64,16>(toparse);
-				if( !erg3_2 || erg3_2.eaten.len()!=12 )
-				{
-					ret_value.eaten_till_error = ret_value.eaten;
-					return ret_value;
-				}
-				if( auto erg = WS::eat(toparse,L'}'); !erg )
-				{
-					ret_value.eaten_till_error = ret_value.eaten;
-					return ret_value;
-				}
-
-				ret_value.guid.Data4[0]= static_cast<unsigned char>(erg3_1.value>>8);
-				ret_value.guid.Data4[1]= static_cast<unsigned char>(erg3_1.value);
-				auto v = erg3_2.value;
-				for( int i=6; i --> 0; )
-				{
-					ret_value.guid.Data4[i+2]= static_cast<unsigned char>(v);
-					v>>=8;
-				}
-
-				return ret_value;
-			};
 			//GUID guid; 
 			auto guidtext		= L"{12345678-9ABC-DEF0-1234-56789ABCDEF0}hallo";
 			auto guidtextpure	= L"12345678-9ABC-DEF0-1234-56789ABCDEF0";
-			auto toparse = WS::iterator_access(guidtext);
-			{
-				auto erg = eat_guid(toparse);
-				Assert::IsTrue( erg );
-				_GUID guid{};
 
-				UuidFromString(reinterpret_cast<RPC_WSTR>(const_cast<std::remove_const_t<std::remove_pointer_t<decltype(guidtextpure)>>*>(guidtextpure)),&guid);
+			{
+				auto erg = WS::eat_guid(guidtextpure);
+				Assert::IsTrue( erg );
+				Assert::IsFalse( erg.with_parenthese );
+				auto toparse = WS::iterator_access(guidtext);
+				erg = WS::eat_guid(toparse);
+				Assert::IsTrue( erg );
+				Assert::IsTrue( erg.with_parenthese );
+				Assert::IsTrue( toparse==WS::iterator_access(L"hallo") );
+				toparse = WS::iterator_access(guidtext+1);
+				erg = WS::eat_guid(toparse);
+				Assert::IsTrue( erg );
+				Assert::IsFalse( erg.with_parenthese );
+				Assert::IsTrue( toparse==WS::iterator_access(L"}hallo") );
+
+				_GUID guid{};
+				auto erg2=UuidFromStringW(reinterpret_cast<RPC_WSTR>(const_cast<std::remove_const_t<std::remove_pointer_t<decltype(guidtextpure)>>*>(guidtextpure)),&guid);
+				Assert::IsTrue(erg2==RPC_S_OK);
+
 				Assert::IsTrue( erg.guid == guid );
+				Assert::IsTrue( guid == erg );
+			}
+
+			{
+				auto toparse = WS::iterator_access( "12345678-9ABC-DEF0-1234-56789ABCDEF0}" );
+				auto erg = WS::eat_guid( toparse );
+				Assert::IsTrue( erg );
+				Assert::IsTrue( *toparse == '}' );
+			}
+		}
+		TEST_METHOD( UT_parse_guid_failed )
+		{
+			{
+				auto guidtest = "12345678-0ABC-DEF0-1234-56789ABCDEF0";
+
+				_GUID guid{};
+				//RPC_S_OK RPC_S_INVALID_STRING_UUID
+				auto erg2 = UuidFromStringA(reinterpret_cast<RPC_CSTR>(const_cast<std::remove_const_t<std::remove_pointer_t<decltype(guidtest)>>*>(guidtest)),&guid);
+				Assert::IsTrue(erg2==RPC_S_OK);
+			}
+			{
+				auto guidtest = "12345678-ABC-DEF0-1234-56789ABCDEF0";
+
+				_GUID guid{};
+				auto erg2 = UuidFromStringA(reinterpret_cast<RPC_CSTR>(const_cast<std::remove_const_t<std::remove_pointer_t<decltype(guidtest)>>*>(guidtest)),&guid);
+				Assert::IsFalse(erg2==RPC_S_OK);
+
+				auto erg = WS::eat_guid( "12345678-ABC-DEF0-1234-56789ABCDEF0" );
+				Assert::IsFalse(erg);
+				Assert::IsTrue(erg.error==WS::parse_error::length);
 			}
 		}
 	};
-
 }
+
