@@ -727,7 +727,7 @@ namespace UTPaserFkt
 
 				auto erg = WS::eat_integer<__int8>( toparse );
 				Assert::IsFalse( erg );
-				Assert::IsTrue( erg.error==WS::parse_error::interger_overflow );
+				Assert::IsTrue( erg.error==WS::parse_error::integer_overflow );
 			}
 		}
 		TEST_METHOD( UT_parse_guid )

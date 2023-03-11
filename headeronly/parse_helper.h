@@ -29,11 +29,12 @@ namespace WS
 		, incomplete
 		, tillitem_not_found
 		, invalid_escape_sequence
-		, interger_overflow
+		, integer_overflow
 		, invalid
+		, no_match
 		, length
-		, left_without_right
 		, delimiter
+		, left_without_right
 	};
 	template<typename T> struct rettype_eat
 	{
@@ -103,7 +104,7 @@ namespace WS
 	template<typename T, typename U> rettype_eat<T> eat( _iterator_access<T> & container_in, _iterator_access<U> const & items )
 	{
 		auto container = container_in;
-		auto error = parse_error::none;
+		auto error = parse_error::no_match;
 		
 		for( auto const & item : items )
 			if( eat( container, item ) == false )
@@ -214,7 +215,7 @@ namespace WS
 				container_in = container;
 			return erg;
 		}
-		return {container,container.begin(),container.begin()};
+		return {container,container.begin(),container.begin(),parse_error::no_match};
 	}
 	template<typename T> rettype_eat_flanked<T>  eat_flanked( _iterator_access<T> && container_in, left_t<T> const & left_item, right_t<T> const & right_item, escape_t<T> const & escape_item )
 	{
@@ -238,7 +239,7 @@ namespace WS
 				container_in = container;
 			return std::move(retvalue).setLeft(*erg_first_last_item.begin());
 		}
-		return {container_in, container_in.begin(),container_in.begin()};
+		return {container_in, container_in.begin(),container_in.begin(),parse_error::no_match};
 	}
 	template <typename container_t, typename value_t> container_t& append( container_t & container, value_t value )
 	{
@@ -378,7 +379,7 @@ namespace WS
 	template<typename integer_t,int radix=10,typename T> rettype_eat_integer<integer_t,T> eat_integer( _iterator_access<T> & container ) noexcept(false)//wirft bei ueberlauf exception
 	{
 		rettype_eat_integer<integer_t,T> ret_value{container};
-		ret_value.error = parse_error::incomplete;
+		ret_value.error = parse_error::no_match;
 
 		while( container.begin() != container.end() )
 		{
@@ -390,7 +391,7 @@ namespace WS
 				ret_value.value = ret_value.value * radix + static_cast<integer_t>(erg.value);
 				if( ret_value.value<old )
 				{
-					ret_value.error = parse_error::interger_overflow;
+					ret_value.error = parse_error::integer_overflow;
 					ret_value.eaten_till_error = ret_value.eaten;
 					return ret_value;
 					//throw std::out_of_range( __FUNCTION__ " overflow" );
