@@ -170,7 +170,7 @@ namespace UTPaserFkt
 			,typename function_t
 			, int = ( WS::canCall<function_t,bool(decltype(*std::declval<container_t>().begin()))>::value?1:0
 				    + WS::canCall<function_t,container_t(container_t&)>::value?2:0 )
-				>
+			>
 	struct _eat
 	{
 		static container_t call( container_t &container, function_t fn)
@@ -661,7 +661,48 @@ namespace UTPaserFkt
 	TEST_CLASS( UT_eat_komplex )
 	{
 	public:
+		TEST_METHOD( UT_eat_integercount )
+		{
+			auto toparse = WS::iterator_access( L"Hallo" );
+			{
+				auto erg = WS::eat_integercount<int>( toparse, 2 );
+				Assert::IsFalse( erg );
+			}
+			toparse = WS::iterator_access( L"12345" );
+			{
+				auto erg = WS::eat_integercount<int,16>( toparse, 2 );
+				Assert::IsTrue(erg);
+				Assert::IsTrue(erg.value==0x12);
+				erg = WS::eat_integercount<int,16>( toparse, 2 );
+				Assert::IsTrue(erg);
+				Assert::IsTrue(erg.value==0x34);
+				erg = WS::eat_integercount<int,16>( toparse, 2 );
+				Assert::IsFalse(erg);
+				Assert::IsTrue(toparse==WS::iterator_access(L"5"));
+			}
+			toparse = WS::iterator_access( L"123456" );
+			{
+				auto erg = WS::eat_integercount<int>( toparse, 1, 3 );
+				Assert::IsTrue(erg);
+				Assert::IsTrue(erg.value==123);
+				erg = WS::eat_integercount<int>( toparse, 1, 2 );
+				Assert::IsTrue(erg);
+				Assert::IsTrue(erg.value==45);
+				erg = WS::eat_integercount<int,16>( toparse, 2, 3 );
+				Assert::IsFalse(erg);
+				Assert::IsTrue(toparse==WS::iterator_access(L"6"));
+			}
+		}
+		TEST_METHOD( UT_eat_integercount_overflow )
+		{
+			auto toparse = WS::iterator_access( L"12345" );
 
+			{
+				auto erg = WS::eat_integercount<__int8,10>( toparse, 5 );
+				Assert::IsFalse(erg);
+				Assert::IsTrue(toparse==WS::iterator_access(L"12345"));
+			}
+		}
 		TEST_METHOD( UT_eat_integer_negativ )
 		{
 			{
