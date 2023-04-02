@@ -414,7 +414,7 @@ namespace UTPaserFkt
 			auto toparse = WS::iterator_access( "'hallo' 'welt'" );
 			auto erg = WS::eat_flanked( toparse, WS::flanked_type('\''), WS::escape_type('\\') );
 			Assert::IsTrue( erg );
-			Assert::IsTrue( erg.eaten == WS::iterator_access( "hallo" ) );
+			Assert::IsTrue( erg.value == WS::iterator_access( "hallo" ) );
 			Assert::IsTrue( erg.left == '\'' );
 			Assert::IsTrue( erg.right == '\'' );
 			Assert::IsTrue( toparse == WS::iterator_access( " 'welt'" ) );
@@ -424,7 +424,7 @@ namespace UTPaserFkt
 			auto toparse = WS::iterator_access( "[[hallo\\]] 'welt'" );
 			auto erg = WS::eat_flanked( toparse, WS::left_type('['), WS::right_type(']'), WS::escape_type('\\') );
 			Assert::IsTrue( erg );
-			Assert::IsTrue( erg.eaten == WS::iterator_access( "[hallo\\]" ) );
+			Assert::IsTrue( erg.value == WS::iterator_access( "[hallo\\]" ) );
 			Assert::IsTrue( erg.left == '[' );
 			Assert::IsTrue( erg.right == ']' );
 			Assert::IsTrue( toparse == WS::iterator_access( " 'welt'" ) );
@@ -452,7 +452,7 @@ namespace UTPaserFkt
 		{
 			auto flanked_out = WS::make_flanked<std::basic_string<char_t>>( WS::iterator_access(text), left,right,escape );
 			auto without_flank = WS::eat_flanked( WS::iterator_access( std::move(flanked_out) ), left,right,escape );
-			return WS::remove_escape( without_flank.eaten, escape );
+			return WS::remove_escape( without_flank.value, escape );
 		}
 		TEST_METHOD(remove_escape_LPCSTR)
 		{

@@ -193,13 +193,15 @@ namespace WS
     template<typename T> struct rettype_eat_flanked : rettype_eat<T>
     {
         using base_t = rettype_eat<T>;
+
         left_t<T> left{};
         right_t<T> right{};
+        _iterator_access<T> value;//ohne flanke
 
         operator bool(){return this->error==parse_error::none;}
 
-        auto && setLeft ( left_t<T>  value ) && { this->left =value; return std::move(*this); }
-        auto && setRight( right_t<T> value ) && { this->right=value; return std::move(*this); }
+        auto && setLeft ( left_t<T>  v ) && { this->left =v; return std::move(*this); }
+        auto && setRight( right_t<T> v ) && { this->right=v; return std::move(*this); }
 
         using base_t::base_t;
 
@@ -218,7 +220,11 @@ namespace WS
         {
             auto erg = _eat_flanked( container, right_item, escape_item ).setLeft(left_item);
             if( erg )
+            {
+                erg.value = _iterator_access<T>{erg.eaten.begin(),container.begin()-1,erg.eaten.rvalue_lifetime_extender};
+                erg.eaten = _iterator_access<T>{container_in.begin(),container.begin(),erg.eaten.rvalue_lifetime_extender} ;
                 container_in = container;
+            }
             return erg;
         }
         return {container,container.begin(),container.begin(),parse_error::no_match};
@@ -247,6 +253,7 @@ namespace WS
         }
         return {container_in, container_in.begin(),container_in.begin(),parse_error::no_match};
     }
+    
     template <typename container_t, typename value_t> container_t& append( container_t & container, value_t value )
     {
         return container += value;
@@ -283,7 +290,7 @@ namespace WS
 
     template<typename iterator_t>  _iterator_access<decltype(&*std::declval<iterator_t>())> remove_flank( _iterator_access<iterator_t> parse, left_t<iterator_t> const & left_item, right_t<iterator_t> const & right_item, escape_t<iterator_t> const & escape_item )
     {
-        return remove_escape( eat_flanked( parse, left_item, right_item, escape_item ).eaten, escape_item );
+        return remove_escape( eat_flanked( parse, left_item, right_item, escape_item ).value, escape_item );
     }
 
     template<typename iterator_t>  _iterator_access<decltype(&*std::declval<iterator_t>())> remove_flank( _iterator_access<iterator_t> parse, flanked_t<iterator_t> const & flank_item, escape_t<iterator_t> const & escape_item )
