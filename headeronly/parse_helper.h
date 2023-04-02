@@ -454,6 +454,8 @@ namespace WS
             auto erg2 = eat_integer<integer_t,radix>( erg.eaten );
             if( erg2 )
                 container = toparse;
+            else if( erg2.error==parse_error::no_match ) 
+                erg2.error = parse_error::none;
             return erg2;
         }
         return {};

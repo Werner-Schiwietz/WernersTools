@@ -667,6 +667,8 @@ namespace UTPaserFkt
 			{
 				auto erg = WS::eat_integercount<int>( toparse, 2 );
 				Assert::IsFalse( erg );
+				erg = WS::eat_integercount<int>( toparse, 0,2 );
+				Assert::IsTrue( erg );
 			}
 			toparse = WS::iterator_access( L"12345" );
 			{
