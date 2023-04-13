@@ -48,10 +48,20 @@ namespace WS
 namespace WS
 {
 	//container
-	template <typename value_t, typename U> auto is_in( value_t const & gesucht, U const & other ) 
-		-> std::enable_if_t<WS_exist::begin_v<U> || WS_exist::begin_WS_v<U> || WS_exist::begin_glbNS_v<U> || WS_exist::begin_std_v<U> || WS_has_method::begin_v<U>,bool>
+	template <typename value_t, typename U> auto is_in( value_t const & gesucht, U const & other ) -> std::enable_if_t<
+		WS_exist::begin_v<U> || WS_exist::begin_WS_v<U> || WS_exist::begin_glbNS_v<U> || WS_exist::begin_std_v<U> || WS_has_method::begin_v<U> ||
+		WS_exist::operator_equ_v<value_t,U> || WS_exist::operator_equ_v<U,value_t>
+		,bool>
 	{
-		if constexpr ( WS_exist::begin_v<U> )
+		if constexpr ( WS_exist::operator_equ_v<value_t,U> )
+		{
+			return gesucht == other;
+		}
+		else if constexpr ( WS_exist::operator_equ_v<U,value_t> )
+		{
+			return other == gesucht;
+		}
+		else if constexpr ( WS_exist::begin_v<U> )
 		{
 			auto b = begin(other);
 			auto e = end(other);

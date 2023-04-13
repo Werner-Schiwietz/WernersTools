@@ -104,6 +104,15 @@ namespace WS
 namespace WS_exist
 {
 	//SFINAE: Substitution Failure Is Not An Error
+	template <typename,typename> std::false_type _operator_equ_(unsigned long);
+	template <typename T,typename U> auto _operator_equ_(int) -> decltype( (std::declval<T>() == std::declval<U>()), std::true_type{} );
+	template <typename T,typename U> using operator_equ = decltype(_operator_equ_<T,U>(0));
+	template <typename T,typename U> static auto constexpr operator_equ_v = operator_equ<T,U>::value;
+}
+
+namespace WS_exist
+{
+	//SFINAE: Substitution Failure Is Not An Error
 	//std namespace
 	template <typename> std::false_type _begin_std(unsigned long);
 	template <typename T> auto _begin_std(int) -> decltype( std :: begin( std::declval<T>() ), std::true_type{} );

@@ -296,5 +296,24 @@ namespace UTisin
 			Assert::IsTrue( WS::is_in(text_wrapper{text.c_str()}, text_wrapper{"hallo"},(text_wrapper<char>)"welt",text_wrapper{"hallo welt"} ) );
 			Assert::IsFalse( WS::is_in(text_wrapper{text.c_str()}, text_wrapper{"hallo"},(text_wrapper<char>)"welt",text_wrapper{"hallo  welt"} ) );
 		}
+		TEST_METHOD(UT_string_sz)
+		{
+			char const * ptext = "hallo welt";
+			std::string text = ptext;
+
+			Assert::IsTrue( WS::is_in( text, std::string{ptext} ));
+			Assert::IsTrue( WS::is_in( text, ptext ));
+		}
+		TEST_METHOD(UT_string_vector_sz)
+		{
+			char const * ptext = "hallo welt";
+			std::string text = ptext;
+			std::vector<char const *> vec{"hallo","welt"};
+			Assert::IsFalse( WS::is_in( text, vec ));
+			Assert::IsTrue( WS::is_in( text, vec, ptext ));
+			vec.push_back( ptext );
+			Assert::IsTrue( WS::is_in( text, vec ));
+
+		}
 	};
 }
