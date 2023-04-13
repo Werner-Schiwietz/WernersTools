@@ -110,26 +110,26 @@ namespace UT_XML
 				Assert::IsTrue( toparse==WS::iterator_access("hier geht es weiter") );
 			}
 			{
-				auto toparse = WS::iterator_access("<!-- fehlerhafter -- Kommentar--!>hier geht es weiter");
+				auto toparse = WS::iterator_access("<!-- fehlerhafter -- Kommentar-->hier geht es weiter");
 				auto erg = WS::XML::eat_comment( toparse );
 				Assert::IsFalse( erg );
 				Assert::IsTrue( erg.error() );
 			}
             {
-                auto toparse = WS::iterator_access("<!-- fehlerhafter - - Kommentar -- minus-minus nicht erlaubt  --!>hier geht es weiter");
+                auto toparse = WS::iterator_access("<!-- fehlerhafter - - Kommentar -- minus-minus nicht erlaubt  -->hier geht es weiter");
                 auto erg = WS::XML::eat_comment( toparse );
                 Assert::IsFalse( erg );
                 Assert::IsTrue( erg.errorcode == decltype(erg)::enumError::invalidminusminus );
                 Assert::IsTrue( erg.error() );
             }
             {
-                auto toparse = WS::iterator_access("<!-- fehlerhafter Kommentar ---!>hier geht es weiter");
+                auto toparse = WS::iterator_access("<!-- fehlerhafter Kommentar --->hier geht es weiter");
                 auto erg = WS::XML::eat_comment( toparse );
                 Assert::IsFalse( erg );
                 Assert::IsTrue( erg.error() );
             }
             {
-                auto toparse = WS::iterator_access("<!-- fehlerhafter Kommentar im kommentar <!-- inner comment --!> --!>hier geht es weiter");
+                auto toparse = WS::iterator_access("<!-- fehlerhafter Kommentar im kommentar <!-- inner comment --> -->hier geht es weiter");
                 auto erg = WS::XML::eat_comment( toparse );
                 Assert::IsFalse( erg );
                 Assert::IsTrue( erg.error() );
