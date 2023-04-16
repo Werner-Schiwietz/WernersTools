@@ -3,6 +3,66 @@
 
 using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 
+#include <sstream>
+#include <iostream>
+#include <iomanip>
+#pragma region cout umleitung
+//wcout umleitung////////////////////////////////////
+template<typename char_t>
+class LoggerStreambuf : public std::basic_streambuf<char_t, std::char_traits<char_t>>
+{
+public:
+    using base_t = std::basic_streambuf<char_t, std::char_traits<char_t>>;
+    using int_type = typename base_t::int_type;
+    virtual int_type overflow( int_type c = EOF ) 
+    {
+        static std::basic_string<char_t, std::char_traits<char_t>, std::allocator<char_t>> buf;
+        if( c != EOF )
+        {
+            if( c != '\n' )
+                buf += static_cast<decltype(buf)::traits_type::char_type>( c );
+            else
+            {
+                Logger::WriteMessage( buf.c_str() );
+                buf.clear();
+            }
+        }
+        return c;
+    }
+};
+template<typename streambuf_t=LoggerStreambuf<char>>
+class Cout2Output
+{
+    streambuf_t dbgstream;
+    std::streambuf *default_stream;
+
+public:
+    Cout2Output() {
+        default_stream = std::cout.rdbuf( &dbgstream );
+    }
+
+    ~Cout2Output() {
+        std::cout.rdbuf( default_stream );
+    }
+};
+template<typename streambuf_t=LoggerStreambuf<wchar_t>>
+class WCout2Output
+{
+    streambuf_t dbgstream;
+    std::wstreambuf *default_stream;
+
+public:
+    WCout2Output() {
+        default_stream = std::wcout.rdbuf( &dbgstream );
+    }
+
+    ~WCout2Output() {
+        std::wcout.rdbuf( default_stream );
+    }
+};
+//cout umleitung////////////////////////////////////
+#pragma endregion
+
 #include "..\..\experimental\headeronly\xml.h"
 
 namespace UT_XML
@@ -243,5 +303,91 @@ namespace UT_XML
             }
 
         }
-	};
+        TEST_METHOD(eat_attribut_with_error)
+        {
+            {
+                auto toparse = WS::iterator_access(LR"#(name="0 &lt; 1 ist gleich 1 > 0)#");
+                auto erg = WS::XML::eat_attribut( toparse );
+                Assert::IsFalse( erg );
+            }
+            {
+                auto toparse = WS::iterator_access(LR"#(  )#");
+                auto erg = WS::XML::eat_attribut( toparse );
+                Assert::IsFalse( erg );
+                Assert::IsTrue( erg.errorcode== decltype(erg)::enumError::name_missing );
+            }
+            {
+                auto toparse = WS::iterator_access(LR"#(name "xx")#");
+                auto erg = WS::XML::eat_attribut( toparse );
+                Assert::IsFalse( erg );
+                Assert::IsTrue( erg.errorcode== decltype(erg)::enumError::assign_missing );
+            }
+            {
+                auto toparse = WS::iterator_access(LR"#(name=)#");
+                auto erg = WS::XML::eat_attribut( toparse );
+                Assert::IsFalse( erg );
+                Assert::IsTrue( erg.errorcode== decltype(erg)::enumError::value_missing );
+            }
+            {
+                auto toparse = WS::iterator_access(LR"#(name="offenes ende)#");
+                auto erg = WS::XML::eat_attribut( toparse );
+                Assert::IsFalse( erg );
+                Assert::IsTrue( erg.errorcode== decltype(erg)::enumError::value_parseerror );
+            }
+        }
+        TEST_METHOD(eat_STag)
+        {
+            {
+                auto value = WS::iterator_access(LR"#(<name>)#");
+                auto toparse = value;
+                auto erg = WS::XML::eat_STag( toparse );
+                Assert::IsTrue( erg );
+                Assert::IsTrue( erg.name == WS::iterator_access(LR"#(name)#") );
+                Assert::IsTrue( erg.attribute.size() == 0 );
+            }
+            {
+                auto value = WS::iterator_access(LR"#(<name attr1="hallo">)#");
+                auto toparse = value;
+                auto erg = WS::XML::eat_STag( toparse );
+                Assert::IsTrue( erg );
+                Assert::IsTrue( erg.name == WS::iterator_access(LR"#(name)#") );
+                Assert::IsTrue( erg.attribute.size() == 1 );
+            }
+            {
+                auto value = WS::iterator_access(LR"#(<name attr1="hallo" attr2 = "welt" >)#");
+                auto toparse = value;
+                auto erg = WS::XML::eat_STag( toparse );
+                Assert::IsTrue( erg );
+                Assert::IsTrue( erg.name == WS::iterator_access(LR"#(name)#") );
+                Assert::IsTrue( erg.attribute.size() == 2 );
+                Assert::IsTrue( erg.attribute[1].name == WS::iterator_access(LR"#(attr2)#") );
+                Assert::IsTrue( erg.attribute[1].value == WS::iterator_access(LR"#(welt)#") );
+            }
+        }
+    };
+    TEST_CLASS(UT_XML_Basics)
+    {
+        TEST_METHOD(UT_basechar_vs_namechar)
+        {
+            WCout2Output<> umleiten;
+            std::wcout << std::boolalpha;
+
+            for( auto ch=L' '; ch < L'\xffff'; ++ch )
+            {
+                auto e1 = WS::XML::_is_name_firstchar(ch);
+                auto e2 = WS::XML::_NameStartChar(ch);
+
+                if( e1 != e2 )
+                {
+                    std::wcout << std::setw(4) << std::setbase(16) << static_cast<unsigned int>(ch) << "'" << ch << L"' _is_name_firstchar=" << e1 << L" _NameStartChar=" << e2;
+                    std::wcout << L" NOT equal" << std::endl;
+                }
+                else
+                {
+                   // std::wcout << L" equal" << std::endl;
+                }
+
+            }
+        }
+    };
 }
