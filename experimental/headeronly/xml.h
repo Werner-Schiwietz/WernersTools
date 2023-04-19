@@ -18,6 +18,9 @@ namespace WS { namespace XML
 	template<typename char_t> constexpr char_t _doppelteshochkomma(){return '"';}
 	template<typename char_t> constexpr char_t _hochkomma(){return '\'';}
 	template<typename char_t> constexpr char_t _doppelkreuz(){return '#';}
+	template<typename char_t> constexpr char_t _slash(){return '/';}
+	template<typename char_t> constexpr char_t _x(){return 'x';}
+	template<typename char_t> constexpr char_t _X(){return 'X';}
 
 	template<typename char_t> constexpr char_t _lt(){return '<';}
 	template<typename iterator_access_t> constexpr iterator_access_t _lt_ref(){return iterator_access("lt"); }
@@ -497,7 +500,7 @@ namespace WS { namespace XML
 		return eat_complex( container_in, prolog_begin_tag<char_t>(), prolog_end_tag<char_t>() );
 	}
 
-	template<typename iterator_t> struct Referenz_eated
+	template<typename iterator_t> struct Reference_eated
 	{
 		using char_t = typename _iterator_access<iterator_t>::value_t;
 		char_t							value = 0;
@@ -506,7 +509,7 @@ namespace WS { namespace XML
 		operator bool(){return value!=0;}
 		bool operator !(){return value==0;}
 	};
-	template<typename iterator_t> Referenz_eated<iterator_t> eat_Referenz( _iterator_access<iterator_t> & container_in )
+	template<typename iterator_t> Reference_eated<iterator_t> eat_Reference( _iterator_access<iterator_t> & container_in )
 	{
 		using char_t = _iterator_access<iterator_t>::value_t;
 		char_t return_char = 0;
@@ -517,10 +520,23 @@ namespace WS { namespace XML
 			if( eat( container, _doppelkreuz<char_t>() ) )
 			{
 				bool eatonevalue=false;
-				while( auto digit = std::isdigit(*container.begin()) )
+				if( eat(container,_x<char_t>()) || eat(container, _X<char_t>() ) )
 				{
-					return_char = return_char*10 + static_cast<char_t>(digit) - static_cast<char_t>('0');
-					eatonevalue = true;
+					if( auto erg = eat_integer<char_t,16,iterator_t>(container) )
+					{
+						return_char = erg;
+						eatonevalue = true;
+						container_in = container;
+					}
+				}
+				else
+				{
+					if( auto erg = eat_integer<char_t,10,iterator_t>(container) )
+					{
+						return_char = erg;
+						eatonevalue = true;
+						container_in = container;
+					}
 				}
 				return eatonevalue; 
 			}
@@ -548,7 +564,7 @@ namespace WS { namespace XML
 
 			if( eat( container, _semicolon<char_t>() ) )
 			{
-				Referenz_eated<iterator_t> ret_value{ return_char };
+				Reference_eated<iterator_t> ret_value{ return_char };
 				ret_value.eated = _iterator_access<iterator_t>( container_in.begin(), container.begin() );
 				container_in = container;
 				return ret_value;
@@ -669,7 +685,7 @@ namespace WS { namespace XML
 						retvalue.first_close_in_value=erg2;
 					value.append( erg2 );
 				}
-				else if( auto referenz = eat_Referenz( container ) )
+				else if( auto referenz = eat_Reference( container ) )
 				{
 					value.append( referenz.value );
 				}
@@ -736,26 +752,27 @@ namespace WS { namespace XML
 		return retvalue;
 	}
 
-	template<typename iterator_t> struct STag_eated
+	template<typename iterator_t> struct Tag
+	{
+		_iterator_access<iterator_t>				name;
+		std::deque<attribut<iterator_t>>			attribute;
+	};
+	template<typename iterator_t> struct Tag_eated : Tag<iterator_t>
 	{
 		using char_t = typename _iterator_access<iterator_t>::value_t;
 		_iterator_access<iterator_t>				eated;
-		_iterator_access<iterator_t>				name;
-		std::deque<attribut<iterator_t>>			attribute;
 
 		operator bool(){return eated.len();}
 		bool operator !(){return operator bool()==false;}
 	};
-	template<typename iterator_t> STag_eated<iterator_t> eat_STag( _iterator_access<iterator_t> & container_in )
+	template<typename iterator_t> Tag_eated<iterator_t> eat_Tag_inner( _iterator_access<iterator_t> & container_in )
 	{
-		//STag	   ::=   	'<' Name (S Attribute)* S? '>'
+		//STag			::=   	'<' Name (S Attribute)* S? '>'
+		//STag_inner	::=   	Name (S Attribute)*
 		using char_t = _iterator_access<iterator_t>::value_t;
-		STag_eated<iterator_t> retvalue;
+		Tag_eated<iterator_t> retvalue;
 
 		auto container = container_in;
-
-		if( eat( container, _open<char_t>()) == false )
-			return retvalue;
 
 		if( auto erg_name = eat_name( container ); erg_name==false  )
 			return retvalue;
@@ -777,15 +794,213 @@ namespace WS { namespace XML
 				break;
 		}
 
-		(void)eat_whitespace(container);//0-1
-
-		if( eat( container, _close<char_t>()) == false )
-			return retvalue;
-
 		retvalue.eated.begin() = container_in.begin();
 		retvalue.eated.end() = container.begin();
 		container_in = container;
 
 		return retvalue;
 	}
+
+	template<typename iterator_t> _iterator_access<iterator_t> eat_CharData( _iterator_access<iterator_t> & container_in )
+	{
+		//CharData	   ::=   	[^<&]* - ([^<&]* ']]>' [^<&]*) //verstehe diese Expr nicht
+		using char_t = typename _iterator_access<iterator_t>::value_t;
+		_iterator_access<iterator_t> data;
+		data.end() = data.begin() = container_in.begin();
+
+		if( eat_while(container_in,[]( char_t ch){ return !WS::is_in(ch, _open<char_t>(),_ampersand<char_t>());}) )
+		{
+			data.end() = container_in.begin();
+		}
+		return data;
+	}
+
+	template<typename iterator_t> bool eat_etag( _iterator_access<iterator_t> & container_in, _iterator_access<iterator_t> const & name )
+	{
+		//ETag			::= '</' Name S? '>'
+		using char_t = typename _iterator_access<iterator_t>::value_t;
+		auto container = container_in;
+		if( eat(container, _open<char_t>()) == false )
+			return false;
+		if( eat(container, _slash<char_t>()) == false )
+			return false;
+		if( eat(container, name) == false )
+			return false;
+		(void)eat_whitespace(container);
+		if( eat(container, _close<char_t>()) == false )
+			return false;
+
+		container_in = container;
+		return true;
+	}
+
+	template<typename iterator_t> struct Content
+	{
+		_iterator_access<iterator_t>				text;
+		std::deque<_iterator_access<iterator_t>>	comment;
+	};
+	template<typename iterator_t> struct Element
+	{
+		Tag<iterator_t>					tag;
+		std::deque<Content<iterator_t>> content;
+		std::deque<std::shared_ptr<Element<iterator_t>>> children;
+
+		void add_child( std::shared_ptr<Element<iterator_t>> && child )
+		{
+			this->children.push_back( child );
+		}
+		void add_child( Element<iterator_t> const & child )
+		{
+			return add_child( std::make_shared<Element<iterator_t>>( child) );
+		}
+		void add_children( std::deque<Element<iterator_t>> const & Children )
+		{
+			for( auto &child : Children )
+				add_child( child );
+		}
+	};
+	template<typename iterator_t> struct Element_eated : Element<iterator_t>
+	{
+		using char_t = typename _iterator_access<iterator_t>::value_t;
+		_iterator_access<iterator_t>				eated;
+
+		operator bool(){return eated.len();}
+		bool operator !(){return operator bool()==false;}
+	};
+
+	template<typename iterator_t> struct Content_eated : Content<iterator_t>
+	{
+		using char_t = typename _iterator_access<iterator_t>::value_t;
+		_iterator_access<iterator_t>	eated;
+
+		std::deque<Element<iterator_t>> children;
+
+		operator bool(){return eated.first!=nullptr;}
+		bool operator !(){return operator bool()==false;}
+	};
+	template<typename iterator_t> Content_eated<iterator_t> eat_content( _iterator_access<iterator_t> & container_in );
+
+	template<typename iterator_t> Element_eated<iterator_t> eat_element( _iterator_access<iterator_t> & container_in )
+	{
+		//element		::=   EmptyElemTag
+		//					| STag content ETag 
+		//EmptyElemTag	::= '<' Name (S Attribute)* S? '/>
+		//content		::=	CharData? ((element | Reference | CDSect | PI | Comment) CharData?)*
+		//ETag			::= '</' Name S? '>'
+
+		using char_t = _iterator_access<iterator_t>::value_t;
+		Element_eated<iterator_t> retvalue;
+
+		auto container = container_in;
+
+		if( eat( container, _open<char_t>()) == false )
+			return retvalue;
+
+		if( auto erg = eat_Tag_inner(container) )
+			retvalue.tag = erg;
+		else
+			return retvalue;
+
+		(void)eat_whitespace(container);//0-1
+
+		{
+			auto container2 = container;
+			if( eat( container2, _slash<char_t>()) && eat( container2, _close<char_t>()) )
+			{
+				retvalue.eated.begin() = container_in.begin();
+				retvalue.eated.end() = container2.begin();
+				return retvalue;//element eated
+			}
+		}
+		if( eat( container, _close<char_t>()) == false )
+			return retvalue;
+
+		{
+			//TODO
+			auto erg = eat_content(container);
+			if( erg == false )
+				return retvalue;
+			else
+			{
+				retvalue.content.push_back( erg );
+				retvalue.add_children( erg.children );
+			}
+		}
+
+		if( eat_etag(container, retvalue.tag.name ) == false )
+			return retvalue;
+
+		retvalue.eated.begin() = container_in.begin();
+		retvalue.eated.end() = container_in.begin() = container.begin();
+		return retvalue;//element eated
+	}
+
+	template<typename iterator_t> Content_eated<iterator_t> eat_content( _iterator_access<iterator_t> & container_in )
+	{
+		//content		::=	CharData? ((element | Reference | CDSect | PI | Comment) CharData?)*
+		Content_eated<iterator_t> retvalue;
+
+		auto container = container_in;
+
+		//TODO hier fehlt noch einiges
+		retvalue.eated = eat_CharData(container);
+		retvalue.text = retvalue.eated;
+
+		for(bool nochmal=true; nochmal; )
+		{
+			if( auto erg = eat_Reference( container ) )
+			{
+				//retvalue.eated.append( erg.value );
+				retvalue.eated.append( erg.eated );
+				retvalue.text = retvalue.eated;
+			}
+			else if( auto erg2 = eat_element(container) )
+			{
+				retvalue.children.push_back( erg2 );
+			}
+			else if( auto erg3 = eat_comment(container) )
+			{
+				retvalue.comment.push_back( erg3.content );
+			}
+			else 
+			{
+				nochmal = false;
+			}
+
+			retvalue.eated.append( eat_CharData(container) );
+			retvalue.text = retvalue.eated;
+		}
+
+
+		container_in = container;
+
+		return retvalue;
+	}
+
+	template<typename iterator_t> _iterator_access<iterator_t> replace_reference( _iterator_access<iterator_t> container )
+	{
+		using char_t = typename _iterator_access<iterator_t>::value_t;
+
+		auto fn = []( WS::_iterator_access<iterator_t> toparse ) -> WS::find_replace_char<iterator_t>
+		{
+			while( toparse )
+			{
+				auto akt = toparse;
+				{
+					if( auto erg = eat_Reference( toparse ) )
+					{
+						WS::find_replace_char<iterator_t> retvalue;
+						retvalue.found=akt;
+						retvalue.found.end() = toparse.begin();
+						retvalue.newvalue = erg.value;
+						return retvalue;
+					}
+				}
+				eat(toparse);
+			}
+			return {};
+		};
+		return WS::find_replace( container, static_cast<std::function<WS::find_replace_char<iterator_t>(WS::_iterator_access<iterator_t>)>>( fn ) );
+	}
+
 }}

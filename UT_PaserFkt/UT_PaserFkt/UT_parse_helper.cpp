@@ -10,6 +10,7 @@ using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 
 #include "..\..\headeronly\SignatureTest.h"
 
+#include <functional>
 #include <string>
 #include <guiddef.h>
 #include <rpc.h>
@@ -559,6 +560,54 @@ namespace UTPaserFkt
 		}
 	};
 
+	TEST_CLASS( UT_find_replace )
+	{
+		TEST_METHOD(find_replace)
+		{
+			auto toparse = WS::iterator_access( R"(hallo welt, how is die welt today)" );
+			using iterator_t = decltype(toparse)::iterator_t;
+
+			using vecitem_t = std::pair<WS::_iterator_access<iterator_t>,WS::_iterator_access<iterator_t>>;
+			std::vector<vecitem_t> find_replace_values
+			{ 
+				vecitem_t{WS::iterator_access( R"(welt)" ),WS::iterator_access( R"(world)" )} ,
+				vecitem_t{WS::iterator_access( R"(die)" ),WS::iterator_access( R"(the)" )} 
+			};
+
+			auto fn = [& find_replace_values]( WS::_iterator_access<iterator_t> toparse ) -> WS::find_replace_t<iterator_t> 
+			{
+				while( toparse )
+				{
+					auto akt = toparse;
+					for( auto const & [find,replace] : find_replace_values )
+					{
+						if( WS::eat(toparse,find) )
+						{
+							WS::find_replace_t<iterator_t> retvalue;
+							retvalue.found=akt;
+							retvalue.found.end() = toparse.begin();
+							retvalue.newvalue = replace;
+							return retvalue;
+						}
+					}
+					eat(toparse);
+				}
+				return {};
+			};
+
+			//auto convertiert1 = WS::find_replace( toparse, fn );
+
+			{
+				auto erg = fn(toparse);
+				Assert::IsTrue(erg);
+			}
+
+			auto convertiert = WS::find_replace( toparse, std::function<WS::find_replace_t<iterator_t>(WS::_iterator_access<iterator_t>)>(fn) );
+			Assert::IsTrue(convertiert);
+			Assert::IsTrue(convertiert == WS::iterator_access(R"(hallo world, how is the world today)") );
+
+		}
+	};
 	TEST_CLASS(UT_Chars)
 	{
 	public:

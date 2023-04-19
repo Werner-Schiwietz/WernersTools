@@ -3,6 +3,8 @@
 
 using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 
+#include <optional>
+
 #include <sstream>
 #include <iostream>
 #include <iomanip>
@@ -335,35 +337,70 @@ namespace UT_XML
                 Assert::IsTrue( erg.errorcode== decltype(erg)::enumError::value_parseerror );
             }
         }
-        TEST_METHOD(eat_STag)
+        TEST_METHOD(eat_element)
         {
             {
-                auto value = WS::iterator_access(LR"#(<name>)#");
+                auto value = WS::iterator_access(LR"#(<name/>)#");
                 auto toparse = value;
-                auto erg = WS::XML::eat_STag( toparse );
+                auto erg = WS::XML::eat_element( toparse );
                 Assert::IsTrue( erg );
-                Assert::IsTrue( erg.name == WS::iterator_access(LR"#(name)#") );
-                Assert::IsTrue( erg.attribute.size() == 0 );
+                Assert::IsTrue( erg.tag.name == WS::iterator_access(LR"#(name)#") );
+                Assert::IsTrue( erg.tag.attribute.size() == 0 );
             }
             {
-                auto value = WS::iterator_access(LR"#(<name attr1="hallo">)#");
+                auto value = WS::iterator_access(LR"#(<name attr1="hallo">welt</name>)#");
                 auto toparse = value;
-                auto erg = WS::XML::eat_STag( toparse );
+                auto erg = WS::XML::eat_element( toparse );
                 Assert::IsTrue( erg );
-                Assert::IsTrue( erg.name == WS::iterator_access(LR"#(name)#") );
-                Assert::IsTrue( erg.attribute.size() == 1 );
+                Assert::IsTrue( erg.tag.name == WS::iterator_access(LR"#(name)#") );
+                Assert::IsTrue( erg.tag.attribute.size() == 1 );
+                Assert::IsTrue( erg.content.size() == 1 );
+
+                Assert::IsTrue( erg.content[0].text == WS::iterator_access(LR"#(welt)#") );
             }
             {
-                auto value = WS::iterator_access(LR"#(<name attr1="hallo" attr2 = "welt" >)#");
+                auto value = WS::iterator_access(LR"#(<name attr1="hallo" attr2 = "welt" />)#");
                 auto toparse = value;
-                auto erg = WS::XML::eat_STag( toparse );
+                auto erg = WS::XML::eat_element( toparse );
                 Assert::IsTrue( erg );
-                Assert::IsTrue( erg.name == WS::iterator_access(LR"#(name)#") );
-                Assert::IsTrue( erg.attribute.size() == 2 );
-                Assert::IsTrue( erg.attribute[1].name == WS::iterator_access(LR"#(attr2)#") );
-                Assert::IsTrue( erg.attribute[1].value == WS::iterator_access(LR"#(welt)#") );
+                Assert::IsTrue( erg.tag.name == WS::iterator_access(LR"#(name)#") );
+                Assert::IsTrue( erg.tag.attribute.size() == 2 );
+                Assert::IsTrue( erg.tag.attribute[1].name == WS::iterator_access(LR"#(attr2)#") );
+                Assert::IsTrue( erg.tag.attribute[1].value == WS::iterator_access(LR"#(welt)#") );
             }
         }
+        TEST_METHOD(eat_element_with_embeded)
+        {
+            {
+                auto value = WS::iterator_access(LR"#(<name><embeded>0 &lt; 1 ist gleich 1 > 0</embeded></name>)#");
+                auto toparse = value;
+                auto erg = WS::XML::eat_element( toparse );
+                Assert::IsTrue( erg );
+                Assert::IsTrue( erg.tag.name == WS::iterator_access(LR"#(name)#") );
+                Assert::IsTrue( erg.tag.attribute.size() == 0 );
+                Assert::IsTrue( erg.content.size() == 1 );
+                Assert::IsTrue( erg.children.size() == 1 );
+                Assert::IsTrue( erg.children[0]->tag.name == WS::iterator_access(LR"#(embeded)#") );
+                Assert::IsTrue( erg.children[0]->content.size() );
+                Assert::IsTrue( erg.children[0]->content[0].text == WS::iterator_access(LR"#(0 &lt; 1 ist gleich 1 > 0)#") );
+            }
+        }
+        TEST_METHOD(replace_reference)
+        {
+            {
+                auto value = WS::iterator_access(R"#(0 &lt; 1 ist gleich 1 &gt; 0)#");
+                auto value2 = WS::XML::replace_reference( value );
+                Assert::IsTrue( value2 );
+                Assert::IsTrue( value2 == WS::iterator_access(R"#(0 < 1 ist gleich 1 > 0)#") );
+            }
+            {
+                auto value = WS::iterator_access(LR"#(hallo&#8226;&#x2022;&#X2022;)#");
+                auto value2 = WS::XML::replace_reference( value );
+                Assert::IsTrue( value2 );
+                Assert::IsTrue( value2 == WS::iterator_access(LR"#(hallo•••)#") );
+            }
+        }
+
     };
     TEST_CLASS(UT_XML_Basics)
     {

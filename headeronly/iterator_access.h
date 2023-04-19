@@ -367,6 +367,60 @@ namespace WS
 			return ret_t{b,e,temp.rvalue_lifetime_extender};
 		}
 	}
+
+}
+
+namespace WS
+{
+	template<typename iterator_t> struct find_replace_t
+	{
+		_iterator_access<iterator_t> found;
+		_iterator_access<iterator_t> newvalue;
+
+		operator bool() const { return found && newvalue;}
+		bool operator !() const { return !operator bool();}
+	};
+	template<typename iterator_t> struct find_replace_char
+	{
+		_iterator_access<iterator_t> found;
+		typename _iterator_access<iterator_t>::value_t newvalue;
+
+		operator bool() const { return found;}
+		bool operator !() const { return !operator bool();}
+	};
+	template<typename iterator_t, typename fn_ret_t>  _iterator_access<iterator_t> find_replace( _iterator_access<iterator_t> parse, std::function<fn_ret_t(WS::_iterator_access<iterator_t>)> fn_find )
+	{
+		using retvalue_t = _iterator_access<iterator_t>;
+		using value_t = typename _iterator_access<iterator_t>::value_t;
+		using buffer_t = std::basic_string<value_t>;//funktioniert nur, wenn
+
+		buffer_t char_buffer;
+
+		_iterator_access<iterator_t> toparse=parse;
+		while( auto replace = fn_find( toparse ) )
+		{
+			char_buffer.append( toparse.begin(), replace.found.begin() );
+			if constexpr ( std::is_same<fn_ret_t,find_replace_t<iterator_t>>::value )
+				char_buffer.append( replace.newvalue.begin(), replace.newvalue.end() );
+			else if constexpr ( std::is_same<fn_ret_t,find_replace_char<iterator_t>>::value )
+				char_buffer +=  replace.newvalue;
+			else
+				static_assert(false, "fn_find liefert falsches ergebnis" );
+
+			toparse = replace.found.end();
+		}
+
+
+		if( char_buffer.empty() )
+			return parse;
+
+		char_buffer.append( toparse.begin(), toparse.end() );
+
+		auto temp = iterator_access( std::move( char_buffer ) );//rvalue_lifetime_extender anlegen
+		auto b = &*temp.begin();
+		auto e = b+temp.len();//*temp.end() geht nicht
+		return retvalue_t{b,e,temp.rvalue_lifetime_extender};
+	}
 }
 
 class TraceClass;
