@@ -216,7 +216,7 @@ namespace UT_XML
         TEST_METHOD(eat_attributvalue)
         {
             {
-                auto erg = WS::XML::eat_attributvalue( WS::iterator_access(L"hallo") );
+                auto erg = WS::XML::eat_attributvalue( WS::iterator_access(L"hallo"), WS::XML::refence_resolve_t{true} );
                 Assert::IsFalse( erg );
             }
             {
@@ -224,13 +224,13 @@ namespace UT_XML
                 
                 {
                     auto toparse = WS::iterator_access( std::string{'"'} + value + '"' );
-                    auto erg = WS::XML::eat_attributvalue( toparse );
+                    auto erg = WS::XML::eat_attributvalue( toparse, WS::XML::refence_resolve_t{true} );
                     Assert::IsTrue( erg );
                     Assert::IsTrue( erg.value == WS::iterator_access(value) );
                 }
                 {
                     auto toparse = WS::iterator_access( std::string{'\''} + value + '\'' );
-                    auto erg = WS::XML::eat_attributvalue( toparse );
+                    auto erg = WS::XML::eat_attributvalue( toparse, WS::XML::refence_resolve_t{true} );
                     Assert::IsTrue( erg );
                     Assert::IsTrue( erg.value == WS::iterator_access(value) );
                 }
@@ -242,7 +242,7 @@ namespace UT_XML
 
             {
                 auto toparse = WS::iterator_access( std::wstring{L'"'} + value + L'"' );
-                auto erg = WS::XML::eat_attributvalue( toparse );
+                auto erg = WS::XML::eat_attributvalue( toparse, WS::XML::refence_resolve_t{true} );
                 Assert::IsTrue( erg );
                 Assert::IsTrue( erg.value == WS::iterator_access(LR"#(0 < 1 ist gleich 1 > 0)#") );
             }
@@ -259,7 +259,7 @@ namespace UT_XML
 
             {
                 auto toparse = WS::iterator_access( std::wstring{L'"'} + value + L'"' );
-                auto erg = WS::XML::eat_attributvalue( toparse );
+                auto erg = WS::XML::eat_attributvalue( toparse, WS::XML::refence_resolve_t{true} );
                 Assert::IsTrue( erg );
                 //Assert::IsTrue( erg == WS::iterator_access(R"#(0 < 1 ist gleich 1 > 0)#") );
             }
@@ -304,7 +304,7 @@ namespace UT_XML
             auto toparse = WS::iterator_access(LR"#(name = "0 &lt; 1 ist gleich 1 > 0")#");
 
             {
-                auto erg = WS::XML::eat_attribut( toparse );
+                auto erg = WS::XML::eat_attribut( toparse, WS::XML::refence_resolve_t{true} );
                 Assert::IsTrue( erg );
                 Assert::IsTrue( erg.name == WS::iterator_access(LR"#(name)#") );
                 Assert::IsTrue( erg.value == WS::iterator_access(LR"#(0 < 1 ist gleich 1 > 0)#") );
@@ -315,30 +315,30 @@ namespace UT_XML
         {
             {
                 auto toparse = WS::iterator_access(LR"#(name="0 &lt; 1 ist gleich 1 > 0)#");
-                auto erg = WS::XML::eat_attribut( toparse );
+                auto erg = WS::XML::eat_attribut( toparse, WS::XML::refence_resolve_t{true} );
                 Assert::IsFalse( erg );
             }
             {
                 auto toparse = WS::iterator_access(LR"#(  )#");
-                auto erg = WS::XML::eat_attribut( toparse );
+                auto erg = WS::XML::eat_attribut( toparse, WS::XML::refence_resolve_t{true} );
                 Assert::IsFalse( erg );
                 Assert::IsTrue( erg.errorcode== decltype(erg)::enumError::name_missing );
             }
             {
                 auto toparse = WS::iterator_access(LR"#(name "xx")#");
-                auto erg = WS::XML::eat_attribut( toparse );
+                auto erg = WS::XML::eat_attribut( toparse, WS::XML::refence_resolve_t{true} );
                 Assert::IsFalse( erg );
                 Assert::IsTrue( erg.errorcode== decltype(erg)::enumError::assign_missing );
             }
             {
                 auto toparse = WS::iterator_access(LR"#(name=)#");
-                auto erg = WS::XML::eat_attribut( toparse );
+                auto erg = WS::XML::eat_attribut( toparse, WS::XML::refence_resolve_t{true} );
                 Assert::IsFalse( erg );
                 Assert::IsTrue( erg.errorcode== decltype(erg)::enumError::value_missing );
             }
             {
                 auto toparse = WS::iterator_access(LR"#(name="offenes ende)#");
-                auto erg = WS::XML::eat_attribut( toparse );
+                auto erg = WS::XML::eat_attribut( toparse, WS::XML::refence_resolve_t{true} );
                 Assert::IsFalse( erg );
                 Assert::IsTrue( erg.errorcode== decltype(erg)::enumError::value_parseerror );
             }
@@ -348,7 +348,7 @@ namespace UT_XML
             {
                 auto value = WS::iterator_access(LR"#(<name/>)#");
                 auto toparse = value;
-                auto erg = WS::XML::eat_element( toparse );
+                auto erg = WS::XML::eat_element( toparse, WS::XML::attr_refence_resolve_t{true}, WS::XML::content_refence_resolve_t{false} );
                 Assert::IsTrue( erg );
                 Assert::IsTrue( erg.tag.name == WS::iterator_access(LR"#(name)#") );
                 Assert::IsTrue( erg.tag.attribute.size() == 0 );
@@ -356,7 +356,7 @@ namespace UT_XML
             {
                 auto value = WS::iterator_access(LR"#(<name attr1="hallo">welt</name>)#");
                 auto toparse = value;
-                auto erg = WS::XML::eat_element( toparse );
+                auto erg = WS::XML::eat_element( toparse, WS::XML::attr_refence_resolve_t{true}, WS::XML::content_refence_resolve_t{false} );
                 Assert::IsTrue( erg );
                 Assert::IsTrue( erg.tag.name == WS::iterator_access(LR"#(name)#") );
                 Assert::IsTrue( erg.tag.attribute.size() == 1 );
@@ -367,7 +367,7 @@ namespace UT_XML
             {
                 auto value = WS::iterator_access(LR"#(<name attr1="hallo" attr2 = "welt" />)#");
                 auto toparse = value;
-                auto erg = WS::XML::eat_element( toparse );
+                auto erg = WS::XML::eat_element( toparse, WS::XML::attr_refence_resolve_t{true}, WS::XML::content_refence_resolve_t{false} );
                 Assert::IsTrue( erg );
                 Assert::IsTrue( erg.tag.name == WS::iterator_access(LR"#(name)#") );
                 Assert::IsTrue( erg.tag.attribute.size() == 2 );
@@ -379,16 +379,40 @@ namespace UT_XML
         {
             {
                 auto value = WS::iterator_access(LR"#(<name><embeded>0 &lt; 1 ist gleich 1 > 0</embeded></name>)#");
-                auto toparse = value;
-                auto erg = WS::XML::eat_element( toparse );
-                Assert::IsTrue( erg );
-                Assert::IsTrue( erg.tag.name == WS::iterator_access(LR"#(name)#") );
-                Assert::IsTrue( erg.tag.attribute.size() == 0 );
-                Assert::IsTrue( erg.content.size() == 1 );
-                Assert::IsTrue( erg.children.size() == 1 );
-                Assert::IsTrue( erg.children[0]->tag.name == WS::iterator_access(LR"#(embeded)#") );
-                Assert::IsTrue( erg.children[0]->content.size() );
-                Assert::IsTrue( erg.children[0]->content[0].text == WS::iterator_access(LR"#(0 &lt; 1 ist gleich 1 > 0)#") );
+                {
+                    auto toparse = value;
+                    auto erg = WS::XML::eat_element( toparse, WS::XML::attr_refence_resolve_t{true}, WS::XML::content_refence_resolve_t{false} );
+                    Assert::IsTrue( erg );
+                    Assert::IsTrue( erg.tag.name == WS::iterator_access(LR"#(name)#") );
+                    Assert::IsTrue( erg.tag.attribute.size() == 0 );
+                    Assert::IsTrue( erg.content.size() == 1 );
+                    Assert::IsTrue( erg.children.size() == 1 );
+                    Assert::IsTrue( erg.children[0]->tag.name == WS::iterator_access(LR"#(embeded)#") );
+                    Assert::IsTrue( erg.children[0]->content.size() );
+                    Assert::IsTrue( erg.children[0]->content[0].text == WS::iterator_access(LR"#(0 &lt; 1 ist gleich 1 > 0)#") );
+                    Assert::IsFalse( erg.children[0]->content[0].text == WS::iterator_access(LR"#(0 < 1 ist gleich 1 > 0)#") );
+                    auto content = WS::XML::replace_reference(erg.children[0]->content[0].text);
+                    Assert::IsTrue( content == WS::iterator_access(LR"#(0 < 1 ist gleich 1 > 0)#") );
+                }
+            }
+        }
+        TEST_METHOD(eat_element_with_embeded_resolve_contentref)
+        {
+            {
+                auto value = WS::iterator_access(LR"#(<name><embeded>0 &lt; 1 ist gleich 1 > 0</embeded></name>)#");
+                {
+                    auto toparse = value;
+                    auto erg = WS::XML::eat_element( toparse, WS::XML::refence_resolve_t{true}, WS::XML::refence_resolve_t{true} );
+                    Assert::IsTrue( erg );
+                    Assert::IsTrue( erg.tag.name == WS::iterator_access(LR"#(name)#") );
+                    Assert::IsTrue( erg.tag.attribute.size() == 0 );
+                    Assert::IsTrue( erg.content.size() == 1 );
+                    Assert::IsTrue( erg.children.size() == 1 );
+                    Assert::IsTrue( erg.children[0]->tag.name == WS::iterator_access(LR"#(embeded)#") );
+                    Assert::IsTrue( erg.children[0]->content.size() );
+                    Assert::IsFalse( erg.children[0]->content[0].text == WS::iterator_access(LR"#(0 &lt; 1 ist gleich 1 > 0)#") );
+                    Assert::IsTrue( erg.children[0]->content[0].text == WS::iterator_access(LR"#(0 < 1 ist gleich 1 > 0)#") );
+                }
             }
         }
         TEST_METHOD(replace_reference)
@@ -417,7 +441,7 @@ namespace UT_XML
             auto comment = WS::XML::eat_comment(toparse);
             Assert::IsTrue( comment );
 
-            auto element = WS::XML::eat_element(toparse);
+            auto element = WS::XML::eat_element(toparse, WS::XML::attr_refence_resolve_t{true}, WS::XML::content_refence_resolve_t{false});
             Assert::IsTrue( element );
 
         }

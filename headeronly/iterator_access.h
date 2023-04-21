@@ -408,7 +408,7 @@ namespace WS
 			else
 				static_assert(false, "fn_find liefert falsches ergebnis" );
 
-			toparse = replace.found.end();
+			toparse.begin() = replace.found.end();
 		}
 
 

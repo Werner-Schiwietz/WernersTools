@@ -657,7 +657,9 @@ namespace WS { namespace XML
 		operator value_t() const {return value;}
 	};
 	using refence_resolve_t=bool;
-	template<typename iterator_access_t > attributvalue_eated<iterator_access_t> eat_attributvalue( iterator_access_t & container_in, refence_resolve_t refence_resolve = true )
+	using attr_refence_resolve_t=refence_resolve_t;
+	using content_refence_resolve_t=refence_resolve_t;
+	template<typename iterator_access_t > attributvalue_eated<iterator_access_t> eat_attributvalue( iterator_access_t & container_in, refence_resolve_t refence_resolve )
 	{
 		using char_t = iterator_access_t::value_t;
 		using ret_t = attributvalue_eated<iterator_access_t>;
@@ -717,9 +719,9 @@ namespace WS { namespace XML
 		}
 		return retvalue;
 	}	
-	template<typename iterator_access_t > attributvalue_eated<iterator_access_t> eat_attributvalue( iterator_access_t && container_in )//zu testzwecken
+	template<typename iterator_access_t > attributvalue_eated<iterator_access_t> eat_attributvalue( iterator_access_t && container_in, refence_resolve_t refence_resolve )//zu testzwecken
 	{
-		return eat_attributvalue( container_in );
+		return eat_attributvalue( container_in, refence_resolve );
 	}
 	template<typename iterator_t> struct attribut
 	{
@@ -734,7 +736,7 @@ namespace WS { namespace XML
 		bool operator !() const { return !operator bool(); }
 		bool error() const { return !WS::is_in(this->errorcode, enumError::none, enumError::name_missing); }//attribut konnte nur teilweise geparsed werden
 	};
-	template<typename iterator_t> attribut_eated<iterator_t> eat_attribut( _iterator_access<iterator_t> & container_in )
+	template<typename iterator_t> attribut_eated<iterator_t> eat_attribut( _iterator_access<iterator_t> & container_in, refence_resolve_t refence_resolve )
 	{
 		using char_t = _iterator_access<iterator_t>::value_t;
 		attribut_eated<iterator_t> retvalue;
@@ -747,7 +749,7 @@ namespace WS { namespace XML
 			if( eat_Eq( container ) )
 			{
 				retvalue.errorcode = attribut_eated<iterator_t>::enumError::value_missing;
-				if( auto attribut_value = eat_attributvalue(container) )
+				if( auto attribut_value = eat_attributvalue(container, refence_resolve) )
 				{
 					retvalue.errorcode = attribut_eated<iterator_t>::enumError::none;
 					retvalue.value = attribut_value;
@@ -781,7 +783,7 @@ namespace WS { namespace XML
 		operator bool(){return eated.len();}
 		bool operator !(){return operator bool()==false;}
 	};
-	template<typename iterator_t> Tag_eated<iterator_t> eat_Tag_inner( _iterator_access<iterator_t> & container_in )
+	template<typename iterator_t> Tag_eated<iterator_t> eat_Tag_inner( _iterator_access<iterator_t> & container_in, refence_resolve_t refence_resolve )
 	{
 		//STag			::=   	'<' Name (S Attribute)* S? '>'
 		//STag_inner	::=   	Name (S Attribute)*
@@ -801,7 +803,7 @@ namespace WS { namespace XML
 			auto container2 = container;
 			if( eat_whitespace(container2)==false )
 				break;
-			if( auto erg=eat_attribut(container2))
+			if( auto erg=eat_attribut(container2,refence_resolve))
 			{
 				container = container2;
 				retvalue.attribute.push_back( erg );
@@ -894,9 +896,9 @@ namespace WS { namespace XML
 		operator bool(){return eated.first!=nullptr;}
 		bool operator !(){return operator bool()==false;}
 	};
-	template<typename iterator_t> Content_eated<iterator_t> eat_content( _iterator_access<iterator_t> & container_in );
+	template<typename iterator_t> Content_eated<iterator_t> eat_content( _iterator_access<iterator_t> & container_in, attr_refence_resolve_t attr_refence_resolve, content_refence_resolve_t content_refence_resolve );
 
-	template<typename iterator_t> Element_eated<iterator_t> eat_element( _iterator_access<iterator_t> & container_in )
+	template<typename iterator_t> Element_eated<iterator_t> eat_element( _iterator_access<iterator_t> & container_in, attr_refence_resolve_t attr_refence_resolve, content_refence_resolve_t content_refence_resolve )
 	{
 		//element		::=   EmptyElemTag
 		//					| STag content ETag 
@@ -907,12 +909,13 @@ namespace WS { namespace XML
 		using char_t = _iterator_access<iterator_t>::value_t;
 		Element_eated<iterator_t> retvalue;
 
+
 		auto container = container_in;
 
 		if( eat( container, _open<char_t>()) == false )
 			return retvalue;
 
-		if( auto erg = eat_Tag_inner(container) )
+		if( auto erg = eat_Tag_inner(container,attr_refence_resolve) )
 			retvalue.tag = erg;
 		else
 			return retvalue;
@@ -933,7 +936,7 @@ namespace WS { namespace XML
 
 		{
 			//TODO
-			auto erg = eat_content(container);
+			auto erg = eat_content(container,attr_refence_resolve,content_refence_resolve);
 			if( erg == false )
 				return retvalue;
 			else
@@ -951,7 +954,7 @@ namespace WS { namespace XML
 		return retvalue;//element eated
 	}
 
-	template<typename iterator_t> Content_eated<iterator_t> eat_content( _iterator_access<iterator_t> & container_in )
+	template<typename iterator_t> Content_eated<iterator_t> eat_content( _iterator_access<iterator_t> & container_in, attr_refence_resolve_t attr_refence_resolve, content_refence_resolve_t content_refence_resolve )
 	{
 		//content		::=	CharData? ((element | Reference | CDSect | PI | Comment) CharData?)*
 		Content_eated<iterator_t> retvalue;
@@ -970,7 +973,7 @@ namespace WS { namespace XML
 				retvalue.eated.append( erg.eated );
 				retvalue.text = retvalue.eated;
 			}
-			else if( auto erg2 = eat_element(container) )
+			else if( auto erg2 = eat_element(container, attr_refence_resolve, content_refence_resolve) )
 			{
 				retvalue.children.push_back( erg2 );
 			}
