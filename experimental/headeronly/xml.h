@@ -23,19 +23,19 @@ namespace WS { namespace XML
 	template<typename char_t> constexpr char_t _X(){return 'X';}
 
 	template<typename char_t> constexpr char_t _lt(){return '<';}
-	template<typename iterator_access_t> constexpr iterator_access_t _lt_ref(){return iterator_access("lt"); }
+	template<typename iterator_t> constexpr iterator_t _lt_ref(){return iterator_access("lt"); }
 	template<> _iterator_access<wchar_t const *> _lt_ref<_iterator_access<wchar_t const *>>(){return iterator_access(L"lt"); }
 	template<typename char_t> constexpr char_t _gt(){return '>';}
-	template<typename iterator_access_t> constexpr iterator_access_t _gt_ref(){return iterator_access("gt"); }
+	template<typename iterator_t> constexpr iterator_t _gt_ref(){return iterator_access("gt"); }
 	template<> _iterator_access<wchar_t const *> _gt_ref<_iterator_access<wchar_t const *>>(){return iterator_access(L"gt"); }
 	template<typename char_t> constexpr char_t _amp(){return '&';}
-	template<typename iterator_access_t> constexpr iterator_access_t _amp_ref(){return iterator_access("amp"); }
+	template<typename iterator_t> constexpr iterator_t _amp_ref(){return iterator_access("amp"); }
 	template<> _iterator_access<wchar_t const *> _amp_ref<_iterator_access<wchar_t const *>>(){return iterator_access(L"amp"); }
 	template<typename char_t> constexpr char_t _quot(){return '"';}
-	template<typename iterator_access_t> constexpr iterator_access_t _quot_ref(){return iterator_access("quot"); }
+	template<typename iterator_t> constexpr iterator_t _quot_ref(){return iterator_access("quot"); }
 	template<> _iterator_access<wchar_t const *> _quot_ref<_iterator_access<wchar_t const *>>(){return iterator_access(L"quot"); }
 	template<typename char_t> constexpr char_t _apos(){return '\'';}
-	template<typename iterator_access_t> constexpr iterator_access_t _apos_ref(){return iterator_access("apos"); }
+	template<typename iterator_t> constexpr iterator_t _apos_ref(){return iterator_access("apos"); }
 	template<> _iterator_access<wchar_t const *> _apos_ref<_iterator_access<wchar_t const *>>(){return iterator_access(L"apos"); }
 
 
@@ -698,9 +698,17 @@ namespace WS { namespace XML
 					break;//fehler
 				}
 			}
+			if( eat_oneof(container,opening) )
+			{
+				ret_t::base_t & base = retvalue;
+				base = ret_t::base_t{ container_in, container_in.begin(), container.begin() };
+				retvalue.value = value.move();
+				retvalue.error = attributvalue_eated<iterator_access_t>::enumError::none;
+				return retvalue;
+			}
 		}
 		return retvalue;
-	}
+	}	
 	template<typename iterator_access_t > attributvalue_eated<iterator_access_t> eat_attributvalue( iterator_access_t && container_in )//zu testzwecken
 	{
 		return eat_attributvalue( container_in );

@@ -216,7 +216,7 @@ namespace UT_XML
         TEST_METHOD(eat_attributvalue)
         {
             {
-                auto erg = WS::XML::eat_attributvalue( WS::iterator_access("hallo") );
+                auto erg = WS::XML::eat_attributvalue( WS::iterator_access(L"hallo") );
                 Assert::IsFalse( erg );
             }
             {
@@ -238,21 +238,21 @@ namespace UT_XML
         }
         TEST_METHOD(eat_attributvalue_withescape)
         {
-            auto value = R"#(0 &lt; 1 ist gleich 1 &gt; 0)#";
+            auto value = LR"#(0 &lt; 1 ist gleich 1 &gt; 0)#";
 
             {
-                auto toparse = WS::iterator_access( std::string{'"'} + value + '"' );
+                auto toparse = WS::iterator_access( std::wstring{L'"'} + value + L'"' );
                 auto erg = WS::XML::eat_attributvalue( toparse );
                 Assert::IsTrue( erg );
-                Assert::IsTrue( erg.value == WS::iterator_access(R"#(0 < 1 ist gleich 1 > 0)#") );
+                Assert::IsTrue( erg.value == WS::iterator_access(LR"#(0 < 1 ist gleich 1 > 0)#") );
             }
         }
         TEST_METHOD(eat_attributvalue_withescape_and_closer)
         {
-            auto value = R"#(0 &lt; 1 ist gleich 1 > 0)#";
+            auto value = LR"#(0 &lt; 1 ist gleich 1 > 0)#";
 
             {
-                auto toparse = WS::iterator_access( std::string{'"'} + value + '"' );
+                auto toparse = WS::iterator_access( std::wstring{L'"'} + value + L'"' );
                 auto erg = WS::XML::eat_attributvalue( toparse );
                 Assert::IsTrue( erg );
                 //Assert::IsTrue( erg == WS::iterator_access(R"#(0 < 1 ist gleich 1 > 0)#") );
@@ -277,20 +277,20 @@ namespace UT_XML
         }
         TEST_METHOD(appender_with_copy)
         {
-            auto value = WS::iterator_access("<hallo welt>");
+            auto value = WS::iterator_access(L"<hallo welt>");
             auto value_org = value;
             decltype(value) value_erg;
             {
-                Assert::IsTrue(WS::eat(value, '<'));
-                auto new_value = WS::appender<decltype(value)>( WS::eat(value, WS::iterator_access("hallo")).eaten );
-                WS::eat_oneof(value, ' ');
-                new_value.append( WS::eat(value, WS::iterator_access("welt")).eaten );
+                Assert::IsTrue(WS::eat(value, L'<'));
+                auto new_value = WS::appender<decltype(value)>( WS::eat(value, WS::iterator_access(L"hallo")).eaten );
+                WS::eat_oneof(value, L' ');
+                new_value.append( WS::eat(value, WS::iterator_access(L"welt")).eaten );
                 value_erg = new_value.move();
                 auto secondcallvalueisempty = new_value.move();
                 Assert::IsTrue(secondcallvalueisempty.empty());
             }
 
-            Assert::IsTrue( value_erg == WS::iterator_access("hallowelt") );
+            Assert::IsTrue( value_erg == WS::iterator_access(L"hallowelt") );
         }
         TEST_METHOD(eat_attribut)
         {
@@ -399,6 +399,21 @@ namespace UT_XML
                 Assert::IsTrue( value2 );
                 Assert::IsTrue( value2 == WS::iterator_access(LR"#(hallo•••)#") );
             }
+        }
+
+        TEST_METHOD(read_the_xml)
+        {
+            auto toparse = WS::iterator_access(xml.c_str());
+
+            auto prolog = WS::XML::eat_prolog(toparse);
+            Assert::IsTrue( prolog );
+
+            auto comment = WS::XML::eat_comment(toparse);
+            Assert::IsTrue( comment );
+
+            auto element = WS::XML::eat_element(toparse);
+            Assert::IsTrue( element );
+
         }
 
     };

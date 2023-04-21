@@ -82,7 +82,7 @@ namespace WS
 	template<typename iterator_type> struct _iterator_access
 	{
 		using iterator_t = iterator_type;
-		using value_t = std::decay_t<decltype(*std::declval<iterator_t>())>;
+		using value_t = std::decay_t<decltype(*std::declval<iterator_t>())>; 
 		iterator_t	first;
 		iterator_t	last;//eigentlich last+1, also end nach iteratorlogik
 		rvalue_lifetime_extender_t rvalue_lifetime_extender;//statt std::any. die function wird nie aufgerufen. das shared-ptr objekt als capture parameter ist das wichtige
@@ -294,6 +294,7 @@ namespace WS
 			this->buffer += addone;		
 		}
 		WS::_iterator_access<typename _iterator_access_t::value_t const*> move();//kann einmal abgeholt werden, danach ist ggf das ergebnis leer. grund: ggf wird der buffer per move ins ergebnis geschoben.
+		bool empty() const{ return !value && buffer.empty();}
 	protected:
 		void usebuffer()
 		{
@@ -304,7 +305,7 @@ namespace WS
 					this->value.end() = this->value.begin();//value leeren
 				}
 		}
-	};
+	};	
 
 	template<typename iterator_t, typename container_t> inline auto iterator_access( iterator_t first, iterator_t last, std::shared_ptr<container_t> && container ) { return _iterator_access<iterator_t>( first, last, std::move(container) ); }
 	template<typename iterator_t> inline auto iterator_access( iterator_t first, iterator_t last){ return _iterator_access<iterator_t>( first, last ); }
