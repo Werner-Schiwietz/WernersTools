@@ -961,9 +961,12 @@ namespace WS { namespace XML
 
 		auto container = container_in;
 
+		WS::appender<_iterator_access<iterator_t>> text;
+
 		//TODO hier fehlt noch einiges
 		retvalue.eated = eat_CharData(container);
 		retvalue.text = retvalue.eated;
+		text.append( retvalue.eated );
 
 		for(bool nochmal=true; nochmal; )
 		{
@@ -972,6 +975,8 @@ namespace WS { namespace XML
 				//retvalue.eated.append( erg.value );
 				retvalue.eated.append( erg.eated );
 				retvalue.text = retvalue.eated;
+				if( content_refence_resolve )
+					text.append( erg.value );
 			}
 			else if( auto erg2 = eat_element(container, attr_refence_resolve, content_refence_resolve) )
 			{
@@ -986,10 +991,17 @@ namespace WS { namespace XML
 				nochmal = false;
 			}
 
-			retvalue.eated.append( eat_CharData(container) );
+			auto eated = eat_CharData(container);
+			retvalue.eated.append( eated );
 			retvalue.text = retvalue.eated;
+			if( content_refence_resolve )
+				text.append( eated );
 		}
 
+		if( text.allocated() )
+		{
+			retvalue.text = text.move();
+		}
 
 		container_in = container;
 

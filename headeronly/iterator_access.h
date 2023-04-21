@@ -294,7 +294,9 @@ namespace WS
 			this->buffer += addone;		
 		}
 		WS::_iterator_access<typename _iterator_access_t::value_t const*> move();//kann einmal abgeholt werden, danach ist ggf das ergebnis leer. grund: ggf wird der buffer per move ins ergebnis geschoben.
-		bool empty() const{ return !value && buffer.empty();}
+
+		bool empty() const { return !value && buffer.empty(); }//ist kein text gelesen
+		bool allocated() const { return !buffer.empty(); }//wurde text umkopiert 
 	protected:
 		void usebuffer()
 		{
