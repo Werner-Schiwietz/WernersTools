@@ -656,7 +656,8 @@ namespace WS { namespace XML
 
 		operator value_t() const {return value;}
 	};
-	template<typename iterator_access_t > attributvalue_eated<iterator_access_t> eat_attributvalue( iterator_access_t & container_in )
+	using refence_resolve_t=bool;
+	template<typename iterator_access_t > attributvalue_eated<iterator_access_t> eat_attributvalue( iterator_access_t & container_in, refence_resolve_t refence_resolve = true )
 	{
 		using char_t = iterator_access_t::value_t;
 		using ret_t = attributvalue_eated<iterator_access_t>;
@@ -666,17 +667,25 @@ namespace WS { namespace XML
 		if( auto opening= eat_oneof(container,_doppelteshochkomma<char_t>(), _hochkomma<char_t>() ) )
 		{
 			WS::appender<iterator_access_t> value;
-			retvalue.error = attributvalue_eated<iterator_access_t>::enumError::closer_missing;
-			//lesen, bis der opener, '@' als opener einer referenz oder '>' als vermutete fehlerposition,  
-			while( auto erg = eat_while(container, [&](char_t ch){return !WS::is_in(ch,*opening.begin(),_open<char_t>(),_ampersand<char_t>(),_close<char_t>()); }) )
+			auto eat_closing = [&]()->bool
 			{
-				value.append( erg );
 				if( eat_oneof(container,opening) )
 				{
 					ret_t::base_t & base = retvalue;
 					base = ret_t::base_t{ container_in, container_in.begin(), container.begin() };
 					retvalue.value = value.move();
 					retvalue.error = attributvalue_eated<iterator_access_t>::enumError::none;
+					return true;
+				}
+				return false;
+			};
+			retvalue.error = attributvalue_eated<iterator_access_t>::enumError::closer_missing;
+			//lesen, bis der opener, '@' als opener einer referenz oder '>' als vermutete fehlerposition,  
+			while( auto erg = eat_while(container, [&](char_t ch){return !WS::is_in(ch,*opening.begin(),_open<char_t>(),_ampersand<char_t>(),_close<char_t>()); }) )
+			{
+				value.append( erg );
+				if( eat_closing() )
+				{
 					return retvalue;
 				}
 				if( auto erg2 = eat_oneof(container,_close<char_t>()) )
@@ -687,7 +696,10 @@ namespace WS { namespace XML
 				}
 				else if( auto referenz = eat_Reference( container ) )
 				{
-					value.append( referenz.value );
+					if(refence_resolve)
+						value.append( referenz.value );//referenzen wie &amp; &#1234; usw. werden durch die zeichen ersetzt 
+					else
+						value.append( referenz.eated );//orginalinhalt bleibt erhalten
 				}
 				else
 				{
@@ -698,12 +710,8 @@ namespace WS { namespace XML
 					break;//fehler
 				}
 			}
-			if( eat_oneof(container,opening) )
+			if( eat_closing() )
 			{
-				ret_t::base_t & base = retvalue;
-				base = ret_t::base_t{ container_in, container_in.begin(), container.begin() };
-				retvalue.value = value.move();
-				retvalue.error = attributvalue_eated<iterator_access_t>::enumError::none;
 				return retvalue;
 			}
 		}

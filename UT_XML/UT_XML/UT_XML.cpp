@@ -246,6 +246,12 @@ namespace UT_XML
                 Assert::IsTrue( erg );
                 Assert::IsTrue( erg.value == WS::iterator_access(LR"#(0 < 1 ist gleich 1 > 0)#") );
             }
+            {
+                auto toparse = WS::iterator_access( std::wstring{L'"'} + value + L'"' );
+                auto erg = WS::XML::eat_attributvalue( toparse, false );
+                Assert::IsTrue( erg );
+                Assert::IsTrue( erg.value == WS::iterator_access(value) );
+            }
         }
         TEST_METHOD(eat_attributvalue_withescape_and_closer)
         {
