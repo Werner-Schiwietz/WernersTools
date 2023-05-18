@@ -7,9 +7,9 @@ using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 
 #include "..\..\headeronly\modified.h"
 
-namespace UTmodified
+namespace UT_modified
 {
-	TEST_CLASS(UTmodified)
+	TEST_CLASS(UT_modified)
 	{
 	public:
 		
