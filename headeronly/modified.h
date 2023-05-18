@@ -5,7 +5,7 @@
 /// 
 /// der verwendete Datentyp muss einen zuweisung-operator und einen vergleichs-operator haben t1 = t2 und t1 == t2 müssen compilierbar sein
 /// 
-/// usage C++20
+/// usage C++17
 /// if( WS::modified{dest} = source ){...doing}
 /// if( WS::notmodified{dest} = source ){...doing}
 /// usage C++14
