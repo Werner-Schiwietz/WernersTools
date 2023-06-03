@@ -28,7 +28,7 @@
 
 namespace WS
 {
-    enum class parse_error
+    enum class parse_error : unsigned __int32
     {
         none
         , incomplete                                                //vorzeitiges ende
@@ -40,6 +40,7 @@ namespace WS
         , out_of_range                                              //wert ungültig
         , delimiter
         , left_without_right
+        //der anwender wird wohl um eigene fehlernummern erweitern/nutzen
     };
     template<typename T> struct rettype_eat
     {

@@ -6,6 +6,107 @@
 #include <deque>
 
 //https://www.w3.org/TR/xml/
+/*
+document				::=   	prolog element Misc*
+
+[16]   	PI				::=   	'<?' PITarget (S (Char* - (Char* '?>' Char*)))? '?>'
+[17]   	PITarget		::=   	Name - (('X' | 'x') ('M' | 'm') ('L' | 'l'))
+[18]   	CDSect			::=   	CDStart CData CDEnd
+[19]   	CDStart			::=   	'<![CDATA['
+[20]   	CData			::=   	(Char* - (Char* ']]>' Char*))
+[21]   	CDEnd			::=   	']]>'
+[22]   	prolog			::=   	XMLDecl? Misc* (doctypedecl Misc*)?
+[23]   	XMLDecl			::=   	'<?xml' VersionInfo EncodingDecl? SDDecl? S? '?>'
+[24]   	VersionInfo		::=   	S 'version' Eq ("'" VersionNum "'" | '"' VersionNum '"')
+[25]   	Eq				::=   	S? '=' S?
+[26]   	VersionNum		::=   	'1.' [0-9]+
+[27]   	Misc			::=   	Comment | PI | S 
+[28]   	doctypedecl		::=   	'<!DOCTYPE' S Name (S ExternalID)? S? ('[' intSubset ']' S?)? '>'		[VC: Root Element Type]
+																										[WFC: External Subset]
+[28a]	DeclSep			::=   	PEReference | S 	[WFC: PE Between Declarations]
+[28b]   intSubset		::=   	(markupdecl | DeclSep)*
+[29]   	markupdecl		::=   	elementdecl | AttlistDecl | EntityDecl | NotationDecl | PI | Comment 	[VC: Proper Declaration/PE Nesting]
+																										[WFC: PEs in Internal Subset]
+[30]   	extSubset		::=   	TextDecl? extSubsetDecl
+[31]   	extSubsetDecl	::=   	( markupdecl | conditionalSect | DeclSep)*
+[32]   	SDDecl			::=   	S 'standalone' Eq (("'" ('yes' | 'no') "'") | ('"' ('yes' | 'no') '"')) [VC: Standalone Document Declaration]
+
+[39]   	element			::=   	EmptyElemTag
+								| STag content ETag 													[WFC: Element Type Match]
+																										[VC: Element Valid]
+[40]   	STag			::=   	'<' Name (S Attribute)* S? '>'											[WFC: Unique Att Spec]
+[41]   	Attribute		::=   	Name Eq AttValue 														[VC: Attribute Value Type]
+																										[WFC: No External Entity References]
+																										[WFC: No < in Attribute Values]
+[42]   	ETag			::=   	'</' Name S? '>'
+[43]   	content			::=   	CharData? ((element | Reference | CDSect | PI | Comment) CharData?)*
+[44]   	EmptyElemTag	::=   	'<' Name (S Attribute)* S? '/>'											[WFC: Unique Att Spec]
+[45]   	elementdecl		::=   	'<!ELEMENT' S Name S contentspec S? '>'									[VC: Unique Element Type Declaration]
+[46]   	contentspec		::=   	'EMPTY' | 'ANY' | Mixed | children 
+[47]   	children		::=   	(choice | seq) ('?' | '*' | '+')?
+[48]   	cp				::=   	(Name | choice | seq) ('?' | '*' | '+')?
+[49]   	choice			::=   	'(' S? cp ( S? '|' S? cp )+ S? ')'										[VC: Proper Group/PE Nesting]
+[50]   	seq				::=   	'(' S? cp ( S? ',' S? cp )* S? ')'										[VC: Proper Group/PE Nesting]
+[51]   	Mixed			::=   	'(' S? '#PCDATA' (S? '|' S? Name)* S? ')*'
+								| '(' S? '#PCDATA' S? ')' 												[VC: Proper Group/PE Nesting]
+																										[VC: No Duplicate Types]
+[52]   	AttlistDecl		::=   	'<!ATTLIST' S Name AttDef* S? '>'
+[53]   	AttDef			::=   	S Name S AttType S DefaultDecl 
+[54]   	AttType			::=   	StringType | TokenizedType | EnumeratedType
+[55]   	StringType		::=   	'CDATA'
+[56]   	TokenizedType	::=   	'ID'																	[VC: ID]
+																										[VC: One ID per Element Type]
+																										[VC: ID Attribute Default]
+								| 'IDREF'	[VC: IDREF]
+								| 'IDREFS'	[VC: IDREF]
+								| 'ENTITY'	[VC: Entity Name]
+								| 'ENTITIES'	[VC: Entity Name]
+								| 'NMTOKEN'	[VC: Name Token]
+								| 'NMTOKENS'	[VC: Name Token]
+
+[57]   	EnumeratedType	::=   	NotationType | Enumeration
+[58]   	NotationType	::=   	'NOTATION' S '(' S? Name (S? '|' S? Name)* S? ')' 						[VC: Notation Attributes]
+																										[VC: One Notation Per Element Type]
+																										[VC: No Notation on Empty Element]
+																										[VC: No Duplicate Tokens]
+[59]   	Enumeration		::=   	'(' S? Nmtoken (S? '|' S? Nmtoken)* S? ')'								[VC: Enumeration]
+																										[VC: No Duplicate Tokens]
+[60]   	DefaultDecl		::=   	'#REQUIRED' | '#IMPLIED'
+								| (('#FIXED' S)? AttValue)												[VC: Required Attribute]
+																										[VC: Attribute Default Value Syntactically Correct]
+																										[WFC: No < in Attribute Values]
+																										[VC: Fixed Attribute Default]
+																										[WFC: No External Entity References]
+[61]   	conditionalSect		::=   	includeSect | ignoreSect
+[62]   	includeSect			::=   	'<![' S? 'INCLUDE' S? '[' extSubsetDecl ']]>' 						[VC: Proper Conditional Section/PE Nesting]
+[63]   	ignoreSect			::=   	'<![' S? 'IGNORE' S? '[' ignoreSectContents* ']]>'					[VC: Proper Conditional Section/PE Nesting]
+[64]   	ignoreSectContents	::=   	Ignore ('<![' ignoreSectContents ']]>' Ignore)*
+[65]   	Ignore				::=   	Char* - (Char* ('<![' | ']]>') Char*) 
+
+[66]   	CharRef				::=   	'&#' [0-9]+ ';'
+									| '&#x' [0-9a-fA-F]+ ';'											[WFC: Legal Character]
+
+[67]   	Reference			::=   	EntityRef | CharRef
+[68]   	EntityRef			::=   	'&' Name ';'														[WFC: Entity Declared]
+																										[VC: Entity Declared]
+																										[WFC: Parsed Entity]
+																										[WFC: No Recursion]
+[69]   	PEReference			::=   	'%' Name ';'														[VC: Entity Declared]
+																										[WFC: No Recursion]
+																										[WFC: In DTD]
+
+[70]   	EntityDecl			::=   	GEDecl | PEDecl
+[71]   	GEDecl				::=   	'<!ENTITY' S Name S EntityDef S? '>'
+[72]   	PEDecl				::=   	'<!ENTITY' S '%' S Name S PEDef S? '>'
+[73]   	EntityDef			::=   	EntityValue | (ExternalID NDataDecl?)
+[74]   	PEDef				::=   	EntityValue | ExternalID 
+
+[75]   	ExternalID			::=   	'SYSTEM' S SystemLiteral
+									| 'PUBLIC' S PubidLiteral S SystemLiteral
+[76]   	NDataDecl			::=   	S 'NDATA' S Name 	[VC: Notation Declared]
+...
+*/
+
 
 namespace WS { namespace XML 
 {
@@ -37,6 +138,11 @@ namespace WS { namespace XML
 	template<typename char_t> constexpr char_t _apos(){return '\'';}
 	template<typename iterator_t> constexpr iterator_t _apos_ref(){return iterator_access("apos"); }
 	template<> _iterator_access<wchar_t const *> _apos_ref<_iterator_access<wchar_t const *>>(){return iterator_access(L"apos"); }
+
+	enum class XML_error//XML-spezifische Errorcodes
+	{
+		none,
+	};
 
 
 	template<typename char_t> constexpr auto const & whitespace()
@@ -414,6 +520,7 @@ namespace WS { namespace XML
 		bool operator==( bool value ) const {return operator bool() == value;}
 		bool error() const { return *this==false && this->begin_tag.empty()==false; }
 	};
+	//eat_complex ist fake, kein parsing
 	template<typename iterator_t> complex_eated<iterator_t> eat_complex( _iterator_access<iterator_t> & container_in, _iterator_access<iterator_t> const & begin_tag, _iterator_access<iterator_t> const & end_tag )
 	{
 		complex_eated<iterator_t> retvalue;

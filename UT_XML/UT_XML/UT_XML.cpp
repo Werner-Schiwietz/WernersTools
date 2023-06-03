@@ -97,7 +97,7 @@ namespace UT_XML
         LR"(<Type Name="WS::tree_t&lt;*&gt;">)"
         LR"(<DisplayString >{*root}</DisplayString>)"
         LR"(<Expand>)"
-        LR"(<Item Name="root">*root</Item>)"
+        LR"(<Item Name ="root">*root</Item>)"
         LR"(<!--<TreeItems>)"
         LR"(--><!--<Size>_Mysize</Size>--><!--)"
         LR"(<HeadPointer>root._Mypair._Myval2</HeadPointer>)"
