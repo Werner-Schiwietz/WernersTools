@@ -113,13 +113,13 @@ namespace WS
         laufvar_t const & operator*() const
         {
             if( this->laufvar.isinvalid() )
-                throw std::exception{ __FUNCTION__ " end defereced"};
+                throw std::out_of_range{ __FUNCTION__ " end defereced"};
             return this->laufvar.i;
         }
         laufvar_t const * operator->() const
         {
             if( this->laufvar.isinvalid() )
-                throw std::exception{ __FUNCTION__ " end defereced"};
+                throw std::out_of_range{ __FUNCTION__ " end defereced"};
             return &this->laufvar.i;
         }
         };
