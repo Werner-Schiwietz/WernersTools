@@ -44,8 +44,8 @@ namespace WS
         laufvar_t const                        ende_wert;
         bool const                                                   inc;//wenn true wird operator++ sonst operator-- benutzt. default ohne überlauf (also wenn e<s false sonst true)
     public:
-        laufvar( laufvar_t start_wert, laufvar_t ende_wert, bool inc ) : start_wert(start_wert), ende_wert(ende_wert), i(start_wert), inc(inc), valid(true){}//inc default so, das ohne überlauf gearbeitet wird
-        laufvar( laufvar_t start_wert, laufvar_t ende_wert ) : laufvar( start_wert,ende_wert, !(ende_wert<start_wert) ){}
+        laufvar( laufvar_t start_wert, laufvar_t ende_wert, bool defaultdirection ) : start_wert(start_wert), ende_wert(ende_wert), i(start_wert), inc(defaultdirection?!(ende_wert<start_wert):(ende_wert<start_wert)), valid(true){}//inc default so, das ohne überlauf gearbeitet wird
+        laufvar( laufvar_t start_wert, laufvar_t ende_wert ) : laufvar( start_wert,ende_wert, true ){}
         laufvar() : laufvar( laufvar_t{}, laufvar_t{} ){}
         laufvar( laufvar const & ) = default;
 

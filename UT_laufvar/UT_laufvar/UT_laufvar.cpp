@@ -73,12 +73,22 @@ namespace UT_laufvar
         }
         TEST_METHOD(example2)
         {
-            unsigned __int8 v = 0;
-            for( WS::laufvar value{unsigned __int8(0),unsigned __int8(255)}; value.isvalid(); ++value )
+            unsigned __int8 v = 255;
+            for( WS::laufvar value{unsigned __int8(255),unsigned __int8(0)}; value.isvalid(); ++value )
+            { 
+                Assert::IsTrue( value == v-- );
+            }
+            Assert::IsTrue( v == 255 );//overflow
+        }
+        TEST_METHOD(example3)
+        {
+            unsigned __int8 v = 255;
+            using defaultdirection=bool;
+            for( WS::laufvar value{unsigned __int8(255),unsigned __int8(0),defaultdirection{false}}; value.isvalid(); ++value )
             { 
                 Assert::IsTrue( value == v++ );
             }
-            Assert::IsTrue( v == 0 );//overflow
+            Assert::IsTrue( v == 1 );
         }
         TEST_METHOD(range_based_for)
         {
@@ -119,9 +129,11 @@ namespace UT_laufvar
         {
             Cout2Output umleiten;
             std::cout << __FUNCTION__ << "\r\n";
+            unsigned char v=0;
             for( auto i=WS::laufvar<unsigned char>(0,255); i.isvalid(); ++i )
             {
                 std::cout << (unsigned int)i << ' ';
+                Assert::IsTrue( i == v++ );
             }
             std::cout << std::endl;
         }
