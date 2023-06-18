@@ -4,14 +4,16 @@
 #include "CppUnitTest.h"
 
 
+#include "..\..\headeronly\loopvalue.h"
 #include "..\..\headeronly\iterator_access.h"
-#include "..\..\headeronly\laufvar.h"
 
 #include <iostream>
 #include <cassert>
 
 using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 
+
+#pragma region Cout2Output
 #include <mutex>
 #include <map>
 #include <iostream>
@@ -55,17 +57,18 @@ namespace
     };
     //cout umleitung////////////////////////////////////
 }
+#pragma endregion
 
 
-namespace UT_laufvar
+namespace UT_loopvalue
 {
-    TEST_CLASS(UT_laufvar)
+    TEST_CLASS(UT_loopvalue)
     {
     public:
         TEST_METHOD(example1)
         {
             int v = 7;
-            for( auto value : WS::laufvar(7,5) )
+            for( auto value : WS::loopvalue{7,5} )
             { 
                 Assert::IsTrue( value == v-- );
             }
@@ -74,7 +77,7 @@ namespace UT_laufvar
         TEST_METHOD(example2)
         {
             unsigned __int8 v = 255;
-            for( WS::laufvar value{unsigned __int8(255),unsigned __int8(0)}; value.isvalid(); ++value )
+            for( WS::loopvalue value{unsigned __int8(255),unsigned __int8(0)}; value.isvalid(); ++value )
             { 
                 Assert::IsTrue( value == v-- );
             }
@@ -84,53 +87,70 @@ namespace UT_laufvar
         {
             unsigned __int8 v = 255;
             using defaultdirection=bool;
-            for( WS::laufvar value{unsigned __int8(255),unsigned __int8(0),defaultdirection{false}}; value.isvalid(); ++value )
+            for( WS::loopvalue<unsigned __int8> value{255,0,defaultdirection{false}}; value.isvalid(); ++value )
             { 
                 Assert::IsTrue( value == v++ );
             }
             Assert::IsTrue( v == 1 );
         }
+        TEST_METHOD(iterator_comp_exception)
+        {
+            auto lc1 = WS::loopvalue{7,5};
+            auto lc2 = WS::loopvalue{7,6};
+
+            try
+            {
+                (void)(lc1.begin() == lc2.begin());//throw exception
+                Assert::Fail(L"exception erwartet");
+            }
+            catch(...){}
+
+        }
         TEST_METHOD(range_based_for)
         {
             auto v = 2;
-            for( auto value : WS::laufvar{v,5} )
+            for( auto value : WS::loopvalue{v,5} )
             {
                 Assert::IsTrue(value==v++);
             }
             Assert::IsTrue(v==6);
+            for( auto value : WS::loopvalue{v,5} )
+            {
+                Assert::IsTrue(value==v--);
+            }
+            Assert::IsTrue(v==4);
         }
         TEST_METHOD(iterator)
         {
             auto b = unsigned __int8(0);
             auto v = unsigned __int8(3);
-            auto laufvar = WS::laufvar{v,b};
+            auto loopvalue = WS::loopvalue{v,b};
 
             //assert(0);
-            auto iter = laufvar.begin();
-            Assert::IsTrue( iter != laufvar.end() );
+            auto iter = loopvalue.begin();
+            Assert::IsTrue( iter != loopvalue.end() );
             Assert::IsTrue( *iter == 3 );
-            Assert::IsTrue( iter != laufvar.end() );
+            Assert::IsTrue( iter != loopvalue.end() );
             Assert::IsTrue( *++iter == 2 );
-            Assert::IsTrue( iter != laufvar.end() );
+            Assert::IsTrue( iter != loopvalue.end() );
             Assert::IsTrue( *(++iter).operator->() == 1 );
-            Assert::IsTrue( iter != laufvar.end() );
+            Assert::IsTrue( iter != loopvalue.end() );
             Assert::IsTrue( *++iter == 0 );
-            Assert::IsTrue( iter++ != laufvar.end() );
-            Assert::IsTrue( iter == laufvar.end() );
+            Assert::IsTrue( iter++ != loopvalue.end() );
+            Assert::IsTrue( iter == loopvalue.end() );
             try
             {
                 iter.operator->();
                 Assert::Fail(L"exception erwartet");
             }
             catch(...){}
-
         }
         TEST_METHOD(gesamter_wertebereich)
         {
             Cout2Output umleiten;
             std::cout << __FUNCTION__ << "\r\n";
             unsigned char v=0;
-            for( auto i=WS::laufvar<unsigned char>(0,255); i.isvalid(); ++i )
+            for( auto i=WS::loopvalue<unsigned char>(0,255); i.isvalid(); ++i )
             {
                 std::cout << (unsigned int)i << ' ';
                 Assert::IsTrue( i == v++ );
@@ -141,7 +161,7 @@ namespace UT_laufvar
         {
             Cout2Output umleiten;
             std::cout << __FUNCTION__ << "\r\n";
-            for( auto i=WS::laufvar<unsigned char>(255,0); i.isvalid(); ++i )
+            for( auto i=WS::loopvalue<unsigned char>(255,0); i.isvalid(); ++i )
             {
                 std::cout << (unsigned int)i << ' ';
             }
@@ -151,12 +171,12 @@ namespace UT_laufvar
         {
             Cout2Output umleiten;
             std::cout << __FUNCTION__ << "\r\n";
-            for( auto i=WS::laufvar('0','9'); i.isvalid(); ++i )
+            for( auto i=WS::loopvalue('0','9'); i.isvalid(); ++i )
             {
                 std::cout << i << ' ';
             }
             std::cout << "\r\n";
-            for( auto i=WS::laufvar('9','0'); i.isvalid(); ++i )
+            for( auto i=WS::loopvalue('9','0'); i.isvalid(); ++i )
             {
                 std::cout << i << ' ';
             }
@@ -166,9 +186,9 @@ namespace UT_laufvar
         {
             Cout2Output umleiten;
             std::cout << __FUNCTION__ << "\r\n";
-            auto values = WS::iterator_access(std::initializer_list<unsigned char>{3,2,1,0,255,254});
+            auto values = WS::iterator_access(std::initializer_list<unsigned __int8>{3,2,1,0,255,254});
             auto valueIter = values.begin();
-            for( auto i=WS::laufvar<unsigned char>( 3, 254, false ); i.isvalid(); ++i )
+            for( auto i=WS::loopvalue<unsigned __int8>( 3, 254, false ); i.isvalid(); ++i )
             {
                 std::cout << (int)i << ' ';
                 Assert::IsTrue( i == *valueIter++ );
@@ -177,9 +197,9 @@ namespace UT_laufvar
         }
         TEST_METHOD(uint_0_bis)
         {
-            auto i=WS::laufvar(0u,2u);
+            auto i=WS::loopvalue(0u,2u);
             Assert::IsTrue( i.isvalid() );
-            decltype(i)::laufvar_t v = i;//mit startwert belegen
+            decltype(i)::loopvalue_t v = i;//mit startwert belegen
             Assert::IsTrue( i++ == v++ );
             Assert::IsTrue( i == v );
             Assert::IsTrue( ++i == ++v );
@@ -195,9 +215,9 @@ namespace UT_laufvar
         }
         TEST_METHOD(uint_bis_0)
         {
-            auto i=WS::laufvar(2u,0u);
+            auto i=WS::loopvalue(2u,0u);
             Assert::IsTrue( i.isvalid() );
-            decltype(i)::laufvar_t v = i;//mit startwert belegen
+            decltype(i)::loopvalue_t v = i;//mit startwert belegen
             Assert::IsTrue( i++ == v-- );
             Assert::IsTrue( i == v );
             Assert::IsTrue( ++i == --v );
@@ -212,9 +232,9 @@ namespace UT_laufvar
         }
         TEST_METHOD(int_1_bis_1)
         {
-            auto i=WS::laufvar(1,1);
+            auto i=WS::loopvalue(1,1);
             Assert::IsTrue( i.isvalid() );
-            decltype(i)::laufvar_t v = i;//mit startwert belegen
+            decltype(i)::loopvalue_t v = i;//mit startwert belegen
 
             Assert::IsTrue( i++ == v-- );
             Assert::IsTrue( i.isvalid()==false );
@@ -228,9 +248,9 @@ namespace UT_laufvar
         }
         TEST_METHOD(int_0_bis_0)
         {
-            auto i=WS::laufvar{0,0};
+            auto i=WS::loopvalue{0,0};
             Assert::IsTrue( i.isvalid() );
-            decltype(i)::laufvar_t v = i;//mit startwert belegen
+            decltype(i)::loopvalue_t v = i;//mit startwert belegen
 
             Assert::IsTrue( i++ == v-- );
             Assert::IsTrue( i.isvalid()==false );
@@ -244,10 +264,10 @@ namespace UT_laufvar
         }
         TEST_METHOD(unsigend_short_max_bis_max)
         {
-            //auto i=WS::laufvar<unsigned short>{-1,-1};//error C2398: Element '1': conversion from 'int' to 'unsigned short' requires a narrowing conversion
-            auto i=WS::laufvar{unsigned short(-1),(unsigned short)-1};
+            //auto i=WS::loopvalue<unsigned short>{-1,-1};//error C2398: Element '1': conversion from 'int' to 'unsigned short' requires a narrowing conversion
+            auto i=WS::loopvalue{unsigned short(-1),(unsigned short)-1};
             Assert::IsTrue( i.isvalid() );
-            decltype(i)::laufvar_t v = i;//mit startwert belegen
+            decltype(i)::loopvalue_t v = i;//mit startwert belegen
 
             Assert::IsTrue( i++ == v-- );
             Assert::IsTrue( i.isvalid()==false );
