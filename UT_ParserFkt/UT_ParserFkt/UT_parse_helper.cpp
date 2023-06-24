@@ -14,6 +14,7 @@ using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 #include <string>
 #include <guiddef.h>
 #include <rpc.h>
+#include <vector>
 
 #pragma warning(push,4)
 
@@ -165,7 +166,7 @@ namespace WS
 	}
 }
  
-namespace UTPaserFkt
+namespace UTParserFkt
 {
 	template<typename container_t
 			,typename function_t
