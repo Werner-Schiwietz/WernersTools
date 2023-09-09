@@ -402,17 +402,18 @@ namespace WS
 		, Explicit_Type_Trait_div<type_t,value_t>
 		, Explicit_Type_Trait_loadsafe<type_t,value_t>{};
 
-	template<typename type_t,typename value_t
+	template<typename type_type,typename value_type
 		,template<typename,typename> class Trait=Explicit_Type_Trait_all
 		,template<typename,typename> class ... OtherTraits>
 	struct Explicit_Type 
-		: Explicit_Type_TraitBase<type_t,value_t>
-		, Trait<type_t,value_t>
-		, OtherTraits<type_t,value_t> ...
+		: Explicit_Type_TraitBase<type_type,value_type>
+		, Trait<type_type,value_type>
+		, OtherTraits<type_type,value_type> ...
 	{
-		typedef type_t type_t;
-		typedef value_t value_t;
-		using Explicit_Type_TraitBase::Explicit_Type_TraitBase;//ctor
+		using type_t = type_type;
+		using value_t = value_type;
+		using this_t = Explicit_Type<type_t,value_t,Trait,OtherTraits...>;
+		using Explicit_Type_TraitBase<type_t,value_t>::Explicit_Type_TraitBase;//ctor
 	};
 }
 
