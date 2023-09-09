@@ -49,6 +49,13 @@
 
 namespace WS
 {
+	template<typename T> auto HasMethod_auto_ptr_from_this(unsigned long) -> std::false_type;
+	template<typename T> auto HasMethod_auto_ptr_from_this(int) -> decltype(std::declval<T>().auto_ptr_from_this(), std::true_type{});
+	template<typename T> static constexpr bool HasMethod_auto_ptr_from_this_v = decltype(HasMethod_auto_ptr_from_this<T>(0))::value;
+
+	template<typename> struct is_enable_auto_ptr_from_this : std::false_type {};
+
+
 	template<typename pointer_t> struct ReferenzCounter
 	{
 		using pointer_type = pointer_t;
@@ -533,14 +540,10 @@ namespace WS
 		}
 	};
 
-	template<typename T> auto HasMethod_auto_ptr_from_this(unsigned long) -> std::false_type;
-	template<typename T> auto HasMethod_auto_ptr_from_this(int) -> decltype(std::declval<T>().auto_ptr_from_this(), std::true_type{});
-	template<typename T> static bool constexpr HasMethod_auto_ptr_from_this_v = decltype(HasMethod_auto_ptr_from_this<T>(0))::value;
 
-	template<typename> struct is_enable_auto_ptr_from_this : std::false_type {};
 	template<template <typename...> class Tmpl, typename Arg>
 	struct is_enable_auto_ptr_from_this<Tmpl<Arg>> : std::bool_constant<std::is_same_v<Tmpl<Arg>,WS::enable_auto_ptr_from_this<Arg>>> {};
-	template<typename T> static bool constexpr is_enable_auto_ptr_from_this_v = is_enable_auto_ptr_from_this<T>::value;
+	template<typename T> static constexpr bool is_enable_auto_ptr_from_this_v = is_enable_auto_ptr_from_this<T>::value;
 
 
 	
@@ -616,14 +619,14 @@ namespace WS
 		template<typename U>
 		managed_auto_ptr( std::unique_ptr<U> && Ptr ) noexcept : auto_ptr<T>( auto_ptr<U>{std::move(Ptr)} ) {}
 
-		explicit managed_auto_ptr( std::shared_ptr<T> sharedptr ) noexcept : auto_ptr( std::move(sharedptr) ) {}//bei sharedpointer muss sich z.zt ggf. der aufrufer um den cast kümmern, dass kann ich sonst nicht mehr testen
+		explicit managed_auto_ptr( std::shared_ptr<T> sharedptr ) noexcept : auto_ptr<T>( std::move(sharedptr) ) {}//bei sharedpointer muss sich z.zt ggf. der aufrufer um den cast kümmern, dass kann ich sonst nicht mehr testen
 		//auto_ptr(auto_ptr const& r) : auto_ptr(r.ownerless()){}
 		template<typename U> 
 		//explicit 
-		managed_auto_ptr(managed_auto_ptr<U> const & r) noexcept : auto_ptr( r ) {}
+		managed_auto_ptr(managed_auto_ptr<U> const & r) noexcept : auto_ptr<T>( r ) {}
 		template<typename U> 
 		//explicit 
-		managed_auto_ptr(managed_auto_ptr<U> && r) noexcept : auto_ptr( std::move(r) ) {}//dient der konvertierung  const T = U oder T bzw U ist abgeleitet von vom Anderen, bzw. T = const U
+		managed_auto_ptr(managed_auto_ptr<U> && r) noexcept : auto_ptr<T>( std::move(r) ) {}//dient der konvertierung  const T = U oder T bzw U ist abgeleitet von vom Anderen, bzw. T = const U
 
 		managed_auto_ptr & operator=( managed_auto_ptr const & r) & noexcept { auto_ptr<T>::operator=(r); return *this; }
 		managed_auto_ptr & operator=( managed_auto_ptr && r) & noexcept { auto_ptr<T>::operator=(std::move(r)); return *this; }
