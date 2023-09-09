@@ -121,10 +121,15 @@ namespace WS
 	}	
 	//vergleich gleicher werte
 	template<typename value_t> bool is_in( value_t const & value, value_t const & vergleichoperand ){return value == vergleichoperand;}
+	template<typename value_t> bool is_not_in( value_t const & value, value_t const & vergleichoperand ) { return ! is_in(value,vergleichoperand); }
 	//variadic
 	template<typename value_t, typename vergleichoperand_t, typename... others> bool  is_in( value_t const & value, vergleichoperand_t const & vergleichoperand, others const & ... Rest )
 	{
 		return is_in( value, vergleichoperand ) || is_in( value, Rest ... );
+	}
+	template<typename value_t, typename vergleichoperand_t, typename... others> bool  is_not_in( value_t const & value, vergleichoperand_t const & vergleichoperand, others const & ... Rest )
+	{
+		return ! is_in( value, vergleichoperand, Rest...  );
 	}
 }
 

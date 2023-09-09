@@ -3,6 +3,9 @@
 
 using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 
+// /permissive- /Zc:twoPhase- 
+//char * error =  "hallo";// mit /permissive- /Zc:twoPhase- error C2440: 'initializing': cannot convert from 'const char [6]' to 'char *'
+
 #include <vector>
 //#include <string>
 
@@ -201,6 +204,12 @@ namespace UTisin
 			Assert::IsTrue( WS::is_in(5,WS::bereich(1,3),WS::bereich(5,7)) );
 			Assert::IsTrue( WS::is_in(7,WS::bereich(1,3),WS::bereich(5,7)) );
 			Assert::IsFalse( WS::is_in(9,WS::bereich(1,3),WS::bereich(5,7)) );
+
+			Assert::IsFalse( WS::is_not_in(1,WS::bereich(1,3),WS::bereich(5,7)) );
+			Assert::IsFalse( WS::is_not_in(5,WS::bereich(1,3),WS::bereich(5,7)) );
+			Assert::IsFalse( WS::is_not_in(7,WS::bereich(1,3),WS::bereich(5,7)) );
+			Assert::IsTrue( WS::is_not_in(9,WS::bereich(1,3),WS::bereich(5,7)) );
+
 		}
 		TEST_METHOD(UT_int_Bereich_und_liste)
 		{
