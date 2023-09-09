@@ -55,6 +55,8 @@ namespace WS
         operator _iterator_access<T>() { return eaten; }
         operator parse_error() { return error; }
 
+        bool operator==( _iterator_access<T> const & r ){ return eaten==r; }
+
         rettype_eat(){}//no_match
         rettype_eat( _iterator_access<T> & aliveInOut, typename _iterator_access<T>::iterator_t & begin, typename _iterator_access<T>::iterator_t & end )
             : rettype_eat( aliveInOut, begin, end, parse_error::none ) {}
@@ -484,6 +486,8 @@ namespace WS
         operator bool() { return true; }
         operator _iterator_access<T>() { return eaten; }
         operator parse_error() { parse_error::none; }
+
+        bool operator==( _iterator_access<T> const & r ){ return eaten==r; }
 
         rettype_skip() {};
         rettype_skip(_iterator_access<T> eaten) : eaten(eaten) {};

@@ -1,6 +1,9 @@
 #include "pch.h"
 #include "CppUnitTest.h"
 
+// /permissive- /Zc:twoPhase- 
+//char * test_permissive = "xxx";//mit /permissive- compile-error
+
 using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 
 #include <algorithm>
@@ -9,6 +12,7 @@ using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 #include "..\..\headeronly\iterator_access.h"
 
 #include "..\..\headeronly\SignatureTest.h"
+#include "..\..\headeronly\is_in.h"
 
 #include <functional>
 #include <string>
@@ -168,11 +172,11 @@ namespace WS
  
 namespace UTParserFkt
 {
-	template<typename container_t
-			,typename function_t
-			, int = ( WS::canCall<function_t,bool(decltype(*std::declval<container_t>().begin()))>::value?1:0
-				    + WS::canCall<function_t,container_t(container_t&)>::value?2:0 )
-			>
+	template<typename container_t,typename function_t> constexpr int eater_fn = 
+		( WS::canCall<function_t,bool(decltype(*std::declval<container_t>().begin()))>::value?1:0
+		  + WS::canCall<function_t,container_t(container_t&)>::value?2:0 );
+
+	template<typename container_t,typename function_t, int = eater_fn<container_t,function_t>>
 	struct _eat
 	{
 		static container_t call( container_t &container, function_t fn)
@@ -228,26 +232,35 @@ namespace UTParserFkt
 		{
 			{
 				auto to_parse = WS::iterator_access( "hallo welt" );
-				auto erg = eat( to_parse, []( char const & ) { return true; } );
+				auto fn_eat_all = []( char const & ) { return true; }; //eat all
+				static_assert( UTParserFkt::eater_fn<decltype(to_parse),decltype(fn_eat_all)> == 1 );
+
+				auto erg = eat( to_parse, fn_eat_all );//eat all
 				Assert::IsFalse( to_parse );
 				Assert::IsTrue( erg );
 				Assert::IsTrue( erg == WS::iterator_access( "hallo welt" ) );
 			}
 			{
 				auto to_parse = WS::iterator_access( "hallo welt" );
-				auto erg = eat( to_parse, []( WS::_iterator_access<char const *> & container ) 
-				{ 
+				auto fn_eat_5_chars = []( WS::_iterator_access<char const *> & container ) 
+				{ //eat first 5 chars
 					WS::_iterator_access<char const *> retvalue {container.begin(),container.begin()+5}; 
 					container.begin()+=5;
 					return retvalue;
-				} );
+				};
+				static_assert( UTParserFkt::eater_fn<decltype(to_parse),decltype(fn_eat_5_chars)> == 2 );
+
+				auto erg = eat( to_parse, fn_eat_5_chars );
 				Assert::IsTrue( to_parse == WS::iterator_access( " welt" ) );
 				Assert::IsTrue( erg );
 				Assert::IsTrue( erg == WS::iterator_access( "hallo" ) );
 			}
 			{
-				auto to_parse = WS::iterator_access( "hallo welt" );
-				//auto erg = eat( to_parse, []( std::wstring & container ) { return std::wstring{}; } );
+				[[maybe_unused]]auto to_parse = WS::iterator_access( "hallo welt" );
+				auto fn = []( [[maybe_unused]]std::wstring & container ) { return std::wstring{}; }; //falsche signatur
+				constexpr int x = UTParserFkt::eater_fn<decltype(to_parse),decltype(fn)>;
+				static_assert( x!=1 && x!=2 );
+				//[[maybe_unused]]auto erg = eat( to_parse, []( [[maybe_unused]]std::wstring & container ) { return std::wstring{}; } );//error C2338: static_assert failed: 'funktion hat falsche Signatur'
 			}
 		}
 
