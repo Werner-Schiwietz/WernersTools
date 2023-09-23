@@ -28,9 +28,10 @@
 /// WS::process_data_and_wait( pipe, working_data_type{} );
 
 ///header 
-///headeronly\pipe.h					diese datei
+///headeronly\pipe.h				diese datei
 ///headeronly\semaphore.h			
 ///headeronly\mutex_atomicflag.h	mutex fuer lock_guard nutzt atomic_flag
+///headeronly\dependent_false.h		false für static_assert wenn twoPhase-compiling , sonst permissive- compile-error
 ///<atomic>
 ///<mutex>
 ///<condition_variable>
@@ -42,6 +43,7 @@
 #include  <memory>
 
 #include "semaphore.h"
+#include "dependent_false.h"
 
 namespace WS
 {
@@ -197,13 +199,14 @@ namespace WS
 			//member->end_worker();
 		}
 		Pipe(Pipe const& ) = delete;
-		Pipe( std::function<void(Pipe<data_t,datapool_t>::data_ptr_t,std::function<void(data_t&&)>) > fn, std::function<void(data_t&&)> worker )
+		Pipe( std::function<void(typename Pipe<data_t,datapool_t>::data_ptr_t,std::function<void(data_t&&)>)> fn, std::function<void(data_t&&)> worker )
 		{
 			this->member->semaphore.set_blocked();
 			this->member->thread_working = std::thread( fn, this->member, worker );
 		}
-		Pipe( std::function<void(Pipe<data_t,datapool_t>::data_ptr_t)> fn )
+		Pipe( std::function<void(typename Pipe<data_t,datapool_t>::data_ptr_t)> fn )
 		{
+			static_assert(dependent_false<data_type>,"untestet function");//maybe it works without this line
 			this->member->semaphore.set_blocked();
 			this->member->thread_working = std::thread( fn, std::ref(*this) );
 		}

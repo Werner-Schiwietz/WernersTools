@@ -315,7 +315,7 @@ namespace
 			return tostring( value, buf, radix );
 		}
 		else
-			static_assert(false,"what?");
+			static_assert(dependent_false<string_type>,"what?");
 	}
 #endif
 }
