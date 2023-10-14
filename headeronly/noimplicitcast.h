@@ -237,11 +237,27 @@ namespace WS
 		{
 			return value;
 		}
-		value_type const & toValueType() const
+		value_type const & toValueType() const &
 		{
 			return value;
 		}
-		value_type & toValueType() 
+		value_type & toValueType() &
+		{
+			return value;
+		}
+		value_type toValueType() &&
+		{
+			return value;
+		}
+		value_type const & to_underlying() const &
+		{
+			return value;
+		}
+		value_type & to_underlying() &
+		{
+			return value;
+		}
+		value_type to_underlying() &&
 		{
 			return value;
 		}
