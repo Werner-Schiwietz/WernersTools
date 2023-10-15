@@ -113,7 +113,7 @@ namespace WS
 	{
 		return bitfeld_t{static_cast<decltype(WS::to_integral(r))>(~WS::to_integral(r))};
 	}
-	template<typename bitfeld_t> bitfeld_t Cut( bitfeld_t const & l, bitfeld_t const & r )//l & ~r //schneidet r aus l heraus und liefert das ergebnis 
+	template<typename bitfeld_t> bitfeld_t Without( bitfeld_t const & l, bitfeld_t const & r )//l & ~r //schneidet r aus l heraus und liefert das den Rest von l
 	{
 		return bitfeld_t{static_cast<decltype(WS::to_integral(l))>(WS::to_integral(l) & ~WS::to_integral(r))};
 	}

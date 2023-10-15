@@ -246,10 +246,10 @@ namespace bitfeld
 			Assert::IsTrue(	WS::Invert( X1{5} ) == X1{~5});
 			Assert::IsTrue(	WS::Invert( 1|8 ) == ~(1|8) );
 		}
-		TEST_METHOD(cut_bitfeld)
+		TEST_METHOD(cutoff_bitfeld)
 		{
 			TYPEDEF(X1,short);
-			Assert::IsTrue(	WS::Cut( X1{0xffffi16}, X1{0xc0} ) == X1{0xff3fi16});
+			Assert::IsTrue(	WS::Without( X1{0xffffi16}, X1{0xc0} ) == X1{0xff3fi16});
 		}
 	};
 }
