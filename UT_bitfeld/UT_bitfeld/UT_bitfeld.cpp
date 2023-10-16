@@ -229,27 +229,27 @@ namespace bitfeld
 		{
 			TYPEDEF(X1,short);
 
-			Assert::IsTrue( WS::Union(X1{5},X1{12}) == X1{13} );
-			Assert::IsTrue(	WS::Union( 1|8, 2|4 ) == (1|2|4|8) );
-			Assert::IsTrue(	WS::Union( 1, 0 ) == 1);
+			Assert::IsTrue( WS::bits::Union(X1{5},X1{12}) == X1{13} );
+			Assert::IsTrue(	WS::bits::Union( 1|8, 2|4 ) == (1|2|4|8) );
+			Assert::IsTrue(	WS::bits::Union( 1, 0 ) == 1);
 		}
 		TEST_METHOD(intersect_bitfelder)
 		{
 			TYPEDEF(X1,short);
-			Assert::IsTrue(	WS::Intersect( X1{5}, X1{12} ) == X1{4});
-			Assert::IsTrue(	WS::Intersect( 1|8, 2|4|8 ) == (8) );
-			Assert::IsTrue(	WS::Intersect( 1|2|4, 8 ) == 0);
+			Assert::IsTrue(	WS::bits::Intersect( X1{5}, X1{12} ) == X1{4});
+			Assert::IsTrue(	WS::bits::Intersect( 1|8, 2|4|8 ) == (8) );
+			Assert::IsTrue(	WS::bits::Intersect( 1|2|4, 8 ) == 0);
 		}
 		TEST_METHOD(invert_bitfeld)
 		{
 			TYPEDEF(X1,short);
-			Assert::IsTrue(	WS::Invert( X1{5} ) == X1{~5});
-			Assert::IsTrue(	WS::Invert( 1|8 ) == ~(1|8) );
+			Assert::IsTrue(	WS::bits::Invert( X1{5} ) == X1{~5});
+			Assert::IsTrue(	WS::bits::Invert( 1|8 ) == ~(1|8) );
 		}
 		TEST_METHOD(cutoff_bitfeld)
 		{
 			TYPEDEF(X1,short);
-			Assert::IsTrue(	WS::Without( X1{0xffffi16}, X1{0xc0} ) == X1{0xff3fi16});
+			Assert::IsTrue(	WS::bits::Without( X1{0xffffi16}, X1{0xc0} ) == X1{0xff3fi16});
 		}
 	};
 }
