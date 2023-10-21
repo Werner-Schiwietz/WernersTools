@@ -1,7 +1,7 @@
 @rem
 @echo off
 
-@rem cd /d %~p0
+@rem wartet, bis alle prozesse mit den pids als einzelparameter beendet sind
 
 :nextpid
 if "%~1" equ "" exit /b 0

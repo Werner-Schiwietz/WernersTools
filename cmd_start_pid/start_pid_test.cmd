@@ -1,4 +1,5 @@
-@rem
+﻿@rem ein test cmd
+
 @echo off
 
 @setlocal
@@ -15,4 +16,5 @@ set pids=%pids% %errorlevel%
 
 echo PIDS = %PIDS%
 
-call wait_pids %PIDS%
+@rem call %~p0\wait_pids %PIDS%
+call %~dp0\wait_pids_var "%PIDS%"

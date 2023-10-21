@@ -1,9 +1,9 @@
-@rem
-@echo off
- 
 @rem liefert die pid zum gestarteten Prozess, wenn der Windowstitel eindeutig ist
 @rem %1 muss der Titel des Command-Fensters sein, sonst klappt das nicht
 @rem die PID wird über die console ausgegeben und als %errorlevel% geliefert
+ 
+@rem
+@echo off
  
 if "%~2" equ "" exit /b 0
  
