@@ -1,8 +1,19 @@
-﻿@rem ein test cmd
+@rem ein test cmd
 
+@rem
 @echo off
-@setlocal enabledelayedexpansion
 
+for /f "tokens=3 delims=. " %%i in ('chcp') do set codepage=%%i
+chcp 65001 >nul
+
+setlocal enabledelayedexpansion
+
+call :doing
+endlocal
+chcp %codepage% >nul
+exit /b 
+
+:doing
 set PIDS=
 @rem cd /d %~p0
  
