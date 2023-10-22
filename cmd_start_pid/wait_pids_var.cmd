@@ -11,7 +11,7 @@
 set myparams=%~1
 
 
-:nextpid
+:endlos
 
 if "!myparams!" equ "" exit /b 0
 set pids_running=
@@ -25,9 +25,16 @@ for %%i in ( !myparams! ) do (
 		echo %%i läuft nicht mehr
 	)
 )
+if "!pids_running!" equ "" exit /b 0
+
+@rem laufender,horizontaler punkt als lebensanzeige
+@rem @echo|@set /p=.
+@<nul set /p=.
 
 set myparams=!pids_running!
+
+@rem ggf 2 sekunden warten
 if "!myparams!" neq "" timeout /T 2 >nul
-goto nextpid
+goto endlos
 
  
