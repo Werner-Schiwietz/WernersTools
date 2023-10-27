@@ -1,4 +1,5 @@
-﻿@rem liefert als errorlevel die pid wenn der prozess läuft und 0 wenn er nicht läuft
+﻿@rem pid_activ by werner schiwietz source@gisbw.de 2023
+@rem liefert als errorlevel die pid wenn der prozess läuft und 0 wenn er nicht läuft
 
 @setlocal enabledelayedexpansion
 @rem 

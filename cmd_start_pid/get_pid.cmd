@@ -1,4 +1,5 @@
  
+@rem get_pid by werner schiwietz source@gisbw.de 2023
 @rem liefert die pid Windowstitel, wenn Dieser eindeutig ist
 @rem %1 muss der Titel des Fensters sein, sonst klappt das nicht wird um wildcard * erweitert
 @rem die PID wird über die console ausgegeben und als %errorlevel% geliefert. im fehlerfall ist der errorlevel 0

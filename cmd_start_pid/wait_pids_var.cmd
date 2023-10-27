@@ -1,4 +1,6 @@
-﻿@rem wartet, bis alle prozesse mit den pids, als ein parameter in "15220 10983 ..." beendet sind
+﻿@rem wait_pids_var by werner schiwietz source@gisbw.de 2023
+@rem wartet, bis alle prozesse mit den pids, als ein parameter in "15220 10983 ..." beendet sind
+
 @rem 
 @echo off
 

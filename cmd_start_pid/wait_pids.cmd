@@ -1,7 +1,10 @@
+@rem wait_pids by werner schiwietz source@gisbw.de 2023
+@rem wartet, bis alle prozesse mit den pids als einzelparameter beendet sind
+
+
 @rem
 @echo off
 
-@rem wartet, bis alle prozesse mit den pids als einzelparameter beendet sind
 
 :nextpid
 if "%~1" equ "" exit /b 0
