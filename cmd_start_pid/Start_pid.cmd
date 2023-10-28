@@ -10,6 +10,6 @@ if "%~2" equ "" exit /b 0
  
 start "%~1" %2 %3 %4 %5 %6 %7 %8 %9
 
-call %~p0\get_pid.cmd "%~1"
+call %~dp0\get_pid.cmd "%~1"
 
 exit /b %errorlevel%
