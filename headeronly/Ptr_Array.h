@@ -310,6 +310,10 @@ namespace WS
 			static_assert( WS::is_const_pointer<otherpointer>::value==false || WS::is_const_pointer<pointer_type>::value, "U const* kann nicht zu T * konvertiert werden" );
 		}
 
+		ptr_array<pointer_t> reset() const//liefert kopie des speichers mit zurückgesetzer schreib/leseposition 
+		{
+			return ptr_array<pointer_t>{ memorystartpos(), UsedByteLen() + ByteLen() };
+		}
 		ptr_array	operator+( size_t pointer_um_N_elemente_weiter_setzen ) const
 		{
 			if( pointer_um_N_elemente_weiter_setzen > elementcount )
@@ -622,6 +626,12 @@ namespace WS
 			static_assert( WS::is_const_pointer<otherpointer>::value==false || WS::is_const_pointer<pointer_type>::value, "U const* kann nicht zu T * konvertiert werden" );
 		}
 
+		ptr_array<pointer_t> reset() const//liefert kopie des speichers mit zurückgesetzer schreib/leseposition 
+		{
+			return ptr_array<pointer_t>{ memorystartpos(), UsedByteLen() + ByteLen() };
+		}
+
+
 		ptr_array	operator+( size_t pointer_um_anzahl_bytes_weitersetzen ) const
 		{
 			if( pointer_um_anzahl_bytes_weitersetzen > ByteLen() )
@@ -717,7 +727,7 @@ namespace WS
 		}
 		template<typename T> TRef<T, pointer_type> useas()
 		{
-			return TRef<T,pointer_type>( (pointer_type)pointer, bytelen, (pointer_type)membegin );
+			return TRef<T,pointer_type>( *(pointer_type*)&pointer, bytelen, *(pointer_type*)&membegin );
 		}
 
 		ptr_array() {};
@@ -736,6 +746,10 @@ namespace WS
 			static_assert( WS::is_const_pointer<otherpointer>::value==false || WS::is_const_pointer<pointer_type>::value, "U const* kann nicht zu T * konvertiert werden" );
 		}
 
+		ptr_array<pointer_t> reset() const//liefert kopie des speichers mit zurückgesetzer schreib/leseposition 
+		{
+			return ptr_array<pointer_t>{ memorystartpos(), UsedByteLen() + ByteLen() };
+		}
 
 		ptr_array	operator+( size_t pointer_um_anzahl_bytes_weitersetzen ) const
 		{
