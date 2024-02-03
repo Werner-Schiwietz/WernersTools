@@ -475,7 +475,7 @@ namespace WS
 			if( begin_ref > ptr_ref )
 				throw std::invalid_argument( __FUNCTION__ " pointer invalid" );
 			if( bytelen < sizeof(element_type) )
-				throw std::out_of_range( __FUNCTION__ " index out of range" );
+				throw std::out_of_range( __FUNCTION__ " too less memory for element_t" );
 		}
 		TRef( TRef const & r ) = default;
 		element_ref_type operator*()
@@ -727,7 +727,8 @@ namespace WS
 		}
 		template<typename T> TRef<T, pointer_type> useas()
 		{
-			return TRef<T,pointer_type>( *(pointer_type*)&pointer, bytelen, *(pointer_type*)&membegin );
+			auto r = TRef<T,pointer_type>( *(pointer_type*)&pointer, bytelen, *(pointer_type*)&membegin );
+			return r;
 		}
 
 		ptr_array() {};

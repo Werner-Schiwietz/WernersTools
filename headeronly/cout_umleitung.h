@@ -5,6 +5,11 @@
 //ins Debug Tests fenster umgeleitet
 //mit freundlicher unterstützung
 //https://gist.github.com/takashyx/937f3a794ad36cd98ec3
+
+#include <string>
+#include <sstream>
+#include <iostream>
+
 class LoggerStreambuf : public std::streambuf
 {
 
@@ -14,7 +19,7 @@ public:
 		if( c != EOF )
 		{
 			if( c != '\n' )
-				buf += c;
+				buf += static_cast<char>(c);
 			else
 			{
 				Logger::WriteMessage( buf.c_str() );
