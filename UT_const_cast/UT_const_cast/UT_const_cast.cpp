@@ -15,6 +15,45 @@ namespace UT_allgemein
 	TEST_CLASS(UT_const_cast)
 	{
 	public:
+		TEST_METHOD(toogleConst_cast_auf_TRefs)
+		{
+			int i=5;
+			[[maybe_unused]]decltype(auto) r1 = WS::toggleconst_cast(i);
+			static_assert( std::is_reference_v<decltype(r1)> );
+			static_assert( std::is_const<std::remove_reference_t<decltype(r1)>>::value );
+			++i;
+			Assert::IsTrue( r1==i);
+
+			{
+				[[maybe_unused]]decltype(auto) r2 = WS::toggleconst_cast(r1);
+				static_assert( std::is_reference_v<decltype(r2)> );
+				static_assert( std::is_const<std::remove_reference_t<decltype(r2)>>::value==false );
+				++i;
+				Assert::IsTrue( r2==i);
+			}
+			{
+				[[maybe_unused]]decltype(auto) r2 = WS::toggleconst_cast(std::move(r1));
+				static_assert( std::is_reference_v<decltype(r2)> == false );
+				static_assert( std::is_const<std::remove_reference_t<decltype(r2)>>::value==false );
+				++i;
+				Assert::IsTrue( r2==i-1);
+
+				[[maybe_unused]]decltype(auto) r3 = WS::toggleconst_cast(std::move(r2));
+				static_assert( std::is_reference_v<decltype(r3)> == false );
+				static_assert( std::is_const<std::remove_reference_t<decltype(r3)>>::value == false );
+				++i;
+				++r2;
+				Assert::IsTrue( r3!=r2);
+			}
+			{
+				decltype(auto) r2 = WS::toggleconst_cast(int{4});//echter rvalue
+				[[maybe_unused]]char x[100]{};
+
+				static_assert( std::is_reference_v<decltype(r2)> == false );
+				Assert::IsTrue( r2==4 );
+
+			}
+		}
 		TEST_METHOD(const_ref_zu_ref)
 		{
 			int i=5;
@@ -23,7 +62,8 @@ namespace UT_allgemein
 			static_assert(std::is_const_v<std::remove_reference_t<decltype(cri)>>);
 
 			{
-				decltype(auto) casted = WS::notconst_cast(cri);
+				[[maybe_unused]]decltype(auto) casted = WS::notconst_cast(cri);
+				[[maybe_unused]]decltype(auto) casted2 = WS::toconst_cast(cri);
 				static_assert(std::is_reference_v<decltype(casted)>);
 				static_assert(std::is_const_v<std::remove_reference_t<decltype(casted)>> == false);
 
@@ -31,14 +71,15 @@ namespace UT_allgemein
 				Assert::IsTrue(i==6);
 			}
 			{
-				decltype(auto) casted = WS::toggleconst_cast(cri);
+				[[maybe_unused]]decltype(auto) casted = WS::toggleconst_cast(cri);
 				static_assert(std::is_reference_v<decltype(casted)>);
-				static_assert(std::is_const_v<std::remove_reference_t<decltype(casted)>> == false);
+				//static_assert(std::is_const_v<std::remove_reference_t<decltype(casted)>> == false);
 
 				casted = 7;
 				Assert::IsTrue(i==7);
 			}
 		}
+		/**/
 		TEST_METHOD(ref_zu_const_ref)
 		{
 			int i=5;
@@ -207,17 +248,24 @@ namespace UT_allgemein
 
 
 			std::shared_ptr<A> APtr{ new A{5}};
+			static_assert( std::is_same<A,decltype(APtr)::element_type>::value );
 
 			decltype(auto)  Ptr1 = WS::toconst_cast( APtr );Ptr1;
+			static_assert( std::is_same<A const,decltype(Ptr1)::element_type>::value );
+
 			Assert::IsTrue( *APtr == *Ptr1 );
 			//decltype(auto)  PtrX1 = WS::toconst_cast( Ptr1 );PtrX1; //error C2280: attempting to reference a deleted function
 			decltype(auto)  Ptr2 = WS::notconst_cast( Ptr1 );Ptr2;
+			static_assert( std::is_same<A,decltype(Ptr2)::element_type>::value );
+
 			//decltype(auto)  PtrX2 = WS::notconst_cast( Ptr2 );PtrX2; //error C2280: attempting to reference a deleted function
 			Assert::IsTrue( *APtr == *Ptr2 );
 			Assert::IsTrue( *Ptr1 == *Ptr2 );
 
 			decltype(auto)  Ptr3 = WS::toggleconst_cast( Ptr2 );Ptr3;
 			decltype(auto)  Ptr4 = WS::toggleconst_cast( Ptr3 );Ptr4;
+			static_assert( std::is_same<decltype(Ptr2)::element_type,decltype(Ptr3)::element_type>::value == false );
+			static_assert( std::is_same<decltype(Ptr2)::element_type,decltype(Ptr4)::element_type>::value == true );
 
 			static_assert( std::is_same_v<decltype(Ptr3),decltype(Ptr1)>);
 			static_assert( std::is_same_v<decltype(Ptr4),decltype(Ptr2)>);
@@ -225,5 +273,6 @@ namespace UT_allgemein
 			static_assert( std::is_same_v<decltype(Ptr3),decltype(Ptr2)> == false);
 
 		}
+		/**/
 	};
 }

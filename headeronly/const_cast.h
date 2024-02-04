@@ -66,28 +66,29 @@ namespace WS
 	{
 		return value;
 	}
-	template<typename T> auto toggleconst_cast( T && value) -> std::enable_if_t<std::is_const_v<T> && std::is_pointer<T>::value==false, std::remove_const_t<T> &&>
+
+	template<typename T> auto toggleconst_cast( T && value) -> std::enable_if_t<std::is_const_v<T> && std::is_pointer<T>::value==false, std::remove_const_t<T> >
 	{
-		return const_cast<std::remove_const_t<T>&&>(value);
+		return std::move(const_cast<std::remove_const_t<T>&&>(value));
 	}
-	template<typename T> auto toggleconst_cast( T && value) -> std::enable_if_t<std::is_const<T>::value==false && std::is_pointer<T>::value==false, T const &&>
+	template<typename T> auto toggleconst_cast( T && value) -> std::enable_if_t<std::is_const<T>::value==false && std::is_pointer<T>::value==false, T const >
 	{
 		return std::move(value);
 	}
 
-	template<typename T> auto notconst_cast( T & value) -> std::enable_if_t<std::is_const_v<T>, std::remove_const_t<T> &>
+	template<typename T> auto notconst_cast( T & value) -> std::enable_if_t<std::is_const_v<std::remove_reference_t<T>>, std::remove_const_t<std::remove_reference_t<T>> &>
 	{
 		return toggleconst_cast(value);
+	}
+	template<typename T> auto notconst_cast( T && value) -> std::enable_if_t<std::is_const_v<std::remove_reference_t<T>>, std::remove_const_t<std::remove_reference_t<T>>>
+	{
+		return toggleconst_cast(std::move(value));
 	}
 	template<typename T> auto toconst_cast( T & value) -> std::enable_if_t<std::is_const<T>::value==false, T const &>
 	{
 		return value;
 	}
-	template<typename T> auto notconst_cast( T && value) -> std::enable_if_t<std::is_const_v<T>, std::remove_const_t<T> &&>
-	{
-		return toggleconst_cast(std::move(value));
-	}
-	template<typename T> auto toconst_cast( T && value) -> std::enable_if_t<std::is_const<T>::value==false, T const &&>
+	template<typename T> auto toconst_cast( T && value) -> std::enable_if_t<std::is_const<T>::value==false, T const>
 	{
 		return std::move(value);
 	}
