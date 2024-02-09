@@ -373,11 +373,12 @@ namespace WS
 		//friend bool operator==( pointer_type l, auto_ptr const & r ) noexcept { return l==r.get(); }//vergleicht die per get() gelieferten pointer
 		//friend bool operator!=( pointer_type l, auto_ptr const & r ) noexcept { return l==r.get(); }//vergleicht die per get() gelieferten pointer
 
+		auto get_raw_pointer() const noexcept { return this->share.pointer; }// liefert raw-pointer (auch invalid)
 		template<typename U> bool operator< ( auto_ptr<U> const & r ) const noexcept // vergleicht raw-pointer (auch invalid), nicht den inhalt
 		{
 			//nicht get() da der < operator evtl. z.b. als Key in einer std::map verwendet wird. dort soll er zumindest bei der reihenfolgenpflege immer den gleichen wert liefern 
 			//und nicht nullptr, wenn das objekt nicht mehr existiert. (verwendung in CAbschnitt::_WieDuplexDrucken)
-			return this->share.pointer < r.share.pointer;
+			return this->get_raw_pointer() < r.get_raw_pointer();
 		}
 
 		void swap( auto_ptr & r ) noexcept
