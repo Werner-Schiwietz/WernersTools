@@ -58,6 +58,7 @@
 /// 
 namespace WS
 {
+#pragma region allgemein
 	template<typename T> auto toggleconst_cast( T & value) -> std::enable_if_t<std::is_const_v<T> && std::is_pointer<T>::value==false, std::remove_const_t<T> &>
 	{
 		return const_cast<std::remove_const_t<T>&>(value);
@@ -66,7 +67,6 @@ namespace WS
 	{
 		return value;
 	}
-
 	template<typename T> auto toggleconst_cast( T && value) -> std::enable_if_t<std::is_const_v<T> && std::is_pointer<T>::value==false, std::remove_const_t<T> >
 	{
 		return std::move(const_cast<std::remove_const_t<T>&&>(value));
@@ -92,8 +92,9 @@ namespace WS
 	{
 		return std::move(value);
 	}
+#pragma endregion 
 
-	#pragma region raw-pointer
+#pragma region raw-pointer
 	template<typename T> auto toggleconst_cast( T * value) -> std::enable_if_t<std::is_const_v<T>, std::remove_const_t<std::remove_pointer_t<T>> *>
 	{
 		return const_cast<std::remove_const_t<std::remove_pointer_t<T>>*>(value);
@@ -114,7 +115,7 @@ namespace WS
 	template<typename T> auto toconst_cast( T * value) -> std::enable_if_t<std::is_const<T>::value, T const *> = delete;//T const to T const ist unerwünscht
 #pragma endregion 
 
-	#pragma region std::shared_ptr
+#pragma region std::shared_ptr
 	template<typename T> auto toggleconst_cast( std::shared_ptr<T> & value ) -> std::enable_if_t<std::is_const_v<T>, std::shared_ptr<std::remove_const_t<T>>>
 	{
 		return std::const_pointer_cast<std::remove_const_t<T>>(value);

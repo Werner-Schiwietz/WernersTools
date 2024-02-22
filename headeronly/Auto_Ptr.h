@@ -753,18 +753,18 @@ namespace WS
 		{
 			if( this->auto_this==nullptr )//conditionjump besser als funktionspointerjump, so kann die CPU optimieren, behauptet das internet ohne beiweise. glaube ich aber nicht. ist aber deutlich besser lesbar als mit functionspointern
 			{
-				auto_this = auto_ptr<enable_auto_ptr_from_this<this_t>>{const_cast<enable_auto_ptr_from_this*>(this),false,auto_ptr<this_t>::Managed(true)};
+				this->auto_this = auto_ptr<enable_auto_ptr_from_this<this_t>>{const_cast<enable_auto_ptr_from_this*>(this),false,auto_ptr<this_t>::Managed(true)};
 			}
-			return auto_ptr<this_t>{auto_this};
+			return auto_ptr<this_t>{this->auto_this};
 		}
 		auto_ptr<this_t const > auto_ptr_from_this() const
 		{
 			if( this->auto_this==nullptr )//conditionjump besser als funktionspointerjump, so kann die CPU optimieren, behauptet das internet ohne beiweise. glaube ich aber nicht. ist aber deutlich besser lesbar als mit functionspointern
 			{
 				//const_cast ist noetig
-				auto_this = auto_ptr<enable_auto_ptr_from_this<this_t>>{const_cast<enable_auto_ptr_from_this*>(this),false,auto_ptr<this_t>::Managed(true)};
+				this->auto_this = auto_ptr<enable_auto_ptr_from_this<this_t>>{const_cast<enable_auto_ptr_from_this*>(this),false,auto_ptr<this_t>::Managed(true)};
 			}
-			return auto_ptr<this_t>{auto_this};
+			return auto_ptr<this_t>{this->auto_this};
 		}
 		//gibt nur aerger
 		//auto_ptr<this_t> operator &() const

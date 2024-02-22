@@ -208,6 +208,7 @@ namespace autoptr
 				A a;
 				B b;
 
+				Aptr = (A*)nullptr;
 				Aptr = a;
 				Assert::IsTrue(Aptr);
 				Aptr = nullptr;
@@ -312,6 +313,10 @@ namespace autoptr
 			WS::auto_ptr<B> B2ptr;//unmanaged_auto_ptr, die konnte man bis 2022-02-19 einem managed_auto_ptr nicht zuweisen. nun geht es, wenn T von enable_auto_ptr_from_this abgeleitet ist
 			WS::auto_ptr<C> C2ptr;//unmanaged_auto_ptr, die konnte man bis 2022-02-19 einem managed_auto_ptr nicht zuweisen. nun geht es, wenn T von enable_auto_ptr_from_this abgeleitet ist
 			WS::auto_ptr<A> A2ptr;//unmanaged_auto_ptr, die konnte man bis 2022-02-19 einem managed_auto_ptr nicht zuweisen. nun geht es, wenn T von enable_auto_ptr_from_this abgeleitet ist
+			A2ptr = (A*)nullptr;
+			A2ptr = a;
+			//A2ptr = &c;//error C2679: binary '=': no operator found which takes a right-hand operand of type 'autoptr::UT_managed_auto_ptr::managed_auto_ptr_auto_ptr_from_this_from_unmanaged_auto_ptr::C *' (or there is no acceptable conversion)
+			A2ptr = &b;
 			A2ptr = &a;
 			//B2ptr = &a;//error C2679: binary '=': no operator found which takes a right-hand operand of type 'BasisUnitTests::UT_managed_auto_ptr::managed_auto_ptr_auto_ptr_from_this_from_unmanaged_auto_ptr::A *' (or there is no acceptable conversion)
 			B2ptr = &b;
@@ -794,6 +799,16 @@ namespace autoptr
 			struct D : C{D(int& counter):C(counter){}};
 
 			{
+				{
+					WS::auto_ptr<A> aPtr;
+					aPtr = (A*)nullptr;
+					//aPtr = A{acounter};
+					A a{acounter};
+					aPtr = a;
+					aPtr = &a;
+					WS::auto_ptr<A> aPtr2 = aPtr;
+
+				}
 				WS::auto_ptr<A> aPtr;
 				WS::auto_ptr<C> cPtr;
 				{
