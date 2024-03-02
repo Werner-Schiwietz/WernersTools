@@ -416,6 +416,45 @@ namespace autoptr
 	TEST_CLASS(autoptr)
 	{
 	public:
+		TEST_METHOD(auto_ptr_constcast)
+		{
+			WS::auto_ptr<int> ptr;
+			WS::auto_ptr<int> ptr2;
+			WS::auto_ptr<int const> cptr;
+
+			ptr = std::unique_ptr<int>{ new int{5} };
+			cptr = WS::toconst_cast(ptr);
+			ptr2 = WS::notconst_cast(cptr);
+
+			Assert::IsTrue( *cptr == *ptr);++*ptr;
+			Assert::IsTrue( *ptr2 == *ptr);++*ptr;
+
+			cptr = WS::toggleconst_cast(ptr);
+			ptr2 = WS::toggleconst_cast(cptr);
+
+			cptr = ptr2;
+
+			ptr = nullptr;
+			Assert::IsTrue( cptr == nullptr );
+			Assert::IsTrue( ptr2 == nullptr );
+		}
+		TEST_METHOD(auto_ptr_from_const_cast)
+		{
+			WS::auto_ptr<int> ptr;
+			WS::auto_ptr<int> ptr2;
+			WS::auto_ptr<int const> cptr;
+
+			ptr = std::unique_ptr<int>{ new int{5} };
+			cptr = ptr;
+			ptr2 = cptr.notconst();
+
+			Assert::IsTrue( *cptr == *ptr);++*ptr;
+			Assert::IsTrue( *ptr2 == *ptr);++*ptr;
+
+			ptr = nullptr;
+			Assert::IsTrue( cptr == nullptr );
+			Assert::IsTrue( ptr2 == nullptr );
+		}
 		TEST_METHOD(auto_ptr__compare)
 		{
 			WS::auto_ptr<int> ptr;

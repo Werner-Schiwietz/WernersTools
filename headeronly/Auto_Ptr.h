@@ -46,6 +46,10 @@
 //#define LINE_STRING1(x) LINE_STRING2(x)	//nötig, damit __LINE__ zur Zahl wird
 //#define _LINE_ LINE_STRING1(__LINE__)		//in pragma message kann _LINE_ verwendet wwerden
 
+#pragma push_macro("ASSERT")
+#ifndef ASSERT
+	#define ASSERT(x) ((void)0)
+#endif
 
 namespace WS
 {
@@ -319,7 +323,16 @@ namespace WS
 				//	ASSERT( !"cast von U auf T klappt nicht");
 			}
 		}
+		auto_ptr<std::remove_const_t<element_type>> notconst() //liefert ein auto_ptr dessen T nicht const ist. wie const_cast
+		{
+			using U = std::remove_const_t<element_type>;
+			auto_ptr<U> ret_value;
 
+			ret_value.share.share = reinterpret_cast<ReferenzCounter<U*>::ReferenzCounterShare*>(this->share ? this->share.share->AddRef() : nullptr);
+			ret_value.share.pointer = const_cast<U*>(this->share.pointer);
+
+			return ret_value;
+		}
 		auto_ptr & operator=(auto_ptr && r) & noexcept
 		{
 			auto_ptr temp{ std::move(r) };
@@ -333,8 +346,9 @@ namespace WS
 		}
 		template<typename U>auto_ptr & operator=(auto_ptr<U> && r) & noexcept
 		{
-			static_assert( std::is_base_of<U, T>::value
-						|| std::is_base_of<T, U>::value
+			static_assert( std::is_same<std::remove_const_t<U>,std::remove_const_t<T>>::value
+						|| std::is_base_of<std::remove_const_t<U>, std::remove_const_t<T>>::value
+						|| std::is_base_of<std::remove_const_t<T>, std::remove_const_t<U>>::value
 						, __FUNCTION__ " pointer sind nicht zuweisbar");
 
 			auto_ptr { r.transfer() }.swap( *this );
@@ -343,8 +357,9 @@ namespace WS
 		}
 		template<typename U>auto_ptr & operator=(auto_ptr<U> const & r) & noexcept
 		{
-			static_assert( std::is_base_of<U, T>::value
-						   || std::is_base_of<T, U>::value
+			static_assert( std::is_same<std::remove_const_t<U>,std::remove_const_t<T>>::value
+						|| std::is_base_of<U, T>::value
+						|| std::is_base_of<T, U>::value
 						, __FUNCTION__ " pointer sind nicht zuweisbar");
 
 			auto_ptr<T>{ r }.swap( *this );
@@ -541,6 +556,27 @@ namespace WS
 		}
 	};
 
+#pragma region cast
+	template<typename T> auto toggleconst_cast(auto_ptr<T> & value) -> std::enable_if_t<std::is_const_v<T>, auto_ptr<std::remove_const_t<T>>>
+	{
+		return value.notconst();
+	}
+	template<typename T> auto toggleconst_cast(auto_ptr<T> & value) -> std::enable_if_t<std::is_const_v<T> == false, auto_ptr<T const>>
+	{
+		return auto_ptr<T const>( value );
+	}
+	template<typename T> auto notconst_cast(auto_ptr<T> & value) -> std::enable_if_t<std::is_const_v<T>, auto_ptr<std::remove_const_t<T>>>
+	{
+		return value.notconst();
+	}
+	template<typename T> auto notconst_cast(auto_ptr<T> & value) -> std::enable_if_t<std::is_const_v<T> == false, auto_ptr<T const>> = delete;//T to T ist unerwünscht
+	template<typename T> auto toconst_cast(auto_ptr<T> & value) -> std::enable_if_t<std::is_const_v<T>, auto_ptr<std::remove_const_t<T>>> = delete;// T const to T const ist unerwünscht
+	template<typename T> auto toconst_cast(auto_ptr<T> & value) -> std::enable_if_t<std::is_const_v<T> == false, auto_ptr<T const>> 
+	{
+		return auto_ptr<T const>( value );
+	}
+
+#pragma endregion
 
 	template<template <typename...> class Tmpl, typename Arg>
 	struct is_enable_auto_ptr_from_this<Tmpl<Arg>> : std::bool_constant<std::is_same_v<Tmpl<Arg>,WS::enable_auto_ptr_from_this<Arg>>> {};
@@ -841,3 +877,5 @@ namespace WS
 		template<typename U, typename V> auto_ptr<T> replace( U replacevalue, V replacewith ) { return replace( auto_ptr<T>{replacevalue}, auto_ptr_owner_parameter<T>{replacewith}); }
 	};
 }
+
+#pragma pop_macro("ASSERT")
