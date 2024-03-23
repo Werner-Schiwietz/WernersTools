@@ -16,10 +16,10 @@
 #include <any>
 #include <mutex>
 
-namespace WP
+namespace WS
 {
     /// <summary>
-    /// WP::DelayDelete zerstört Objekte mit Zeitverzögerung, spätesten beim Beenden des Programms,
+    /// WS::DelayDelete zerstört Objekte mit Zeitverzögerung, spätesten beim Beenden des Programms,
     /// frühesten nach Ablauf der duration-zeit
     /// 
     /// nutzt std:any, benötig mindestens c++17

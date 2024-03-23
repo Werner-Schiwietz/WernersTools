@@ -22,7 +22,7 @@ namespace UTDelayDelete
         {
             Cout2Output<> coutumleiten{};
             {
-                WP::DelayDelete<30,std::chrono::seconds> delaydelete;
+                WS::DelayDelete<30,std::chrono::seconds> delaydelete;
                 struct myint
                 {
                     int v;
@@ -54,7 +54,7 @@ namespace UTDelayDelete
         {
             Cout2Output<> coutumleiten{};
             {
-                WP::DelayDelete<30,std::chrono::milliseconds> delaydelete;
+                WS::DelayDelete<30,std::chrono::milliseconds> delaydelete;
                 struct myint
                 {
                     int v;
