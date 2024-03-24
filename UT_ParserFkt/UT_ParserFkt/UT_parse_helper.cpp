@@ -170,6 +170,226 @@ namespace WS
 	}
 }
  
+namespace UT_char_helper
+{
+	template<typename char_t> bool operator==( digit_range<char_t> const & l, digit_range<char_t> const & r )
+	{
+		return 
+			l.lower == r.lower &&
+			l.upper == r.upper &&
+			l.start_char == r.start_char;
+	}
+
+	TEST_CLASS(UT_digit)
+	{
+		TEST_METHOD(UT_digit_range_list)
+		{
+			#undef ns
+			#define ns ::
+			//#define ns ::new_digit::
+			{
+				auto rangelist = ns digit_def_ranges<10,char>();
+				auto iter = rangelist.begin();
+				Assert::IsTrue( *iter == digit_range<char>{0,10,'0'} );
+				Assert::IsTrue( ++iter == rangelist.end() );
+			}
+			{
+				auto rangelist = ns digit_def_ranges<12,char>();
+				auto iter = rangelist.begin();
+				Assert::IsTrue( *iter == digit_range<char>{0,10,'0'} );
+				Assert::IsTrue( *++iter == digit_range<char>{10,36,'A'} );
+				Assert::IsTrue( *++iter == digit_range<char>{10,36,'a'} );
+				Assert::IsTrue( ++iter == rangelist.end() );
+			}
+			{
+				auto rangelist = ns digit_def_ranges<10,char>();
+				auto iter = rangelist.begin();
+				Assert::IsTrue( *iter == digit_range<char>{0,10,'0'} );
+				Assert::IsTrue( ++iter == rangelist.end() );
+			}
+
+
+			auto test_initilizer_list_as_parameter = []( auto container)
+			{
+				return container.size();
+			};
+
+			Assert::IsTrue( 1==test_initilizer_list_as_parameter( ns digit_def_ranges<8,char>() ) );
+			Assert::IsTrue( 3==test_initilizer_list_as_parameter( ns digit_def_ranges<12,char>() ) );
+
+
+		}
+		TEST_METHOD(digit)
+		{
+			#undef ns
+			#define ns ::
+			//#define ns ::new_digit::
+
+			#pragma region digit 
+			{
+				constexpr unsigned int radix = 10;
+				auto numeric_one='\x1';
+				auto lowest = '0';
+				auto highest = '9';
+				{
+					auto erg = ns digit(lowest);
+					Assert::IsTrue( erg );
+					Assert::IsTrue( erg.value==0 );
+				}
+				{
+					auto erg = ns digit(highest);
+					Assert::IsTrue( erg );
+					Assert::IsTrue( erg.value==radix-1 );
+				}
+				{
+					auto erg = ns digit(lowest-numeric_one);
+					Assert::IsFalse( erg );
+				}
+				{
+					auto erg = ns digit(highest+numeric_one);
+					Assert::IsFalse( erg );
+				}
+			}
+			#pragma endregion
+
+			#pragma region digit<10> 
+			{
+				constexpr unsigned int radix = 10;
+				auto numeric_one='\x1';
+				auto lowest = '0';
+				auto highest = '9';
+				{
+					auto erg = ns digit<radix>(lowest);
+					Assert::IsTrue( erg );
+					Assert::IsTrue( erg.value==0 );
+				}
+				{
+					auto erg = ns digit<radix>(highest);
+					Assert::IsTrue( erg );
+					Assert::IsTrue( erg.value==radix-1 );
+				}
+				{
+					auto erg = ns digit<radix>(lowest-numeric_one);
+					Assert::IsFalse( erg );
+				}
+				{
+					auto erg = ns digit<radix>(highest+numeric_one);
+					Assert::IsFalse( erg );
+				}
+			}
+		#pragma endregion
+			#pragma region digit<1> 
+				{
+					constexpr unsigned int radix = 2;
+					auto lowest = L'0';
+					auto highest = L'1';
+					auto numeric_one=L'\x1';
+					{
+						auto erg = ns digit<radix>(lowest);
+						Assert::IsTrue( erg );
+						Assert::IsTrue( erg.value==0 );
+					}
+					{
+						auto erg = ns digit<radix>(highest);
+						Assert::IsTrue( erg );
+						Assert::IsTrue( erg.value==radix-1 );
+					}
+					{
+						auto erg = ns digit<radix>(lowest-numeric_one);
+						Assert::IsFalse( erg );
+					}
+					{
+						auto erg = ns digit<radix>(highest+numeric_one);
+						Assert::IsFalse( erg );
+					}
+				}
+			#pragma endregion
+			#pragma region digit<12> 
+				{
+					constexpr unsigned int radix = 12;
+					unsigned char numeric_one='\x1';
+					unsigned char lowest = '0';
+					unsigned char highest = 'B';
+					{
+						auto erg = ns digit<radix>(lowest);
+						Assert::IsTrue( erg );
+						Assert::IsTrue( erg.value==0 );
+					}
+					{
+						auto erg = ns digit<radix>(highest);
+						Assert::IsTrue( erg );
+						Assert::IsTrue( erg.value==radix-1 );
+					}
+					{
+						auto erg = ns digit<radix>(lowest-numeric_one);
+						Assert::IsFalse( erg );
+					}
+					{
+						auto erg = ns digit<radix>(highest+numeric_one);
+						Assert::IsFalse( erg );
+					}
+				}
+			#pragma endregion
+			#pragma region digit<16> 
+				{
+					constexpr unsigned int radix = 16;
+					auto numeric_one=L'\x1';
+					auto lowest = L'0';
+					auto highest = L'f';
+					{
+						auto erg = ns digit<radix>(lowest);
+						Assert::IsTrue( erg );
+						Assert::IsTrue( erg.value==0 );
+					}
+					{
+						auto erg = ns digit<radix>(highest);
+						Assert::IsTrue( erg );
+						Assert::IsTrue( erg.value==radix-1 );
+					}
+					{
+						auto erg = ns digit<radix>(lowest-numeric_one);
+						Assert::IsFalse( erg );
+					}
+					{
+						auto erg = ns digit<radix>(highest+numeric_one);
+						Assert::IsFalse( erg );
+					}
+				}
+			#pragma endregion
+
+		}
+		TEST_METHOD(KaktovikischesZahlensystem)
+		{
+			#undef ns
+			#define ns ::
+			//#define ns ::new_digit::
+
+			constexpr wchar_t Null{L'A'};//keine ahnung was die 0 im kaktovikischen Zahlensystem ist, also nehmen wir einfach A
+
+			auto ranges = {digit_range<wchar_t>{0,20,Null}};
+
+			constexpr unsigned int radix = 20;
+			wchar_t numeric_one=L'\x1';
+			wchar_t lowest = Null;
+			wchar_t highest = wchar_t{Null+19};
+
+			for( unsigned int num=0; num<radix; ++num )
+			{
+				auto erg = ns digit<radix>( wchar_t(lowest+num), ranges );
+				Assert::IsTrue( erg );
+				Assert::IsTrue( erg.value==num );
+			}
+			{
+				auto erg = ns digit<radix>(lowest-numeric_one);
+				Assert::IsFalse( erg );
+			}
+			{
+				auto erg = ns digit<radix>(highest+numeric_one);
+				Assert::IsFalse( erg );
+			}
+		}
+	};
+}
 namespace UTParserFkt
 {
 	template<typename container_t,typename function_t> constexpr int eater_fn = 
@@ -810,6 +1030,44 @@ namespace UTParserFkt
 				Assert::IsTrue( erg.value == 123 );
 			}
 		}
+		TEST_METHOD( UT_eat_integer_negativ_rvalue_lifetime_extender_test )
+		{
+			{
+				auto erg = WS::eat_integer<short>( WS::iterator_access( std::wstring(L"-123Hallo") ) );
+				Assert::IsFalse( erg );//eat_integer wertet keine  vorzeichen aus
+			}
+		}		
+		TEST_METHOD( UT_stringto_int_mit_vorzeichen )
+		{
+			{
+				for( auto text : {"123","+123","-123"," - 123","+"} )
+				{
+					auto toparse = WS::iterator_access( text );
+					WS::skip_space(toparse);
+					bool negative=false;
+					if(auto erg=WS::eat_oneof( toparse, '-', '+' ) )
+					{
+						negative = *erg.begin()=='-';
+					}
+					WS::skip_space(toparse);
+
+					short value;
+					if( auto erg = WS::eat_integer<short>(toparse) )
+					{
+						value = erg.value;
+						Assert::IsTrue( value == 123 );
+						if( negative )
+							value = -value;
+					}
+					else
+					{
+						Assert::IsTrue( stringcmp( text, "+" )==0 );
+					}
+				}
+				auto erg = WS::eat_integer<short>( WS::iterator_access( std::wstring(L"-123Hallo") ) );
+				Assert::IsFalse( erg );//eat_integer wertet keine  vorzeichen aus
+			}
+		}		
 		TEST_METHOD( UT_eat_integer_positiv_overflow )
 		{
 			{

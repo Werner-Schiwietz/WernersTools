@@ -13,6 +13,7 @@
 #include <string>
 
 #include "Ptr_Array.h"
+#include <array>
 
 
 //gibt mittels #PRAGMA COMPILEINFO(Text ohne "") eine Meldung während des compilierens ins OUTPUT-Fenster mit Dateinamen und Zeilennummer aus
@@ -24,17 +25,17 @@
 #define WIDEN2(x) L##x
 #define WIDEN(x) WIDEN2(x)
 
-#define _CHAR8(x) x
-#define _CHAR16(x) WIDEN(x)
+//#define _CHAR8(x) x
+//#define _CHAR16(x) WIDEN(x)
 
 
-typedef char	CHAR8;
-typedef wchar_t CHAR16;
+//typedef char	CHAR8;
+//typedef wchar_t CHAR16;
 
 struct rettype_digit
 {
-	bool	is=false;
-	int		value{};
+	bool is=false;
+	unsigned int value{};
 
 	rettype_digit(int value):value(value),is(true){}
 	rettype_digit(){}
@@ -42,58 +43,49 @@ struct rettype_digit
 	operator bool() const{ return is;}
 	bool operator !() const{ return !is;}
 };
-template<int radix=10> rettype_digit digit( char ch );
-template<> inline rettype_digit digit<8>( char ch )
-{
 
-	if( ! (ch<'0' ||'7'< ch) )
-		return {ch-'0'};
-	return {};
-}
-template<> inline rettype_digit digit<10>( char ch )
+template<typename char_t> struct digit_range
 {
-	if( ! (ch<'0' ||'9'< ch) )
-		return {ch-'0'};
-	return {};
-}
-template<> inline rettype_digit digit<16>( char ch )
+	unsigned int	lower;
+	unsigned int	upper;
+	char_t			start_char;
+
+	digit_range( unsigned int lower, unsigned int upper, char_t start_char) 
+		: lower(lower)
+		, upper(upper)
+		, start_char(start_char){}
+};
+
+template<unsigned int radix, typename char_t>  auto  digit_def_ranges()
 {
-	if( ! (ch<'0' ||'9'< ch) )
-		return {ch-'0'};
-
-	if( ! (ch<'A' ||'F'< ch) )
-		return {ch-'A' + 10};
-
-	if( ! (ch<'a' ||'f'< ch) )
-		return {ch-'a' + 10};
-	return {};
+	if constexpr ( radix <= 10 )
+		return std::initializer_list<digit_range<char_t>>{ digit_range<char_t>{0,10,char_t{'0'}} };
+	else
+		return std::initializer_list<digit_range<char_t>>{ digit_range<char_t>{0,10,char_t{'0'}}, digit_range{10,36,char_t{'A'}}, digit_range{10,36,char_t{'a'}} };
 }
 
-template<int radix=10> rettype_digit digit( wchar_t ch );
-template<> inline rettype_digit digit<8>( wchar_t ch )
+template<unsigned int radix=10,typename char_t, typename ranges_t> rettype_digit digit( char_t ch, ranges_t const & ranges )
 {
+	static_assert(radix>0 && radix<=36,"radix out of range");
+	//static_assert(std::is_same_v<char_t,wchar_t> || std::is_same_v<char_t,char> || std::is_same_v<char_t,signed char> || std::is_same_v<char_t,unsigned char>);//wegen char - char = int weg gemacht
 
-	if( ! (ch<L'0' || L'7'< ch) )
-		return {ch-L'0'};
-	return {};
+	for( auto range : ranges )
+	{
+		if( range.lower < radix )
+		{
+			if( ch>=char_t{range.start_char} && ch<char_t(range.start_char+range.upper) )
+			{
+				rettype_digit erg = ch - range.start_char + range.lower;
+				if( erg.value < radix )
+					return erg;
+			}
+		}
+	}
+	return {};//false
 }
-template<> inline rettype_digit digit<10>( wchar_t ch )
+template<unsigned int radix=10,typename char_t> rettype_digit digit( char_t ch )
 {
-	if( ! (ch<L'0' || L'9'< ch) )
-		return {ch-L'0'};
-	return {};
-}
-template<> inline rettype_digit digit<16>( wchar_t ch )
-{
-	if( ! (ch<L'0' || L'9'< ch) )
-		return {ch-L'0'};
-
-	if( ! (ch<L'A' || L'F'< ch) )
-		return {ch-L'A' + 10};
-
-	if( ! (ch<L'a' || L'f'< ch) )
-		return {ch-L'a' + 10};
-	return {};
+	return digit<radix>( ch, digit_def_ranges<radix,char_t>() );
 }
 
 inline bool ist_digit( char ch )

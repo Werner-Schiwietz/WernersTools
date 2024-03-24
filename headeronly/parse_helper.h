@@ -19,7 +19,7 @@
 //eat_if                                            //ein zeichen wenn bedingung erfüllt ist
 //eat_while                                         //solange wie bedingung erfüllt ist
 //eat_oneof                                         //ein zeichen wenn es in der liste ist
-//eat_integer                                       //konvertiert digits zu integer
+//eat_integer                                       //konvertiert digits zu integer (ohne vorzeichen)
 //eat_flanked                                       //entfernt das flankierende zeichenpaar. escapesequenzen bleiben allerdings stehen. alles eingebettet ist z.B. \"hallo\" in "\"hallo\"" oder "hallo" in ["hallo"]
 //remove_escape                                     //entfernt aus den ergebnis von eat_flanked ggf. die escape-sequenzen
 //make_flanked                                      //bettet in zeichenpaar ein und fügt ggf escape-zeichen ein
@@ -459,6 +459,7 @@ namespace WS
     template<typename integer_t,int radix=10,typename T> rettype_eat_integer<integer_t,T> eat_integercount( _iterator_access<T> & container, size_t chars_min, size_t chars_max )
     {
         auto toparse = container;
+
         if( auto erg = eat_digitcount<radix>( toparse, chars_min, chars_max ) )
         {
             auto erg2 = eat_integer<integer_t,radix>( erg.eaten );
