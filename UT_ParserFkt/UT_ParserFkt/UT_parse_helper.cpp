@@ -188,23 +188,23 @@ namespace UT_char_helper
 			#define ns ::
 			//#define ns ::new_digit::
 			{
-				auto rangelist = ns digit_def_ranges<10,char>();
+				decltype(auto) rangelist = ns digit_def_ranges<10,char>();
 				auto iter = rangelist.begin();
-				Assert::IsTrue( *iter == digit_range<char>{0,10,'0'} );
+				Assert::IsTrue( *iter == digit_range{0,10,'0'} );
 				Assert::IsTrue( ++iter == rangelist.end() );
 			}
 			{
-				auto rangelist = ns digit_def_ranges<12,char>();
+				decltype(auto) rangelist = ns digit_def_ranges<12,char>();
 				auto iter = rangelist.begin();
-				Assert::IsTrue( *iter == digit_range<char>{0,10,'0'} );
-				Assert::IsTrue( *++iter == digit_range<char>{10,36,'A'} );
-				Assert::IsTrue( *++iter == digit_range<char>{10,36,'a'} );
+				Assert::IsTrue( *iter == digit_range{0,10,'0'} );
+				Assert::IsTrue( *++iter == digit_range{10,36,'A'} );
+				Assert::IsTrue( *++iter == digit_range{10,36,'a'} );
 				Assert::IsTrue( ++iter == rangelist.end() );
 			}
 			{
-				auto rangelist = ns digit_def_ranges<10,char>();
+				decltype(auto) rangelist = ns digit_def_ranges<10,wchar_t>();
 				auto iter = rangelist.begin();
-				Assert::IsTrue( *iter == digit_range<char>{0,10,'0'} );
+				Assert::IsTrue( *iter == digit_range{0,10,L'0'} );
 				Assert::IsTrue( ++iter == rangelist.end() );
 			}
 

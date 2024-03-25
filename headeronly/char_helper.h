@@ -11,6 +11,7 @@
 //GESCHÄFTEN MIT DER SOFTWARE ERGEBEN. 
 
 #include <string>
+#include <vector>
 
 #include "Ptr_Array.h"
 #include <array>
@@ -56,12 +57,18 @@ template<typename char_t> struct digit_range
 		, start_char(start_char){}
 };
 
-template<unsigned int radix, typename char_t>  auto  digit_def_ranges()
+template<unsigned int radix, typename char_t>  auto const & digit_def_ranges()
 {
 	if constexpr ( radix <= 10 )
-		return std::initializer_list<digit_range<char_t>>{ digit_range<char_t>{0,10,char_t{'0'}} };
+	{
+		static std::vector<digit_range<char_t>> const v { digit_range<char_t>{0,10,char_t{'0'}} };
+		return v;
+	}
 	else
-		return std::initializer_list<digit_range<char_t>>{ digit_range<char_t>{0,10,char_t{'0'}}, digit_range{10,36,char_t{'A'}}, digit_range{10,36,char_t{'a'}} };
+	{
+		static std::vector<digit_range<char_t>> const v { digit_range<char_t>{0,10,char_t{'0'}}, digit_range{10,36,char_t{'A'}}, digit_range{10,36,char_t{'a'}} };
+		return v;
+	}
 }
 
 template<unsigned int radix=10,typename char_t, typename ranges_t> rettype_digit digit( char_t ch, ranges_t const & ranges )
