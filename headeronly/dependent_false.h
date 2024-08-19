@@ -1,4 +1,7 @@
 #pragma once
 
-template<typename T>
-constexpr bool dependent_false = false;
+namespace WS
+{
+	template<typename T>
+	constexpr bool dependent_false = false;
+}

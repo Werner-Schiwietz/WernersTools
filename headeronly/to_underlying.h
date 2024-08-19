@@ -48,4 +48,10 @@ namespace WS
 			return value;
 		}
 	}
+	template<typename T>struct integral
+	{
+		using type=decltype(WS::to_integral<T>(std::declval<T>()));
+	};
+	template<typename T>
+	using integral_t = typename integral<T>::type;
 }//namespace WS

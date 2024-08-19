@@ -146,7 +146,7 @@ namespace WS
 			this->share = reinterpret_cast<ReferenzCounterShare*>(r.share ? r.share->AddRef() : nullptr);
 			if(valid())
 			{
-				if constexpr( std::is_assignable_v<pointer_type&,ReferenzCounter<U>::pointer_type>)
+				if constexpr( std::is_assignable_v<pointer_type&,typename ReferenzCounter<U>::pointer_type>)
 					this->pointer = r.get();
 				else
 					//je nach ableitung kann schon mal eine andere adresse heraus kommen

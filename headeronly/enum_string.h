@@ -11,6 +11,7 @@
 //GESCHÄFTEN MIT DER SOFTWARE ERGEBEN. 
 
 #include <regex>
+#include <map>
 
 #pragma push_macro("_VALIDCHARS_")
 #pragma push_macro("_WORT_")
@@ -29,6 +30,7 @@ template<typename enum_t>auto parseEnumInitlist( char  const * liste )
 	{
 		struct
 		{
+			using enum_type=enum_t;
 			bool success;
 			std::multimap<enum_t,std::string> values;
 			char const * errorposition;
@@ -98,8 +100,8 @@ template<typename structenum_t> auto GetEnumValue(LPCSTR text)
 {
 	struct return_t
 	{ 
-		bool					success = false;
-		structenum_t::enum_t	value;
+		bool							success = false;
+		typename structenum_t::enum_t	value;
 		operator bool()							{return success;}
 		bool operator!()						{return !success;}
 		operator structenum_t::enum_t	()		{return value;}
