@@ -315,12 +315,12 @@ namespace WS
 
 			this->share = ReferenzCounter<pointer_type>( tempU.share );
 
-			if( tempU.Ptr )
+			if(this->share.get())//share.get() liefert nullptr, wenn nicht gecastet werden kann
 			{
-				if( dynamic_cast<pointer_type>(tempU.Ptr.get()) )
-					this->Ptr = std::unique_ptr<T>( dynamic_cast<pointer_type>(tempU.Ptr.release()) );
-				//else
-				//	ASSERT( !"cast von U auf T klappt nicht");
+				if( auto p = static_cast<pointer_type>(tempU.Ptr.get()) )
+				{
+					this->Ptr = std::unique_ptr<T>( static_cast<pointer_type>(tempU.Ptr.release()) );
+				}
 			}
 		}
 		auto_ptr<std::remove_const_t<element_type>> notconst() //liefert ein auto_ptr dessen T nicht const ist. wie const_cast
