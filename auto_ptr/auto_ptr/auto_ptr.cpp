@@ -1596,7 +1596,43 @@ namespace autoptr
 			//Assert::IsTrue(ptrB);
 			//Assert::IsFalse(ptrA);//von char const[] kann nicht auf char[] gecastet werden
 		}
+		TEST_METHOD(UT_auto_ptr_owner_cast)
+		{
+			struct B
+			{
+				virtual ~B(){}
+			};
+			struct D : B{};
+			struct C {};
 
+			WS::auto_ptr<B> Bptr{ WS::make_auto_ptr<D>() };
+			Assert::IsTrue(Bptr.is_owner());
+			WS::auto_ptr<D> Dptr = std::move(Bptr);
+			Assert::IsFalse(Bptr.is_owner());
+			Assert::IsTrue(Dptr.is_owner());
+
+			WS::auto_ptr<C> Cptr{ WS::make_auto_ptr<C>() };
+			//Dptr = std::move(Cptr);//error C2338: WS::auto_ptr<struct `public: void __thiscall BasisUnitTests::UT_auto_ptr::UT_auto_ptr_owner_cast(void)'::`2'::D>::operator = pointer sind nicht zuweisbar
+			//WS::auto_ptr<D> Dptr2 = std::move(Cptr);//error C2338:
+
+
+			Bptr = WS::make_auto_ptr<B>() ;
+			Assert::IsTrue(Bptr.is_owner());
+			WS::auto_ptr<D> Dptr2 = std::move(Bptr);
+			Assert::IsTrue(Bptr.is_owner());
+			Assert::IsTrue(Dptr2==nullptr);
+
+			Bptr = WS::make_auto_ptr<B>() ;
+			Assert::IsTrue(Bptr.is_owner());
+			Dptr = std::move(Bptr);
+			Assert::IsTrue(Bptr.is_owner());
+			Assert::IsTrue(Dptr2==nullptr);
+
+			auto Bptr2 = std::move(Bptr);
+			Assert::IsFalse(Bptr.is_owner());
+			Assert::IsTrue(Bptr2.is_owner());
+
+		}
 	};
 	TEST_CLASS( UT_auto_ptr_vw )
 	{

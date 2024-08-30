@@ -315,26 +315,23 @@ namespace WS
 							|| std::is_base_of<Upt1,Tpt1>::value				//oder U ist basisklasse zu T 
 							, "U kann nicht zu T mit owneruebername werden" );
 
-			auto_ptr<U> tempU;
-			tempU.swap( r );
-
-			this->share = ReferenzCounter<pointer_type>( tempU.share );
+			this->share = ReferenzCounter<pointer_type>( r.share );
 
 			if(this->share.get())//share.get() liefert nullptr, wenn nicht gecastet werden kann
 			{
 
 				if constexpr ( std::is_polymorphic_v<element_type> )
 				{
-					if( auto p = dynamic_cast<pointer_type>(tempU.Ptr.get()) )
+					if( auto p = dynamic_cast<pointer_type>(r.Ptr.get()) )
 					{
-						this->Ptr = std::unique_ptr<T>( dynamic_cast<pointer_type>(tempU.Ptr.release()) );
+						this->Ptr = std::unique_ptr<T>( dynamic_cast<pointer_type>(r.Ptr.release()) );
 					}
 				}
 				else
 				{
-					if( auto p = static_cast<pointer_type>(tempU.Ptr.get()) )
+					if( auto p = static_cast<pointer_type>(r.Ptr.get()) )
 					{
-						this->Ptr = std::unique_ptr<T>( static_cast<pointer_type>(tempU.Ptr.release()) );
+						this->Ptr = std::unique_ptr<T>( static_cast<pointer_type>(r.Ptr.release()) );
 					}
 				}
 			}
@@ -367,7 +364,7 @@ namespace WS
 						|| std::is_base_of<std::remove_const_t<T>, std::remove_const_t<U>>::value
 						, __FUNCTION__ " pointer sind nicht zuweisbar");
 
-			auto_ptr { r.transfer() }.swap( *this );
+			auto_ptr { std::move(r) }.swap( *this );
 
 			return *this;
 		}
