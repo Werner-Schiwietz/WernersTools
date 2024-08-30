@@ -22,6 +22,7 @@ using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 
 enum Enum { v1, v2, v3 };
 
+//vorsicht std::initializer_list darf man/kann man nicht variablen zuweisen, die daten der liste gehen verloren
 constexpr std::initializer_list<Enum> GetList() { return { v2,v1 }; }
 
 extern "C" int __cdecl _purecall(); //https://docs.microsoft.com/de-de/cpp/c-runtime-library/reference/purecall?view=vs-2019
@@ -1537,6 +1538,63 @@ namespace autoptr
 				Assert::IsTrue( ptr1 );
 			}
 			Assert::IsTrue( A::XRef()==0 );
+		}
+		TEST_METHOD(dtor_cast_inherit)
+		{
+			struct A
+			{
+				static int XRef( int add=0 ) { static int counter=0; return counter += add; }
+				A() { (void)XRef( 1 ); }
+				virtual ~A(){ (void)XRef( -1 ); }
+			};
+			struct B : A
+			{
+			};
+
+			{
+				Assert::IsTrue( A::XRef()==0 );
+				A a;
+				B b;
+				Assert::IsTrue( A::XRef()==2 );
+
+				WS::auto_ptr<A> ptrA;
+				WS::auto_ptr<B> ptrB;
+
+				ptrA = &a;
+				Assert::IsTrue( ptrA );
+				ptrA = &b;
+				Assert::IsTrue( ptrA );
+
+				ptrA = &b;
+				Assert::IsTrue( ptrA );
+				ptrB = &b;
+				Assert::IsTrue( ptrB );
+				//ptrB = &a;// error C2679: binary '=': no operator found which takes a right-hand operand of type 'autoptr::autoptr::dtor_cast::A *' (or there is no acceptable conversion)
+				ptrA = &a;
+				ptrB = ptrA;
+				Assert::IsTrue( ptrB==nullptr );
+			}
+			Assert::IsTrue( A::XRef()==0 );
+		}
+		TEST_METHOD(dtor_cast_const)
+		{
+			auto ptr = std::unique_ptr<char[]>{ new char[]{"hallo"}};
+			WS::auto_ptr<char[]> ptrA{ptr.get()};
+			Assert::IsTrue(ptrA);
+			WS::auto_ptr<char const[]> ptrB;
+
+			ptrB = ptrA;
+			Assert::IsTrue(ptrA);
+			Assert::IsTrue(ptrB);
+			ptrB = std::move(ptrA);//wäre A owner gewesen, würde er es jetzt nicht mehr owner sein. der pointer bleibt aber immer gesetzt
+			#pragma warning(suppress:26800)//ptrA sei per move ungültig, ist aber nicht so
+			Assert::IsTrue(ptrA);
+			Assert::IsTrue(ptrB);
+
+			//ptrA = ptrB;//error C2338: static_assert failed: 'wenn U const ist muss T auch const sein'
+			//ptrA = std::move(ptrB);//error C2338: static_assert failed: 'wenn U const ist muss T auch const sein'
+			//Assert::IsTrue(ptrB);
+			//Assert::IsFalse(ptrA);//von char const[] kann nicht auf char[] gecastet werden
 		}
 
 	};

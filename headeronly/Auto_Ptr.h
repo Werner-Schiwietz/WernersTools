@@ -149,8 +149,13 @@ namespace WS
 				if constexpr( std::is_assignable_v<pointer_type&,typename ReferenzCounter<U>::pointer_type>)
 					this->pointer = r.get();
 				else
+				{
 					//je nach ableitung kann schon mal eine andere adresse heraus kommen
-					this->pointer = dynamic_cast<pointer_type>( r.get() );
+					if constexpr ( std::is_polymorphic_v<std::remove_pointer_t<pointer_type>> )
+						this->pointer = dynamic_cast<pointer_type>( r.get() );
+					else
+						this->pointer = static_cast<pointer_type>( r.get() );
+				}
 			}
 		}
 
@@ -317,9 +322,20 @@ namespace WS
 
 			if(this->share.get())//share.get() liefert nullptr, wenn nicht gecastet werden kann
 			{
-				if( auto p = static_cast<pointer_type>(tempU.Ptr.get()) )
+
+				if constexpr ( std::is_polymorphic_v<element_type> )
 				{
-					this->Ptr = std::unique_ptr<T>( static_cast<pointer_type>(tempU.Ptr.release()) );
+					if( auto p = dynamic_cast<pointer_type>(tempU.Ptr.get()) )
+					{
+						this->Ptr = std::unique_ptr<T>( dynamic_cast<pointer_type>(tempU.Ptr.release()) );
+					}
+				}
+				else
+				{
+					if( auto p = static_cast<pointer_type>(tempU.Ptr.get()) )
+					{
+						this->Ptr = std::unique_ptr<T>( static_cast<pointer_type>(tempU.Ptr.release()) );
+					}
 				}
 			}
 		}
@@ -357,6 +373,10 @@ namespace WS
 		}
 		template<typename U>auto_ptr & operator=(auto_ptr<U> const & r) & noexcept
 		{
+			static_assert( std::is_const<U>::value==false 
+						   || std::is_const<T>::value==true
+						   , "wenn U const ist muss T auch const sein");
+
 			static_assert( std::is_same<std::remove_const_t<U>,std::remove_const_t<T>>::value
 						|| std::is_base_of<U, T>::value
 						|| std::is_base_of<T, U>::value
