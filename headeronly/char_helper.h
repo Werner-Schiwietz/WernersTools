@@ -22,7 +22,8 @@
 #include <cctype>
 
 #if _HAS_CXX20
-    template<typename T> concept char_type = std::is_same_v<T,char> || std::is_same_v<T,wchar_t> ;//c++20
+    template<typename T> concept char_type = std::is_same_v<T,char> || std::is_same_v<T,wchar_t> ;
+    template<typename T> concept integral_type = std::is_integral_v<T>;
 #endif
 
 //gibt mittels #PRAGMA COMPILEINFO(Text ohne "") eine Meldung während des compilierens ins OUTPUT-Fenster mit Dateinamen und Zeilennummer aus
@@ -446,7 +447,12 @@ namespace
     {
         return sizeof(integral_t) * 8 + 1;//anzahl bits was für radix 2 passt ist für radix 10 evtl nunnötig groß aber kein problem
     }
+
+#if _HAS_CXX20
+    template<typename string_type,int radix=10,integral_type value_type> string_type tostring(value_type value)
+#else 
     template<typename string_type,int radix=10,typename value_type> string_type tostring(value_type value)
+#endif
     {
         static_assert(std::is_pointer_v<string_type> == false, "it must be a string-class like std::wstring CString ..." );
         static_assert(radix>1, "radix invalid" );

@@ -245,11 +245,11 @@ inline bool Data::save( pugi::xml_node parent )
 		if( auto node = mynode.append_child( PUGIXML_TEXT("Bool") ) )
 			ret_v &= node.text().set( this->Bool );
 		if( auto node = mynode.append_child( PUGIXML_TEXT("Enum") ) )
-			ret_v &= node.text().set( tostring<TCHAR,Data::enum_t>(this->Enum).get() );
+			ret_v &= node.text().set( tostring<TCHAR>(this->Enum).get() );
 		if( auto node = mynode.append_child( PUGIXML_TEXT("Enum2") ) )
-			ret_v &= node.text().set( tostring<TCHAR,Data::enum_t>(this->Enum2).get() );
+			ret_v &= node.text().set( tostring<TCHAR>(this->Enum2).get() );
 		if( auto node = mynode.append_child( PUGIXML_TEXT("Enum3") ) )
-			ret_v &= node.text().set( tostring<TCHAR,Data::enum3_t>(this->Enum3).get() );
+			ret_v &= node.text().set( tostring<TCHAR>(this->Enum3).get() );
 		if( auto node = mynode.append_child( PUGIXML_TEXT("Double") ) )
 			ret_v &= node.text().set( this->Double, 20 );
 		return ret_v;
