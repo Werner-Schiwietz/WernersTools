@@ -1607,18 +1607,20 @@ namespace autoptr
 
 			WS::auto_ptr<B> Bptr{ WS::make_auto_ptr<D>() };
 			Assert::IsTrue(Bptr.is_owner());
-			WS::auto_ptr<D> Dptr = std::move(Bptr);
+			WS::auto_ptr<D> Dptr = std::move(Bptr);//Bptr ist angelegt als D, kann also dem Dptr zugewiesen werden. Dptr wird owner
+			#pragma warning(suppress:26800)//using a moved object
 			Assert::IsFalse(Bptr.is_owner());
 			Assert::IsTrue(Dptr.is_owner());
+			Assert::IsTrue( Dptr == Bptr );
 
 			WS::auto_ptr<C> Cptr{ WS::make_auto_ptr<C>() };
 			//Dptr = std::move(Cptr);//error C2338: WS::auto_ptr<struct `public: void __thiscall BasisUnitTests::UT_auto_ptr::UT_auto_ptr_owner_cast(void)'::`2'::D>::operator = pointer sind nicht zuweisbar
-			//WS::auto_ptr<D> Dptr2 = std::move(Cptr);//error C2338:
+			//WS::auto_ptr<D> Dptr3 = std::move(Cptr);//error C2338: static_assert failed: 'WS::auto_ptr<struct `public: void __thiscall autoptr::autoptr::UT_auto_ptr_owner_cast(void)'::`2'::D>::auto_ptr pointer sind nicht zuweisbar'
 
 
 			Bptr = WS::make_auto_ptr<B>() ;
 			Assert::IsTrue(Bptr.is_owner());
-			WS::auto_ptr<D> Dptr2 = std::move(Bptr);
+			WS::auto_ptr<D> Dptr2 = std::move(Bptr);//Bptr ist B nicht D, kann also nicht dem Dptr zugewiesen werden. Bptr bleibt owner
 			Assert::IsTrue(Bptr.is_owner());
 			Assert::IsTrue(Dptr2==nullptr);
 

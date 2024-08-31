@@ -21,6 +21,10 @@
 #include <cwctype>
 #include <cctype>
 
+#if _HAS_CXX20
+    template<typename T> concept char_type = std::is_same_v<T,char> || std::is_same_v<T,wchar_t> ;//c++20
+#endif
+
 //gibt mittels #PRAGMA COMPILEINFO(Text ohne "") eine Meldung während des compilierens ins OUTPUT-Fenster mit Dateinamen und Zeilennummer aus
 #define LINE_STRING2(x) #x				//macht aus der zahl einen sting
 #define LINE_STRING1(x) LINE_STRING2(x) //nötig, damit __LINE__ zur Zahl wird
