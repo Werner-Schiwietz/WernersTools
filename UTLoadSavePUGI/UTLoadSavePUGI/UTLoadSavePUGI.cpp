@@ -109,17 +109,13 @@ struct Data
 private:
 public:
 	template<typename T> friend auto _node::getter(pugi::xml_node const & );//friend hat keine wirkung auf _node::Has_Load_ctor_v
-	Data( pugi::xml_node const & node_with_member );
-	bool load( pugi::xml_node const & node_with_member );
-	bool save( pugi::xml_node parent );
-	constexpr static PUGIXML_CHAR const * node_name()
-	{
-		return PUGIXML_TEXT("Data");
-	}
+	Data( pugi::xml_node const & node_with_member, PUGIXML_CHAR const * node_name );
+	bool load( pugi::xml_node const & node_with_member, PUGIXML_CHAR const * node_name );
+	bool save( pugi::xml_node parent, PUGIXML_CHAR const * node_name ) const;
 };
 
 // spezialisirung zu enum_helper.h
-template<> inline WS::auto_ptr<pugi::char_t const[]> tostring<pugi::char_t,Data::enum_t>(Data::enum_t value )
+template<> inline WS::auto_ptr<pugi::char_t const[]> tostring<pugi::char_t,10,Data::enum_t>(Data::enum_t value )
 {
 	//das enum-innere per find/replace in return-switch wandeln
 	//regexp: (,(?([^\r\n])\s)*)?(\b\w+)\s*(=\s*[^,])?(,?(?([^\r\n])\s)*)(//.*)?
@@ -132,9 +128,10 @@ template<> inline WS::auto_ptr<pugi::char_t const[]> tostring<pugi::char_t,Data:
 	case Data::enum_t::_4:	return PUGIXML_TEXT("_4");
 	}
 
+	constexpr int radix = 10;
 	size_t chars = 20;
 	auto buf = std::unique_ptr<pugi::char_t[]>{ new pugi::char_t[chars]{} };//buffer ohne const anlegen
-	tostring(WS::to_underlying(value), buf.get(), chars, 10 );
+	tostring(WS::to_underlying(value), buf.get(), chars, radix );
 
 	return buf;// zu buffer const casten und als auto_ptr zurückgeben
 }
@@ -152,16 +149,16 @@ template<> Data::enum_t stringto<Data::enum_t,pugi::char_t>(pugi::char_t const *
 	return static_cast<Data::enum_t>(::stringto<std::underlying_type_t<Data::enum_t>>(psz));
 }
 
-inline Data::Data( pugi::xml_node const & container ) : Data()
+inline Data::Data( pugi::xml_node const & container, PUGIXML_CHAR const * node_name ) : Data()
 {
 
 	{
 		//ist das schlau?? so kann ein einzelchild und eine liste von children verarbeitet werden
 		pugi::xml_node nodedata;
-		if( stringcmp(container.name(), this->node_name())==0 )
+		if( stringcmp(container.name(),node_name)==0 )
 			nodedata = container;
 		else 
-			nodedata = container.child(this->node_name());
+			nodedata = container.child(node_name);
 
 		if(true)
 		{
@@ -216,10 +213,13 @@ inline Data::Data( pugi::xml_node const & container ) : Data()
 		}
 	}
 }
-inline bool Data::save( pugi::xml_node parent )
+inline bool Data::save( pugi::xml_node parent, PUGIXML_CHAR const * node_name ) const
 {
-	auto mynode = parent.append_child( Data::node_name() );
+	auto mynode = parent.append_child( node_name );
 
+	(void)to_node(mynode,	_T("Data"),	_T("_type_"));
+	(void)to_node(mynode,	1,			_T("_version_"));
+			
 	if(true)
 	{
 		bool ret_v = true;
@@ -255,9 +255,9 @@ inline bool Data::save( pugi::xml_node parent )
 		return ret_v;
 	}
 }
-inline bool Data::load( pugi::xml_node const & node_with_member )
+inline bool Data::load( pugi::xml_node const & node_with_member, PUGIXML_CHAR const * node_name )
 {
-	*this = Data{node_with_member};
+	*this = Data{node_with_member,node_name};
 	return true;
 }
 
@@ -280,9 +280,9 @@ namespace UTLoadSavePUGI
 			pugi::xml_document doc;
 			auto nodedoc = doc.append_child(PUGIXML_TEXT("test"));//node als rahmen für die testdaten
 			//schreiben der ersten struktur
-			data.save( nodedoc );
+			data.save( nodedoc, _T("testData") );
 			//schreiben der zweiten, identische struktur und inhalt mit anderer funktion
-			to_node( nodedoc, data );
+			to_node( nodedoc, data, _T("testData") );
 
 			//xml-text besorgen, zum anschauen
 			std::stringstream ss;
@@ -290,15 +290,15 @@ namespace UTLoadSavePUGI
 			[[maybe_unused]]auto xml = ss.str();
 
 
-			auto data2_1 = Data{ nodedoc };//lesen des ersten Datensatz Data
+			auto data2_1 = Data{ nodedoc, _T("testData") };//lesen des ersten Datensatz Data
 			Data data2_2;
 			Data data2;
 
-			for( auto datanode : nodedoc.children(Data::node_name()) )//alle Data der reihe nach lesen
+			for( auto datanode : nodedoc.children(_T("testData")) )//alle Data der reihe nach lesen
 			{
-				data2_2 = Data{ datanode };						//per ctor von Data
-				Assert::IsTrue( from_node( datanode, data2 ) );	//per from_node
-																//es ist nur ein aufruf nötig
+				data2_2 = Data{ datanode, _T("testData") };						//per ctor von Data
+				Assert::IsTrue( from_node( datanode, data2, _T("testData") ) );	//per from_node
+																				//es ist nur ein aufruf nötig
 			}
 
 			Assert::IsTrue( data==data2);

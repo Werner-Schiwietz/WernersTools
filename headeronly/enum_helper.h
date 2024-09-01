@@ -20,11 +20,11 @@
 /// spezialisierungen können richtige text liefern, siehe UTLoadSavePUGI.cpp
 /// 
 template<typename T> concept enum_type = std::is_enum_v<T>;//c++20
-template<char_type char_t, enum_type enum_t> WS::auto_ptr<char_t const[]> tostring(enum_t value )
+template<char_type char_t,int radix = 10,enum_type enum_t> WS::auto_ptr<char_t const[]> tostring(enum_t value )
 {
 	size_t chars = 20;
 	auto buf = std::unique_ptr<char_t[]>{ new char_t[chars]{} };//buffer ohne const anlegen
-	tostring(WS::to_underlying(value), buf.get(), chars, 10 );
+	tostring(WS::to_underlying(value), buf.get(), chars, radix );
 	return buf;
 }
 template<enum_type enum_t,char_type char_t> enum_t stringto(char_t const * psz )

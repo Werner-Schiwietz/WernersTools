@@ -70,14 +70,14 @@ namespace _node
 	/// _node::HasMethod_Load prüft ob es eine T::load-methode mit parameter pugi::xml_node nutzbar(public) gibt
 	/// </summary>
 	template<typename T> auto HasMethod_load(unsigned long) -> std::false_type;
-	template<typename T> auto HasMethod_load(int) -> decltype(WS::decllval<T>().load(WS::decllval<pugi::xml_node>()) , std::true_type{});
+	template<typename T> auto HasMethod_load(int) -> decltype(WS::decllval<T>().load(WS::decllval<pugi::xml_node>(),(PUGIXML_CHAR const*)nullptr) , std::true_type{});
 	template<typename T> static bool constexpr HasMethod_load_v = decltype(HasMethod_load<T>(0))::value;
 
 	/// <summary>
 	/// _node::HasMethod_Save prüft ob es eine T::save-methode mit parameter pugi::xml_node nutzbar(public) gibt
 	/// </summary>
 	template<typename T> auto HasMethod_Save(unsigned long) -> std::false_type;
-	template<typename T> auto HasMethod_Save(int) -> decltype(WS::decllval<T>().save(WS::decllval<pugi::xml_node const>()) , std::true_type{});
+	template<typename T> auto HasMethod_Save(int) -> decltype(WS::decllval<T const>().save(WS::decllval<pugi::xml_node const>(),(PUGIXML_CHAR const*)nullptr) , std::true_type{});
 	template<typename T> static bool constexpr HasMethod_Save_v = decltype(HasMethod_Save<T>(0))::value;
 
 
@@ -85,7 +85,7 @@ namespace _node
 	/// _node::Has_Load_ctor prüft ob es eine T::T (ctor) mit parameter pugi::xml_node nutzbar(public) gibt
 	/// </summary>
 	template<typename T> auto Has_Load_ctor(unsigned long) -> std::false_type;
-	template<typename T> auto Has_Load_ctor(int) -> decltype( T{WS::decllval<pugi::xml_node>()},std::bool_constant< std::is_constructible<T,pugi::xml_node>::value && !std::is_trivially_constructible<T,pugi::xml_node>::value>{});
+	template<typename T> auto Has_Load_ctor(int) -> decltype( T{WS::decllval<pugi::xml_node>(),(PUGIXML_CHAR const*)nullptr},std::bool_constant< std::is_constructible<T,pugi::xml_node,PUGIXML_CHAR const*>::value && !std::is_trivially_constructible<T,pugi::xml_node,PUGIXML_CHAR const*>::value>{});
 	template<typename T> static bool constexpr Has_Load_ctor_v = decltype(Has_Load_ctor<T>(0))::value;
 
 	/// <summary>
@@ -110,7 +110,7 @@ namespace _node
 		else if constexpr (HasMethod_load_v<T>)
 		{
 			T t{};
-			t.load(node);
+			t.load(node,node.name());
 			return t;
 		}
 		else if constexpr (std::is_enum<T>::value)
@@ -166,7 +166,7 @@ namespace _node
 	{
 		if constexpr (std::is_enum<T>::value)
 		{
-			return  node.text().set( tostring<TCHAR,T>(dest).get() );
+			return  node.text().set( tostring<TCHAR>(dest).get() );
 		}
 		else if constexpr (std::is_assignable_v<T,PUGIXML_CHAR const*>)
 		{
@@ -188,6 +188,14 @@ namespace _node
 	template<> bool setter<pugi::string_t>( pugi::xml_node & node, pugi::string_t const & dest )
 	{
 		return node.text().set(dest.c_str());
+	}
+	template<> bool setter<pugi::char_t const *>( pugi::xml_node & node, pugi::char_t const * const & dest )
+	{
+		return node.text().set(dest);
+	}
+	template<typename T, size_t size> bool setter( pugi::xml_node & node, T const (&dest)[size] )
+	{
+		return node.text().set(dest);
 	}
 	template<> bool setter<double>( pugi::xml_node & node, double const & dest )
 	{
@@ -219,7 +227,7 @@ template<typename T> bool from_node( pugi::xml_node const & container, T &dest, 
 	if constexpr (_node::Has_Load_ctor_v<T>)
 	{
 		//ASSERT( stringcmp(name,dest.node_name())==0);
-		return dest.load(container);
+		return dest.load(container,name);
 	}
 	else 
 	{
@@ -232,18 +240,12 @@ template<typename T> bool from_node( pugi::xml_node const & container, T &dest, 
 	}
 }
 
-//T benötigt die (statische) methode node_name(), ansonsten muss der node-name als parameter mitgegeben werden
-template<typename T> bool from_node( pugi::xml_node const & container, T &dest)
-{
-	return from_node( container, dest, dest.node_name() );
-}
-
-template<typename T> bool to_node( pugi::xml_node & container, T &dest, TCHAR const* name)
+template<typename T> bool to_node( pugi::xml_node & container, T const &dest, TCHAR const* name)
 {
 	if constexpr ( _node::HasMethod_Save_v<T> )
 	{
 		//wenn es die save-methode gibt, diese jetzt aufrufen
-		return dest.save(container);
+		return dest.save(container,name);
 	}
 	else
 	{
@@ -253,8 +255,3 @@ template<typename T> bool to_node( pugi::xml_node & container, T &dest, TCHAR co
 	}
 }
 
-//T benötigt die (statische) methode node_name(), ansonsten muss der node-name als parameter mitgegeben werden
-template<typename T> bool to_node( pugi::xml_node & container, T &dest)
-{
-	return to_node( container, dest, dest.node_name() );
-}
