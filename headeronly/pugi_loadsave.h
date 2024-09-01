@@ -148,10 +148,6 @@ namespace _node
 	{
 		return node.text().as_bool();
 	}
-	template<> auto getter<pugi::string_t>(pugi::xml_node const & node)
-	{
-		return node.text().as_string();
-	}
 	template<> auto getter<double>(pugi::xml_node const & node)
 	{
 		return node.text().as_double();
@@ -159,6 +155,10 @@ namespace _node
 	template<> auto getter<float>(pugi::xml_node const & node)
 	{
 		return node.text().as_float();
+	}
+	template<> auto getter<pugi::string_t>(pugi::xml_node const & node)
+	{
+		return node.text().as_string();
 	}
 
 
@@ -185,18 +185,6 @@ namespace _node
 	{
 		return node.text().set(dest);
 	}
-	template<> bool setter<pugi::string_t>( pugi::xml_node & node, pugi::string_t const & dest )
-	{
-		return node.text().set(dest.c_str());
-	}
-	template<> bool setter<pugi::char_t const *>( pugi::xml_node & node, pugi::char_t const * const & dest )
-	{
-		return node.text().set(dest);
-	}
-	template<typename T, size_t size> bool setter( pugi::xml_node & node, T const (&dest)[size] )
-	{
-		return node.text().set(dest);
-	}
 	template<> bool setter<double>( pugi::xml_node & node, double const & dest )
 	{
 		std::locale mylocale{"C"};//formatierung sicherstellen
@@ -218,6 +206,20 @@ namespace _node
 
 		//vielleicht wäre es besser den floatingpoint-wert selbst in einen string zu wandeln
 		//return node.text().set(dest,10);
+	}
+	template<> bool setter<pugi::string_t>( pugi::xml_node & node, pugi::string_t const & dest )
+	{
+		return node.text().set(dest.c_str());
+	}
+	//zu diesem setter gibt es kein getter gegenstück, wer sollte den speicher anlegen/freigeben
+	template<> bool setter<pugi::char_t const *>( pugi::xml_node & node, pugi::char_t const * const & dest )
+	{
+		return node.text().set(dest);
+	}
+	//zu diesem setter gibt es kein getter gegenstück, wer sollte den speicher anlegen/freigeben
+	template<typename T, size_t size> bool setter( pugi::xml_node & node, T const (&dest)[size] )
+	{
+		return node.text().set(dest);
 	}
 }//namespace _node
 

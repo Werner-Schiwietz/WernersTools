@@ -154,6 +154,7 @@ inline Data::Data( pugi::xml_node const & container, PUGIXML_CHAR const * node_n
 
 	{
 		//ist das schlau?? so kann ein einzelchild und eine liste von children verarbeitet werden
+		//allerdings geht so ein member Data in Data nicht. geht aber eh nicht, ctor würde ja nie ein ende finden würde
 		pugi::xml_node nodedata;
 		if( stringcmp(container.name(),node_name)==0 )
 			nodedata = container;
@@ -213,6 +214,11 @@ inline Data::Data( pugi::xml_node const & container, PUGIXML_CHAR const * node_n
 		}
 	}
 }
+inline bool Data::load( pugi::xml_node const & node_with_member, PUGIXML_CHAR const * node_name )
+{
+	*this = Data{node_with_member,node_name};
+	return true;
+}
 inline bool Data::save( pugi::xml_node parent, PUGIXML_CHAR const * node_name ) const
 {
 	auto mynode = parent.append_child( node_name );
@@ -254,11 +260,6 @@ inline bool Data::save( pugi::xml_node parent, PUGIXML_CHAR const * node_name ) 
 			ret_v &= node.text().set( this->Double, 20 );
 		return ret_v;
 	}
-}
-inline bool Data::load( pugi::xml_node const & node_with_member, PUGIXML_CHAR const * node_name )
-{
-	*this = Data{node_with_member,node_name};
-	return true;
 }
 
 
