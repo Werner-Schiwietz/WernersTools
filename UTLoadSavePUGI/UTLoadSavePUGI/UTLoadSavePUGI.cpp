@@ -6,7 +6,6 @@ using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 #include "..\..\headeronly\cout_umleitung.h"
 #include "..\..\headeronly\char_helper.h"
 #include "..\..\headeronly\to_underlying.h"
-#include "..\..\headeronly\Auto_Ptr.h"
 #include "..\..\headeronly\rotate.h"
 #include "..\..\headeronly\pugi_loadsave.h"
 
@@ -108,7 +107,7 @@ struct Data
 #endif
 private:
 public:
-	template<typename T> friend auto _node::getter(pugi::xml_node const & );//friend hat keine wirkung auf _node::Has_Load_ctor_v
+	template<typename T> friend auto WS::_node::getter(pugi::xml_node const & );//friend hat keine wirkung auf _node::Has_Load_ctor_v
 	Data( pugi::xml_node const & node_with_member, PUGIXML_CHAR const * node_name );
 	bool load( pugi::xml_node const & node_with_member, PUGIXML_CHAR const * node_name );
 	bool save( pugi::xml_node parent, PUGIXML_CHAR const * node_name ) const;
@@ -166,28 +165,28 @@ inline Data::Data( pugi::xml_node const & container, PUGIXML_CHAR const * node_n
 
 			if( nodedata )
 			{
-				(void)from_node( nodedata, NAME_AND_STR( Integer ) );
-				(void)from_node( nodedata, NAME_AND_STR( Ushort ) );
-				(void)from_node( nodedata, NAME_AND_STR( String ) );
-				(void)from_node( nodedata, NAME_AND_STR( Bool ) );
-				(void)from_node( nodedata, NAME_AND_STR( Enum ) );
-				(void)from_node( nodedata, NAME_AND_STR( Enum2 ) );
-				(void)from_node( nodedata, NAME_AND_STR( Enum3 ) );
-				(void)from_node( nodedata, NAME_AND_STR( Double ) );
+				(void)WS::from_node( nodedata, NAME_AND_STR( Integer ) );
+				(void)WS::from_node( nodedata, NAME_AND_STR( Ushort ) );
+				(void)WS::from_node( nodedata, NAME_AND_STR( String ) );
+				(void)WS::from_node( nodedata, NAME_AND_STR( Bool ) );
+				(void)WS::from_node( nodedata, NAME_AND_STR( Enum ) );
+				(void)WS::from_node( nodedata, NAME_AND_STR( Enum2 ) );
+				(void)WS::from_node( nodedata, NAME_AND_STR( Enum3 ) );
+				(void)WS::from_node( nodedata, NAME_AND_STR( Double ) );
 			}
 		}
 		else if(true)
 		{
 			if( nodedata )
 			{
-				(void)from_node( nodedata, NAME_AND_STR( Integer ), [&]( pugi::xml_node const & node ) { return node.text().as_int(); } );
-				(void)from_node( nodedata, NAME_AND_STR( Ushort ), [&]( pugi::xml_node const & node ) { return static_cast<unsigned short>(node.text().as_uint()); } );
-				(void)from_node( nodedata, NAME_AND_STR( String ), [&]( pugi::xml_node const & node ) { return node.text().as_string(); } );
-				(void)from_node( nodedata, NAME_AND_STR( Bool ), [&]( pugi::xml_node const & node ) { return node.text().as_bool(); } );
-				(void)from_node( nodedata, NAME_AND_STR( Enum ), [&]( pugi::xml_node const & node ) { return stringto<Data::enum_t>( node.text().as_string() ); } );
-				(void)from_node( nodedata, NAME_AND_STR( Enum2 ), [&]( pugi::xml_node const & node ) { return stringto<Data::enum_t>( node.text().as_string() ); } );
-				(void)from_node( nodedata, NAME_AND_STR( Enum3 ), [&]( pugi::xml_node const & node ) { return stringto<Data::enum3_t>( node.text().as_string() ); } );
-				(void)from_node( nodedata, NAME_AND_STR( Double ), [&]( pugi::xml_node const & node ) { return node.text().as_double(); } );
+				(void)WS::from_node( nodedata, NAME_AND_STR( Integer ), [&]( pugi::xml_node const & node ) { return node.text().as_int(); } );
+				(void)WS::from_node( nodedata, NAME_AND_STR( Ushort ), [&]( pugi::xml_node const & node ) { return static_cast<unsigned short>(node.text().as_uint()); } );
+				(void)WS::from_node( nodedata, NAME_AND_STR( String ), [&]( pugi::xml_node const & node ) { return node.text().as_string(); } );
+				(void)WS::from_node( nodedata, NAME_AND_STR( Bool ), [&]( pugi::xml_node const & node ) { return node.text().as_bool(); } );
+				(void)WS::from_node( nodedata, NAME_AND_STR( Enum ), [&]( pugi::xml_node const & node ) { return stringto<Data::enum_t>( node.text().as_string() ); } );
+				(void)WS::from_node( nodedata, NAME_AND_STR( Enum2 ), [&]( pugi::xml_node const & node ) { return stringto<Data::enum_t>( node.text().as_string() ); } );
+				(void)WS::from_node( nodedata, NAME_AND_STR( Enum3 ), [&]( pugi::xml_node const & node ) { return stringto<Data::enum3_t>( node.text().as_string() ); } );
+				(void)WS::from_node( nodedata, NAME_AND_STR( Double ), [&]( pugi::xml_node const & node ) { return node.text().as_double(); } );
 			}
 		}
 		else if(true)
@@ -223,20 +222,20 @@ inline bool Data::save( pugi::xml_node parent, PUGIXML_CHAR const * node_name ) 
 {
 	auto mynode = parent.append_child( node_name );
 
-	(void)to_node(mynode,	_T("Data"),	_T("_type_"));
-	(void)to_node(mynode,	1,			_T("_version_"));
+	(void)WS::to_node(mynode,	_T("Data"),	_T("_type_"));
+	(void)WS::to_node(mynode,	1,			_T("_version_"));
 			
 	if(true)
 	{
 		bool ret_v = true;
-		ret_v &= to_node(mynode,NAME_AND_STR( Integer ));
-		ret_v &= to_node(mynode,NAME_AND_STR( Ushort ));
-		ret_v &= to_node(mynode,NAME_AND_STR( String ));
-		ret_v &= to_node(mynode,NAME_AND_STR( Bool ));
-		ret_v &= to_node(mynode,NAME_AND_STR( Enum ));
-		ret_v &= to_node(mynode,NAME_AND_STR( Enum2 ));
-		ret_v &= to_node(mynode,NAME_AND_STR( Enum3 ));
-		ret_v &= to_node(mynode,NAME_AND_STR( Double ));
+		ret_v &= WS::to_node(mynode,NAME_AND_STR( Integer ));//same as ret_v &= to_node(mynode,Integer,"Integer");
+		ret_v &= WS::to_node(mynode,NAME_AND_STR( Ushort ));
+		ret_v &= WS::to_node(mynode,NAME_AND_STR( String ));
+		ret_v &= WS::to_node(mynode,NAME_AND_STR( Bool ));
+		ret_v &= WS::to_node(mynode,NAME_AND_STR( Enum ));
+		ret_v &= WS::to_node(mynode,NAME_AND_STR( Enum2 ));
+		ret_v &= WS::to_node(mynode,NAME_AND_STR( Enum3 ));
+		ret_v &= WS::to_node(mynode,NAME_AND_STR( Double ));
 		return ret_v;
 	}
 	else if(true)//
@@ -283,7 +282,7 @@ namespace UTLoadSavePUGI
 			//schreiben der ersten struktur
 			data.save( nodedoc, _T("testData") );
 			//schreiben der zweiten, identische struktur und inhalt mit anderer funktion
-			to_node( nodedoc, data, _T("testData") );
+			WS::to_node( nodedoc, data, _T("testData") );
 
 			//xml-text besorgen, zum anschauen
 			std::stringstream ss;
@@ -298,7 +297,7 @@ namespace UTLoadSavePUGI
 			for( auto datanode : nodedoc.children(_T("testData")) )//alle Data der reihe nach lesen
 			{
 				data2_2 = Data{ datanode, _T("testData") };						//per ctor von Data
-				Assert::IsTrue( from_node( datanode, data2, _T("testData") ) );	//per from_node
+				Assert::IsTrue( WS::from_node( datanode, data2, _T("testData") ) );	//per from_node
 																				//es ist nur ein aufruf nötig
 			}
 

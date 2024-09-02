@@ -11,7 +11,7 @@
 //GESCHÄFTEN MIT DER SOFTWARE ERGEBEN. 
 
 /// <summary>
-/// WS::bits liefert die Anzahl bits eines integral-datentyp
+/// WS::bits liefert die Anzahl bits eines integral/enum -datentyp
 /// siehe auch std::numeric_limits<integral_type>::digits allerdings liefert WS::bits<T>() und WS::bits<unsigned T> den selben Wert
 /// </summary>
 /// 
@@ -32,11 +32,18 @@
 
 namespace WS
 {
-	template< typename integral_type>
+	template<typename integral_type>
 	constexpr auto bits()
 	{
-		static_assert(std::is_integral_v<integral_type>);
-		return std::numeric_limits<std::make_unsigned_t<integral_type>>::digits;
+		if constexpr ( std::is_enum_v<integral_type> )
+		{
+			return bits<std::underlying_type_t<integral_type>>();
+		}
+		else
+		{
+			static_assert(std::is_integral_v<integral_type>);
+			return std::numeric_limits<std::make_unsigned_t<integral_type>>::digits;
+		}
 	}
 
 	template<typename integral_type> integral_type rotr( integral_type value, int bits );
