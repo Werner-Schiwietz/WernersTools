@@ -11,18 +11,21 @@ using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 
 #include <tuple>
 #include <functional>
+#include <vector>
 
 
 struct Data
 {
-	int							Integer{};
-	unsigned short				Ushort{};
-	pugi::string_t				String{};
-	bool						Bool{};
-	enum enum_t{_0,_1,_2,_4=4}	Enum{},
+	int								Integer{};
+	unsigned short					Ushort{};
+	pugi::string_t					String{};
+	bool							Bool{};
+	enum enum_t{_0,_1,_2,_4=4}		Enum{},
 		Enum2{enum_t(41)};
-	enum enum3_t : short {}		Enum3{1};
-	double						Double{3.1415926535897932384626433832795028841971};
+	enum enum3_t : short {}			Enum3{1};
+	double							Double{3.1415926535897932384626433832795028841971};
+	std::vector<__int8>				Array{1,3,2,4,3,5};
+	std::pair<int,pugi::string_t>	Pair{42,_T("42")};
 
 	//using tuple_type = std::tuple<
 	//	  decltype(Data::Integer) &
@@ -48,6 +51,8 @@ struct Data
 								, std::ref(this->Enum2)  
 								, std::ref(this->Enum3)  
 								, std::ref(this->Double) 
+								, std::ref(this->Array)
+								, std::ref(this->Pair)
 		);
 	}
 	constexpr auto getTuple() const // liefert ctuple_type
@@ -57,9 +62,11 @@ struct Data
 								, std::ref(this->String)
 								, std::ref(this->Bool)
 								, std::ref(this->Enum)
-								, std::ref(this->Enum2)  
-								, std::ref(this->Enum3)  
-								, std::ref(this->Double) 
+								, std::ref(this->Enum2)
+								, std::ref(this->Enum3) 
+								, std::ref(this->Double)
+								, std::ref(this->Array)
+								, std::ref(this->Pair)
 		);
 	}
 	//void setTuple( ctuple_type const & r)
@@ -160,56 +167,24 @@ inline Data::Data( pugi::xml_node const & container, PUGIXML_CHAR const * node_n
 		else 
 			nodedata = container.child(node_name);
 
-		if(true)
+		if( nodedata )
 		{
+			(void)WS::from_node( nodedata, NAME_AND_STR( Integer ) );
+			(void)WS::from_node( nodedata, NAME_AND_STR( Ushort ) );
+			(void)WS::from_node( nodedata, NAME_AND_STR( String ) );
+			(void)WS::from_node( nodedata, NAME_AND_STR( Bool ) );
+			(void)WS::from_node( nodedata, NAME_AND_STR( Enum ) );
+			(void)WS::from_node( nodedata, NAME_AND_STR( Enum2 ) );
+			(void)WS::from_node( nodedata, NAME_AND_STR( Enum3 ) );
+			(void)WS::from_node( nodedata, NAME_AND_STR( Double ) );
+			(void)WS::from_node( nodedata, NAME_AND_STR( Array ) );
+			(void)WS::from_node( nodedata, NAME_AND_STR( Pair ) );
 
-			if( nodedata )
-			{
-				(void)WS::from_node( nodedata, NAME_AND_STR( Integer ) );
-				(void)WS::from_node( nodedata, NAME_AND_STR( Ushort ) );
-				(void)WS::from_node( nodedata, NAME_AND_STR( String ) );
-				(void)WS::from_node( nodedata, NAME_AND_STR( Bool ) );
-				(void)WS::from_node( nodedata, NAME_AND_STR( Enum ) );
-				(void)WS::from_node( nodedata, NAME_AND_STR( Enum2 ) );
-				(void)WS::from_node( nodedata, NAME_AND_STR( Enum3 ) );
-				(void)WS::from_node( nodedata, NAME_AND_STR( Double ) );
-			}
-		}
-		else if(true)
-		{
-			if( nodedata )
-			{
-				(void)WS::from_node( nodedata, NAME_AND_STR( Integer ), [&]( pugi::xml_node const & node ) { return node.text().as_int(); } );
-				(void)WS::from_node( nodedata, NAME_AND_STR( Ushort ), [&]( pugi::xml_node const & node ) { return static_cast<unsigned short>(node.text().as_uint()); } );
-				(void)WS::from_node( nodedata, NAME_AND_STR( String ), [&]( pugi::xml_node const & node ) { return node.text().as_string(); } );
-				(void)WS::from_node( nodedata, NAME_AND_STR( Bool ), [&]( pugi::xml_node const & node ) { return node.text().as_bool(); } );
-				(void)WS::from_node( nodedata, NAME_AND_STR( Enum ), [&]( pugi::xml_node const & node ) { return stringto<Data::enum_t>( node.text().as_string() ); } );
-				(void)WS::from_node( nodedata, NAME_AND_STR( Enum2 ), [&]( pugi::xml_node const & node ) { return stringto<Data::enum_t>( node.text().as_string() ); } );
-				(void)WS::from_node( nodedata, NAME_AND_STR( Enum3 ), [&]( pugi::xml_node const & node ) { return stringto<Data::enum3_t>( node.text().as_string() ); } );
-				(void)WS::from_node( nodedata, NAME_AND_STR( Double ), [&]( pugi::xml_node const & node ) { return node.text().as_double(); } );
-			}
-		}
-		else if(true)
-		{
-			if( nodedata )
-			{
-				if( auto node = nodedata.child( PUGIXML_TEXT( "Integer" ) ) )
-					this->Integer = node.text().as_int();
-				if( auto node = nodedata.child( PUGIXML_TEXT( "Ushort" ) ) )
-					this->Ushort = static_cast<unsigned short>(node.text().as_uint());
-				if( auto node = nodedata.child( PUGIXML_TEXT( "String" ) ) )
-					this->String = node.text().as_string();
-				if( auto node = nodedata.child( PUGIXML_TEXT( "Bool" ) ) )
-					this->Bool = node.text().as_bool();
-				if( auto node = nodedata.child( PUGIXML_TEXT( "Enum" ) ) )
-					this->Enum = stringto<Data::enum_t>( node.text().as_string() );
-				if( auto node = nodedata.child( PUGIXML_TEXT( "Enum2" ) ) )
-					this->Enum2 = stringto<Data::enum_t>( node.text().as_string() );
-				if( auto node = nodedata.child( PUGIXML_TEXT( "Enum3" ) ) )
-					this->Enum3 = stringto<Data::enum3_t>( node.text().as_string() );
-				if( auto node = nodedata.child( PUGIXML_TEXT( "Double" ) ) )
-					this->Double = node.text().as_double();
-			}
+			static_assert( WS::_node::IsContainer_v<const std::vector<__int8> & > );
+			static_assert( WS::_node::IsContainer_v<int> == false );
+			static_assert( WS::_node::IsContainer_v<pugi::string_t> == false );
+			static_assert( WS::_node::IsStdPair_v<pugi::string_t> == false );
+			static_assert( WS::_node::IsStdPair_v<std::pair<int,int>> == true );
 		}
 	}
 }
@@ -225,40 +200,18 @@ inline bool Data::save( pugi::xml_node parent, PUGIXML_CHAR const * node_name ) 
 	(void)WS::to_node(mynode,	_T("Data"),	_T("_type_"));
 	(void)WS::to_node(mynode,	1,			_T("_version_"));
 			
-	if(true)
-	{
-		bool ret_v = true;
-		ret_v &= WS::to_node(mynode,NAME_AND_STR( Integer ));//same as ret_v &= to_node(mynode,Integer,"Integer");
-		ret_v &= WS::to_node(mynode,NAME_AND_STR( Ushort ));
-		ret_v &= WS::to_node(mynode,NAME_AND_STR( String ));
-		ret_v &= WS::to_node(mynode,NAME_AND_STR( Bool ));
-		ret_v &= WS::to_node(mynode,NAME_AND_STR( Enum ));
-		ret_v &= WS::to_node(mynode,NAME_AND_STR( Enum2 ));
-		ret_v &= WS::to_node(mynode,NAME_AND_STR( Enum3 ));
-		ret_v &= WS::to_node(mynode,NAME_AND_STR( Double ));
-		return ret_v;
-	}
-	else if(true)//
-	{
-		bool ret_v = true;
-		if( auto node = mynode.append_child( PUGIXML_TEXT("Integer") ) )
-			ret_v &= node.text().set( this->Integer );
-		if( auto node = mynode.append_child( PUGIXML_TEXT("Ushort") ) )
-			ret_v &= node.text().set( this->Ushort );
-		if( auto node = mynode.append_child( PUGIXML_TEXT("String") ) )
-			ret_v &= node.text().set( this->String.c_str() );
-		if( auto node = mynode.append_child( PUGIXML_TEXT("Bool") ) )
-			ret_v &= node.text().set( this->Bool );
-		if( auto node = mynode.append_child( PUGIXML_TEXT("Enum") ) )
-			ret_v &= node.text().set( tostring<TCHAR>(this->Enum).get() );
-		if( auto node = mynode.append_child( PUGIXML_TEXT("Enum2") ) )
-			ret_v &= node.text().set( tostring<TCHAR>(this->Enum2).get() );
-		if( auto node = mynode.append_child( PUGIXML_TEXT("Enum3") ) )
-			ret_v &= node.text().set( tostring<TCHAR>(this->Enum3).get() );
-		if( auto node = mynode.append_child( PUGIXML_TEXT("Double") ) )
-			ret_v &= node.text().set( this->Double, 20 );
-		return ret_v;
-	}
+	bool ret_v = true;
+	ret_v &= WS::to_node(mynode,NAME_AND_STR( Integer ));//same as ret_v &= to_node(mynode,Integer,"Integer");
+	ret_v &= WS::to_node(mynode,NAME_AND_STR( Ushort ));
+	ret_v &= WS::to_node(mynode,NAME_AND_STR( String ));
+	ret_v &= WS::to_node(mynode,NAME_AND_STR( Bool ));
+	ret_v &= WS::to_node(mynode,NAME_AND_STR( Enum ));
+	ret_v &= WS::to_node(mynode,NAME_AND_STR( Enum2 ));
+	ret_v &= WS::to_node(mynode,NAME_AND_STR( Enum3 ));
+	ret_v &= WS::to_node(mynode,NAME_AND_STR( Double ));
+	ret_v &= WS::to_node(mynode,NAME_AND_STR( Array ));
+	ret_v &= WS::to_node(mynode,NAME_AND_STR( Pair ));
+	return ret_v;
 }
 
 

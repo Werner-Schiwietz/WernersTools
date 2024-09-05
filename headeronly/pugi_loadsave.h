@@ -68,6 +68,34 @@ namespace WS
 	/// </summary>
 	namespace _node
 	{
+		template<typename T> concept std_pair_type = std::is_same<T,std::pair<typename T::first_type,typename T::second_type>>::value;
+		template<typename T> auto IsStdPair(unsigned long) -> std::false_type;
+		template<std_pair_type T> auto IsStdPair(int) -> std::true_type;
+		template<typename T> static bool constexpr IsStdPair_v = decltype(IsStdPair<T>(0))::value;
+
+
+		template<typename T> concept std_basis_string_type = std::is_same<T,std::string>::value || std::is_same<T,std::wstring>::value;
+		template<typename T> auto IsStdBasisString(unsigned long) -> std::false_type;
+		template<std_basis_string_type T> auto IsStdBasisString(int) -> std::true_type;
+		template<typename T> static bool constexpr IsStdBasisString_v = decltype(IsStdBasisString<T>(0))::value;
+
+		template<typename T> concept container_type = 
+			not IsStdBasisString_v<T> //std-strings wären sonst auch container, haben aber ihre spezialisierung
+			&& requires(typename std::remove_cvref_t<T> c) 
+			{ 
+				{(void)c.begin()}; 
+				{(void)c.end()}; 
+				{(void)c.cbegin()}; 
+				{(void)c.cend()};
+				{(void)c.size()};
+				//{(void)c.emplace_back( std::declval<typename decltype(c)::value_type>() )};//mit push_back ist std::string auch ein container, das soll er aber nicht
+				{(void)c.push_back( std::declval<typename decltype(c)::value_type>() )};
+			};
+		template<typename T> auto IsContainer(unsigned long) -> std::false_type;
+		template<container_type T> auto IsContainer(int) -> std::true_type;
+		template<typename T> static bool constexpr IsContainer_v = decltype(IsContainer<T>(0))::value;
+
+
 		/// <summary>
 		/// _node::HasMethod_Load prüft ob es eine T::load-methode mit parameter pugi::xml_node nutzbar(public) gibt
 		/// </summary>
@@ -162,6 +190,7 @@ namespace WS
 		{
 			return node.text().as_string();
 		}
+	
 
 
 		template<typename T> bool setter( pugi::xml_node & node, T const & dest )
@@ -233,6 +262,29 @@ namespace WS
 			//ASSERT( stringcmp(name,dest.node_name())==0);
 			return dest.load(container,name);
 		}
+		else if constexpr (_node::IsContainer_v<T>)
+		{
+			for( auto child : container.children(name))
+			{
+				typename T::value_type value{};
+				if( from_node<typename T::value_type>(child,value,name) )
+					dest.push_back( value );
+			}
+			return true;
+		}
+		else if constexpr ( _node::IsStdPair_v<T> )
+		{
+			if( auto node = container.child(name) )
+			{
+				bool ret_v = true;
+
+				ret_v |= from_node( node, dest.first, _T("_1") );
+				ret_v |= from_node( node, dest.second, _T("_2") );
+
+				return ret_v;
+			}
+			return false;
+		}
 		else 
 		{
 			if( auto node = container.child(name) )
@@ -250,6 +302,27 @@ namespace WS
 		{
 			//wenn es die save-methode gibt, diese jetzt aufrufen
 			return dest.save(container,name);
+		}
+		else if constexpr (_node::IsContainer_v<T>)
+		{
+			for( auto value : dest )
+			{
+				to_node<typename T::value_type>(container,value,name);
+			}
+			return true;
+		}
+		else if constexpr ( _node::IsStdPair_v<T> )
+		{
+			if( auto node = container.append_child( name ) )
+			{
+				bool ret_v = true;
+
+				ret_v |= to_node( node, dest.first, _T("_1") );
+				ret_v |= to_node( node, dest.second, _T("_2") );
+
+				return ret_v;
+			}
+			return false;
 		}
 		else
 		{
