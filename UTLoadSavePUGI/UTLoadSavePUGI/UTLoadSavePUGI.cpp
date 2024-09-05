@@ -25,7 +25,8 @@ struct Data
 	enum enum3_t : short {}			Enum3{1};
 	double							Double{3.1415926535897932384626433832795028841971};
 	std::vector<__int8>				Array{1,3,2,4,3,5};
-	std::pair<int,pugi::string_t>	Pair{42,_T("42")};
+	std::pair<int,pugi::string_t>	Pair{1,_T("2")};
+	std::tuple<int,pugi::string_t,unsigned short>	Tuple{1,_T("2"),3};
 
 	//using tuple_type = std::tuple<
 	//	  decltype(Data::Integer) &
@@ -53,6 +54,7 @@ struct Data
 								, std::ref(this->Double) 
 								, std::ref(this->Array)
 								, std::ref(this->Pair)
+								, std::ref(this->Tuple)
 		);
 	}
 	constexpr auto getTuple() const // liefert ctuple_type
@@ -67,6 +69,7 @@ struct Data
 								, std::ref(this->Double)
 								, std::ref(this->Array)
 								, std::ref(this->Pair)
+								, std::ref(this->Tuple)
 		);
 	}
 	//void setTuple( ctuple_type const & r)
@@ -179,6 +182,7 @@ inline Data::Data( pugi::xml_node const & container, PUGIXML_CHAR const * node_n
 			(void)WS::from_node( nodedata, NAME_AND_STR( Double ) );
 			(void)WS::from_node( nodedata, NAME_AND_STR( Array ) );
 			(void)WS::from_node( nodedata, NAME_AND_STR( Pair ) );
+			(void)WS::from_node( nodedata, NAME_AND_STR( Tuple ) );
 
 			static_assert( WS::_node::IsContainer_v<const std::vector<__int8> & > );
 			static_assert( WS::_node::IsContainer_v<int> == false );
@@ -211,6 +215,7 @@ inline bool Data::save( pugi::xml_node parent, PUGIXML_CHAR const * node_name ) 
 	ret_v &= WS::to_node(mynode,NAME_AND_STR( Double ));
 	ret_v &= WS::to_node(mynode,NAME_AND_STR( Array ));
 	ret_v &= WS::to_node(mynode,NAME_AND_STR( Pair ));
+	ret_v &= WS::to_node(mynode,NAME_AND_STR( Tuple ));
 	return ret_v;
 }
 
@@ -241,6 +246,7 @@ namespace UTLoadSavePUGI
 			std::stringstream ss;
 			doc.save(ss);
 			[[maybe_unused]]auto xml = ss.str();
+			Logger::WriteMessage(xml.c_str());
 
 
 			auto data2_1 = Data{ nodedoc, _T("testData") };//lesen des ersten Datensatz Data

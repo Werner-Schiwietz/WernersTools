@@ -73,6 +73,9 @@ namespace WS
 		template<std_pair_type T> auto IsStdPair(int) -> std::true_type;
 		template<typename T> static bool constexpr IsStdPair_v = decltype(IsStdPair<T>(0))::value;
 
+		template <typename> struct is_tuple : std::false_type {};
+		template <typename ...T> struct is_tuple<std::tuple<T...>> : std::true_type {};
+		template<typename T> concept std_tuple_type = is_tuple<T>::value;
 
 		template<typename T> concept std_basis_string_type = std::is_same<T,std::string>::value || std::is_same<T,std::wstring>::value;
 		template<typename T> auto IsStdBasisString(unsigned long) -> std::false_type;
@@ -117,6 +120,20 @@ namespace WS
 		template<typename T> auto Has_Load_ctor(unsigned long) -> std::false_type;
 		template<typename T> auto Has_Load_ctor(int) -> decltype( T{WS::decllval<pugi::xml_node>(),(PUGIXML_CHAR const*)nullptr},std::bool_constant< std::is_constructible<T,pugi::xml_node,PUGIXML_CHAR const*>::value && !std::is_trivially_constructible<T,pugi::xml_node,PUGIXML_CHAR const*>::value>{});
 		template<typename T> static bool constexpr Has_Load_ctor_v = decltype(Has_Load_ctor<T>(0))::value;
+
+		/// <summary>
+		/// liefert node wenn dessen name name ist, oder dessen erstes child mit name name
+		/// </summary>
+		/// <param name="node"></param>
+		/// <param name="name"></param>
+		/// <returns></returns>
+		auto nodename( pugi::xml_node const & node, PUGIXML_CHAR const* name )
+		{
+			if( stringcmp(node.name(),name)==0 )
+				return node;
+			else
+				return node.child(name);
+		}
 
 		/// <summary>
 		/// pugi-from-node-getter konvertiert vom text des datenknoten in den gewünschten datentype 
@@ -191,8 +208,6 @@ namespace WS
 			return node.text().as_string();
 		}
 	
-
-
 		template<typename T> bool setter( pugi::xml_node & node, T const & dest )
 		{
 			if constexpr (std::is_enum<T>::value)
@@ -262,38 +277,72 @@ namespace WS
 			//ASSERT( stringcmp(name,dest.node_name())==0);
 			return dest.load(container,name);
 		}
-		else if constexpr (_node::IsContainer_v<T>)
-		{
-			for( auto child : container.children(name))
-			{
-				typename T::value_type value{};
-				if( from_node<typename T::value_type>(child,value,name) )
-					dest.push_back( value );
-			}
-			return true;
-		}
-		else if constexpr ( _node::IsStdPair_v<T> )
-		{
-			if( auto node = container.child(name) )
-			{
-				bool ret_v = true;
-
-				ret_v |= from_node( node, dest.first, _T("_1") );
-				ret_v |= from_node( node, dest.second, _T("_2") );
-
-				return ret_v;
-			}
-			return false;
-		}
 		else 
 		{
-			if( auto node = container.child(name) )
+			if( auto node = _node::nodename(container,name) )
 			{
 				dest = _node::getter<T>(node);
 				return true;
 			}
 			return false;
 		}
+	}
+	template<_node::std_pair_type T> bool from_node( pugi::xml_node const & container, T &dest, TCHAR const* name)
+	{
+		bool ret_v = false;
+		if( auto node = container.child(name) )
+		{
+			ret_v = true;
+			ret_v |= from_node( node, dest.first, _T("_1") );
+			ret_v |= from_node( node, dest.second, _T("_2") );
+
+		}
+		return ret_v;
+	}
+	template<_node::std_tuple_type T> bool _from_node_tuple_helper(pugi::xml_object_range<pugi::xml_named_node_iterator> nodes, T &dest, TCHAR const* name)
+	{
+		if( nodes.begin() != nodes.end() )
+		{
+			bool ret_v = from_node( *nodes.begin(), std::get<0>(dest), name );
+
+			if constexpr ( std::tuple_size_v<T> > 1  )
+			{
+				nodes = decltype(nodes){ ++nodes.begin(), nodes.end() };
+				ret_v |= _from_node_tuple_helper(nodes, dest._Get_rest(), name);
+			}
+			return ret_v;
+		}
+
+		return false;
+	}
+	template<_node::std_tuple_type T> bool from_node(pugi::xml_node const & container, T &dest, TCHAR const* name)
+	{
+		//static_assert(false,"not implemented");
+		pugi::xml_node node;
+		if( stringcmp(container.name(),name)==0 )
+			node = container;
+		else
+		{
+			node = container.child( name );
+			dest = T{};
+		}
+
+		if( node )
+		{
+			return _from_node_tuple_helper( node.children(_T("value")), dest, _T("value") );
+		}
+		return false;
+	}
+	template<_node::container_type T> bool from_node( pugi::xml_node const & container, T &dest, TCHAR const* name)
+	{
+		dest.clear();
+		for( auto child : container.children(name))
+		{
+			typename T::value_type value{};
+			if( from_node<typename T::value_type>(child,value,name) )
+				dest.push_back( value );
+		}
+		return true;
 	}
 
 	template<typename T> bool to_node( pugi::xml_node & container, T const &dest, TCHAR const* name)
@@ -303,27 +352,6 @@ namespace WS
 			//wenn es die save-methode gibt, diese jetzt aufrufen
 			return dest.save(container,name);
 		}
-		else if constexpr (_node::IsContainer_v<T>)
-		{
-			for( auto value : dest )
-			{
-				to_node<typename T::value_type>(container,value,name);
-			}
-			return true;
-		}
-		else if constexpr ( _node::IsStdPair_v<T> )
-		{
-			if( auto node = container.append_child( name ) )
-			{
-				bool ret_v = true;
-
-				ret_v |= to_node( node, dest.first, _T("_1") );
-				ret_v |= to_node( node, dest.second, _T("_2") );
-
-				return ret_v;
-			}
-			return false;
-		}
 		else
 		{
 			if( auto node = container.append_child( name ) )
@@ -331,4 +359,47 @@ namespace WS
 			return false;
 		}
 	}
+	template<_node::std_pair_type T> bool to_node( pugi::xml_node & container, T const &dest, TCHAR const* name)
+	{
+		if( auto node = container.append_child( name ) )
+		{
+			bool ret_v = true;
+
+			ret_v |= to_node( node, dest.first, _T("_1") );
+			ret_v |= to_node( node, dest.second, _T("_2") );
+
+			return ret_v;
+		}
+		return false;
+	}
+	template<_node::std_tuple_type T> bool to_node( pugi::xml_node & container, T const &dest, TCHAR const* name)
+	{
+		//static_assert(false,"not implemented");
+		pugi::xml_node node;
+		if( stringcmp(container.name(),name)==0 )
+			node = container;
+		else
+		{
+			node = container.append_child( name );
+		}
+
+		if( node )
+		{
+			bool ret_v = to_node( node, std::get<0>(dest), _T("value")) ;
+			if constexpr ( std::tuple_size_v<T> > 1 )
+				ret_v |= to_node( node, dest._Get_rest(), name) ;
+
+			return ret_v;
+		}
+		return false;
+	}
+	template<_node::container_type T> bool to_node( pugi::xml_node & container, T const &dest, TCHAR const* name)
+	{
+		for( auto value : dest )
+		{
+			to_node<typename T::value_type>(container,value,name);
+		}
+		return true;
+	}
+
 }
