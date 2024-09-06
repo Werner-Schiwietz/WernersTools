@@ -14,6 +14,7 @@ using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 #include <functional>
 #include <vector>
 #include <map>
+#include <set>
 
 
 struct Data
@@ -304,7 +305,7 @@ namespace UTLoadSavePUGI
 			Assert::IsTrue( data4==data2);
 		#pragma warning(suppress:26800)//Use of a moved from object
 			Assert::IsTrue( data3!=data2);
-			std::wcout << std::endl;
+			std::wcout << _T("-") << std::endl;
 		}
 		TEST_METHOD(Data_to_from_xml_2)
 		{
@@ -340,7 +341,7 @@ namespace UTLoadSavePUGI
 			//WS::from_node( nodedoc, t, _T("testData") );//wird nicht kompiliert, aber egal, save über tuple klappt ja auch nicht
 			//Assert::IsTrue( data3 == data2 );
 
-			std::wcout << std::endl;
+			std::wcout << _T("-") << std::endl;
 		}
 		TEST_METHOD(map_to_from_xml)
 		{
@@ -350,7 +351,9 @@ namespace UTLoadSavePUGI
 			std::map<unsigned short,std::wstring> Map{{2,_T("welt")},{1,_T("hallo")}};
 
 
+			static_assert(WS::_node::IsStdPair_v<decltype(Map)::value_type>);
 			static_assert(WS::_node::IsMap_v<decltype(Map)>);
+			static_assert(WS::_node::IsSet_v<decltype(Map)> == false);
 			static_assert(WS::_node::IsMap_v<std::string> == false);
 
 
@@ -371,7 +374,38 @@ namespace UTLoadSavePUGI
 			Assert::IsTrue( Map == Map2);
 
 
-			std::wcout << std::endl;
+			std::wcout << _T("-") << std::endl;
+		}
+		TEST_METHOD(set_to_from_xml)
+		{
+			WCout2Output wcout_umleiten;
+			std::wcout << _T(__FUNCTION__) << std::endl;
+
+			std::set<std::wstring> Set{std::wstring{_T("welt")},std::wstring{_T("hallo")}};
+
+
+			static_assert(not WS::_node::IsStdPair_v<decltype(Set)::value_type>);
+			static_assert(WS::_node::IsSet_v<decltype(Set)>);
+			static_assert(WS::_node::IsMap_v<decltype(Set)> == false);
+			static_assert(WS::_node::IsMap_v<std::string> == false);
+
+
+			pugi::xml_document doc;
+			auto nodedoc = doc.append_child(PUGIXML_TEXT("set_to_from_xml"));//node als rahmen für die testdaten
+
+			WS::to_node( nodedoc, NAME_AND_STR(Set) );
+
+			//xml-text besorgen, zum anschauen
+			std::stringstream ss;
+			doc.save(ss);
+			[[maybe_unused]]auto xml = ss.str();
+			std::wcout << xml.c_str() << std::endl;
+
+			decltype(Set) Set2;
+			WS::from_node( nodedoc, Set2, _T("Set") );
+			Assert::IsTrue( Set == Set2);
+
+			std::wcout << _T("-") << std::endl;
 		}
 
 	};

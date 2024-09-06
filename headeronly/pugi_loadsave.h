@@ -132,18 +132,36 @@ namespace WS
 
 		template<typename T> concept map_type = 
 			not IsStdBasisString_v<T> //std-strings wären sonst auch container, die haben aber ihre spezialisierung
+			&& IsStdPair_v<typename T::value_type>
 			&& requires(typename std::remove_cvref_t<T> m) 
-		{ 
-			{(void)m.begin()}; 
-			{(void)m.end()}; 
-			{(void)m.cbegin()}; 
-			{(void)m.cend()};
-			{(void)m.size()};
-			{(void)m.insert( std::declval<typename decltype(m)::value_type>() )};
-		};
+				{ 
+					{(void)m.begin()}; 
+					{(void)m.end()}; 
+					{(void)m.cbegin()}; 
+					{(void)m.cend()};
+					{(void)m.size()};
+					{(void)m.insert( std::declval<typename decltype(m)::value_type>() )};
+				};
 		template<typename T> auto IsMap(unsigned long) -> std::false_type;
 		template<map_type T> auto IsMap(int) -> std::true_type;
 		template<typename T> static bool constexpr IsMap_v = decltype(IsMap<T>(0))::value;
+
+		template<typename T> concept set_type = 
+			   not IsStdBasisString_v<T> 
+			&& not IsStdPair_v<typename T::value_type>
+			&& requires(typename std::remove_cvref_t<T> s) 
+				{ 
+					{(void)s.begin()}; 
+					{(void)s.end()}; 
+					{(void)s.cbegin()}; 
+					{(void)s.cend()};
+					{(void)s.size()};
+					{(void)s.insert( std::declval<typename decltype(s)::value_type>() )};
+				};
+		template<typename T> auto IsSet(unsigned long) -> std::false_type;
+		template<set_type T> auto IsSet(int) -> std::true_type;
+		template<typename T> static bool constexpr IsSet_v = decltype(IsSet<T>(0))::value;
+
 
 
 		/// <summary>
@@ -321,6 +339,7 @@ namespace WS
 	 //forward specialisierungen, die können sich kreuz und quer gegenseitig aufrufen
 	template<_node::container_type T>	bool from_node( pugi::xml_node const & container, T &dest, TCHAR const* name);
 	template<_node::map_type T>			bool from_node( pugi::xml_node const & container, T &dest, TCHAR const* name);
+	template<_node::set_type T>			bool from_node( pugi::xml_node const & container, T &dest, TCHAR const* name);
 	template<_node::std_tuple_type T>	bool from_node(pugi::xml_node const & container, T &dest, TCHAR const* name);
 	template<_node::std_pair_type T>	bool from_node( pugi::xml_node const & container, T &dest, TCHAR const* name);
 
@@ -364,7 +383,7 @@ namespace WS
 		}
 		return true;
 	}
-	template<_node::map_type T>			bool from_node( pugi::xml_node const & container, T &dest, TCHAR const* name)
+	template<_node::map_type T>	bool from_node( pugi::xml_node const & container, T &dest, TCHAR const* name)
 	{
 		dest.clear();
 		if( auto node = _node::nodename(container,name) )
@@ -373,6 +392,22 @@ namespace WS
 			for( auto child : node.children(valuename) )
 			{
 				std::pair<typename T::key_type,typename T::mapped_type> value{};
+				if( from_node(child,value,valuename) )
+					dest.insert( value );
+			}
+			return true;
+		}
+		return false;
+	}
+	template<_node::set_type T>	bool from_node( pugi::xml_node const & container, T &dest, TCHAR const* name)
+	{
+		dest.clear();
+		if( auto node = _node::nodename(container,name) )
+		{
+			auto valuename = _T("setvalue");
+			for( auto child : node.children(valuename) )
+			{
+				typename T::value_type value{};
 				if( from_node(child,value,valuename) )
 					dest.insert( value );
 			}
@@ -416,6 +451,7 @@ namespace WS
 	template<_node::std_tuple_type T> bool to_node( pugi::xml_node & container, T const &dest, TCHAR const* name);
 	template<_node::container_type T> bool to_node( pugi::xml_node & container, T const &dest, TCHAR const* name);
 	template<_node::map_type T>		  bool to_node( pugi::xml_node & container, T const &dest, TCHAR const* name);
+	template<_node::set_type T>		  bool to_node( pugi::xml_node & container, T const &dest, TCHAR const* name);
 
 	template<typename T> bool to_node( pugi::xml_node & container, T const &dest, TCHAR const* name)
 	{
@@ -478,6 +514,19 @@ namespace WS
 		if( auto node = container.append_child( name ) )
 		{
 			auto valuename = _T("mapvalue");
+			for( auto value : dest )
+			{
+				to_node<typename T::value_type>(node,value,valuename);
+			}
+			return true;
+		}
+		return false;
+	}
+	template<_node::set_type T> bool to_node( pugi::xml_node & container, T const &dest, TCHAR const* name)
+	{
+		if( auto node = container.append_child( name ) )
+		{
+			auto valuename = _T("setvalue");
 			for( auto value : dest )
 			{
 				to_node<typename T::value_type>(node,value,valuename);
