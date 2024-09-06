@@ -13,6 +13,7 @@ using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 #include <tuple>
 #include <functional>
 #include <vector>
+#include <map>
 
 
 struct Data
@@ -341,5 +342,37 @@ namespace UTLoadSavePUGI
 
 			std::wcout << std::endl;
 		}
+		TEST_METHOD(map_to_from_xml)
+		{
+			WCout2Output wcout_umleiten;
+			std::wcout << _T(__FUNCTION__) << std::endl;
+
+			std::map<unsigned short,std::wstring> Map{{2,_T("welt")},{1,_T("hallo")}};
+
+
+			static_assert(WS::_node::IsMap_v<decltype(Map)>);
+			static_assert(WS::_node::IsMap_v<std::string> == false);
+
+
+			pugi::xml_document doc;
+			auto nodedoc = doc.append_child(PUGIXML_TEXT("map_to_from_xml"));//node als rahmen für die testdaten
+
+			WS::to_node( nodedoc, NAME_AND_STR(Map) );
+			//WS::to_node( nodedoc, data.getTuple(), _T("testData") );//klappt so nicht, die membername als tag wären weg und durch "value" ersetzt
+
+			//xml-text besorgen, zum anschauen
+			std::stringstream ss;
+			doc.save(ss);
+			[[maybe_unused]]auto xml = ss.str();
+			std::wcout << xml.c_str() << std::endl;
+
+			std::map<unsigned short,std::wstring> Map2;
+			WS::from_node( nodedoc, Map2, _T("Map") );
+			Assert::IsTrue( Map == Map2);
+
+
+			std::wcout << std::endl;
+		}
+
 	};
 }

@@ -130,6 +130,21 @@ namespace WS
 		template<container_type T> auto IsContainer(int) -> std::true_type;
 		template<typename T> static bool constexpr IsContainer_v = decltype(IsContainer<T>(0))::value;
 
+		template<typename T> concept map_type = 
+			not IsStdBasisString_v<T> //std-strings wären sonst auch container, die haben aber ihre spezialisierung
+			&& requires(typename std::remove_cvref_t<T> m) 
+		{ 
+			{(void)m.begin()}; 
+			{(void)m.end()}; 
+			{(void)m.cbegin()}; 
+			{(void)m.cend()};
+			{(void)m.size()};
+			{(void)m.insert( std::declval<typename decltype(m)::value_type>() )};
+		};
+		template<typename T> auto IsMap(unsigned long) -> std::false_type;
+		template<map_type T> auto IsMap(int) -> std::true_type;
+		template<typename T> static bool constexpr IsMap_v = decltype(IsMap<T>(0))::value;
+
 
 		/// <summary>
 		/// _node::HasMethod_Load prüft ob es eine T::load-methode mit parameter pugi::xml_node nutzbar(public) gibt
@@ -256,8 +271,8 @@ namespace WS
 			}
 			else
 			{
-				//static_assert(WS::dependent_false<T>,"spezialisierung für T fehlt");
-				return false;
+				static_assert(WS::dependent_false<T>,"spezialisierung für T fehlt");
+				//return false;
 			}
 		}
 		template<> bool setter<bool>( pugi::xml_node & node, bool const & dest )
@@ -304,9 +319,10 @@ namespace WS
 
 
 	 //forward specialisierungen, die können sich kreuz und quer gegenseitig aufrufen
-	template<_node::container_type T> bool from_node( pugi::xml_node const & container, T &dest, TCHAR const* name);
-	template<_node::std_tuple_type T> bool from_node(pugi::xml_node const & container, T &dest, TCHAR const* name);
-	template<_node::std_pair_type T>  bool from_node( pugi::xml_node const & container, T &dest, TCHAR const* name);
+	template<_node::container_type T>	bool from_node( pugi::xml_node const & container, T &dest, TCHAR const* name);
+	template<_node::map_type T>			bool from_node( pugi::xml_node const & container, T &dest, TCHAR const* name);
+	template<_node::std_tuple_type T>	bool from_node(pugi::xml_node const & container, T &dest, TCHAR const* name);
+	template<_node::std_pair_type T>	bool from_node( pugi::xml_node const & container, T &dest, TCHAR const* name);
 
 	template<typename T> bool from_node( pugi::xml_node const & container, T &dest, TCHAR const* name)
 	{
@@ -328,7 +344,7 @@ namespace WS
 	template<_node::std_pair_type T> bool from_node( pugi::xml_node const & container, T &dest, TCHAR const* name)
 	{
 		bool ret_v = false;
-		if( auto node = container.child(name) )
+		if( auto node = _node::nodename(container,name) )
 		{
 			ret_v = true;
 			ret_v |= from_node( node, dest.first, _T("_1") );
@@ -347,6 +363,22 @@ namespace WS
 				dest.push_back( value );
 		}
 		return true;
+	}
+	template<_node::map_type T>			bool from_node( pugi::xml_node const & container, T &dest, TCHAR const* name)
+	{
+		dest.clear();
+		if( auto node = _node::nodename(container,name) )
+		{
+			auto valuename = _T("mapvalue");
+			for( auto child : node.children(valuename) )
+			{
+				std::pair<typename T::key_type,typename T::mapped_type> value{};
+				if( from_node(child,value,valuename) )
+					dest.insert( value );
+			}
+			return true;
+		}
+		return false;
 	}
 	template<_node::std_tuple_type T> bool _from_node_tuple_helper(pugi::xml_object_range<pugi::xml_named_node_iterator> nodes, T &dest, TCHAR const* name)
 	{
@@ -378,10 +410,12 @@ namespace WS
 		return false;
 	}
 
+
 	//forward specialisierungen, die können sich kreuz und quer gegenseitig aufrufen
 	template<_node::std_pair_type T>  bool to_node( pugi::xml_node & container, T const &dest, TCHAR const* name);
 	template<_node::std_tuple_type T> bool to_node( pugi::xml_node & container, T const &dest, TCHAR const* name);
 	template<_node::container_type T> bool to_node( pugi::xml_node & container, T const &dest, TCHAR const* name);
+	template<_node::map_type T>		  bool to_node( pugi::xml_node & container, T const &dest, TCHAR const* name);
 
 	template<typename T> bool to_node( pugi::xml_node & container, T const &dest, TCHAR const* name)
 	{
@@ -438,6 +472,19 @@ namespace WS
 			to_node<typename T::value_type>(container,value,name);
 		}
 		return true;
+	}
+	template<_node::map_type T> bool to_node( pugi::xml_node & container, T const &dest, TCHAR const* name)
+	{
+		if( auto node = container.append_child( name ) )
+		{
+			auto valuename = _T("mapvalue");
+			for( auto value : dest )
+			{
+				to_node<typename T::value_type>(node,value,valuename);
+			}
+			return true;
+		}
+		return false;
 	}
 
 }
