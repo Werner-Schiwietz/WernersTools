@@ -35,7 +35,8 @@
 #			error definiere doch bitte PUGIXML_WCHAR_MODE in den projektdateien
 #		endif
 #		define TCHAR wchar_t
-#		define _T(x) _CONCAT(L,x)
+#		define __T(x) L ## x
+#		define _T(x) __T(x)
 #	else
 #		ifdef PUGIXML_WCHAR_MODE
 #			error entferne doch bitte PUGIXML_WCHAR_MODE aus den projektdateien
@@ -50,6 +51,38 @@ using pugistringstream = std::basic_stringstream<pugi::char_t, std::char_traits<
 //NAME_AND_STR macht aus parameter n, "n" bzw n, L"n". n ist z.b. platzhalter des namens eines member
 #define NAME_AND_STR(n) n, _T(#n)
 
+namespace WS
+{
+	template <typename first_t, typename...rest_t, size_t... indices>
+	auto _get_rest(std::tuple<first_t, rest_t...>& tuple, std::index_sequence<indices...>)
+	{
+		return std::tie(std::get<indices + 1>(tuple)...);
+	}
+	template <typename first_t, typename...rest_t, size_t... indices>
+	auto _get_rest(std::tuple<first_t, rest_t...> const & tuple, std::index_sequence<indices...>)
+	{
+		return std::tie(std::get<indices + 1>(tuple)...);
+	}
+
+	/// <summary>
+	/// get_rest() liefert einen tuple ohne das erste element, also um ein element verkürzten tuple mit referenzen auf den orginal-tuple
+	/// MSC könnte auch std::tuple::_Get_rest() nutzen
+	/// </summary>
+	/// <typeparam name="first_t"></typeparam>
+	/// <typeparam name="...rest_t"></typeparam>
+	/// <param name="tuple"></param>
+	/// <returns></returns>
+	template <typename first_t, typename...rest_t> auto
+	get_rest(std::tuple<first_t, rest_t...>& tuple)
+	{
+		return _get_rest(tuple, std::make_index_sequence<sizeof...(rest_t)>());
+	}
+	template <typename first_t, typename...rest_t> auto
+		get_rest(std::tuple<first_t, rest_t...> const & tuple)
+	{
+		return _get_rest(tuple, std::make_index_sequence<sizeof...(rest_t)>());
+	}
+}
 
 namespace WS
 {
@@ -83,7 +116,7 @@ namespace WS
 		template<typename T> static bool constexpr IsStdBasisString_v = decltype(IsStdBasisString<T>(0))::value;
 
 		template<typename T> concept container_type = 
-			not IsStdBasisString_v<T> //std-strings wären sonst auch container, haben aber ihre spezialisierung
+			not IsStdBasisString_v<T> //std-strings wären sonst auch container, die haben aber ihre spezialisierung
 			&& requires(typename std::remove_cvref_t<T> c) 
 			{ 
 				{(void)c.begin()}; 
@@ -91,7 +124,6 @@ namespace WS
 				{(void)c.cbegin()}; 
 				{(void)c.cend()};
 				{(void)c.size()};
-				//{(void)c.emplace_back( std::declval<typename decltype(c)::value_type>() )};//mit push_back ist std::string auch ein container, das soll er aber nicht
 				{(void)c.push_back( std::declval<typename decltype(c)::value_type>() )};
 			};
 		template<typename T> auto IsContainer(unsigned long) -> std::false_type;
@@ -224,7 +256,8 @@ namespace WS
 			}
 			else
 			{
-				static_assert(WS::dependent_false<T>,"spezialisierung für T fehlt");
+				//static_assert(WS::dependent_false<T>,"spezialisierung für T fehlt");
+				return false;
 			}
 		}
 		template<> bool setter<bool>( pugi::xml_node & node, bool const & dest )
@@ -270,6 +303,11 @@ namespace WS
 	}//namespace _node
 
 
+	 //forward specialisierungen, die können sich kreuz und quer gegenseitig aufrufen
+	template<_node::container_type T> bool from_node( pugi::xml_node const & container, T &dest, TCHAR const* name);
+	template<_node::std_tuple_type T> bool from_node(pugi::xml_node const & container, T &dest, TCHAR const* name);
+	template<_node::std_pair_type T>  bool from_node( pugi::xml_node const & container, T &dest, TCHAR const* name);
+
 	template<typename T> bool from_node( pugi::xml_node const & container, T &dest, TCHAR const* name)
 	{
 		if constexpr (_node::HasMethod_load_v<T>)
@@ -299,40 +337,6 @@ namespace WS
 		}
 		return ret_v;
 	}
-	template<_node::std_tuple_type T> bool _from_node_tuple_helper(pugi::xml_object_range<pugi::xml_named_node_iterator> nodes, T &dest, TCHAR const* name)
-	{
-		if( nodes.begin() != nodes.end() )
-		{
-			bool ret_v = from_node( *nodes.begin(), std::get<0>(dest), name );
-
-			if constexpr ( std::tuple_size_v<T> > 1  )
-			{
-				nodes = decltype(nodes){ ++nodes.begin(), nodes.end() };
-				ret_v |= _from_node_tuple_helper(nodes, dest._Get_rest(), name);
-			}
-			return ret_v;
-		}
-
-		return false;
-	}
-	template<_node::std_tuple_type T> bool from_node(pugi::xml_node const & container, T &dest, TCHAR const* name)
-	{
-		//static_assert(false,"not implemented");
-		pugi::xml_node node;
-		if( stringcmp(container.name(),name)==0 )
-			node = container;
-		else
-		{
-			node = container.child( name );
-			dest = T{};
-		}
-
-		if( node )
-		{
-			return _from_node_tuple_helper( node.children(_T("value")), dest, _T("value") );
-		}
-		return false;
-	}
 	template<_node::container_type T> bool from_node( pugi::xml_node const & container, T &dest, TCHAR const* name)
 	{
 		dest.clear();
@@ -344,6 +348,40 @@ namespace WS
 		}
 		return true;
 	}
+	template<_node::std_tuple_type T> bool _from_node_tuple_helper(pugi::xml_object_range<pugi::xml_named_node_iterator> nodes, T &dest, TCHAR const* name)
+	{
+		if( nodes.begin() != nodes.end() )
+		{
+			bool ret_v = from_node( *nodes.begin(), std::get<0>(dest), name );
+
+			if constexpr ( std::tuple_size_v<T> > 1  )
+			{
+				nodes = decltype(nodes){ ++nodes.begin(), nodes.end() };
+				auto dest2 = WS::get_rest(dest);
+				ret_v |= _from_node_tuple_helper(nodes, dest2, name);
+			}
+			return ret_v;
+		}
+
+		return false;
+	}
+	template<_node::std_tuple_type T> bool from_node(pugi::xml_node const & container, T &dest, TCHAR const* name)
+	{
+		pugi::xml_node node = _node::nodename(container,name);
+		if( node != container )
+			dest = T{};
+
+		if( node )
+		{
+			return _from_node_tuple_helper( node.children(_T("value")), dest, _T("value") );
+		}
+		return false;
+	}
+
+	//forward specialisierungen, die können sich kreuz und quer gegenseitig aufrufen
+	template<_node::std_pair_type T>  bool to_node( pugi::xml_node & container, T const &dest, TCHAR const* name);
+	template<_node::std_tuple_type T> bool to_node( pugi::xml_node & container, T const &dest, TCHAR const* name);
+	template<_node::container_type T> bool to_node( pugi::xml_node & container, T const &dest, TCHAR const* name);
 
 	template<typename T> bool to_node( pugi::xml_node & container, T const &dest, TCHAR const* name)
 	{
@@ -387,7 +425,7 @@ namespace WS
 		{
 			bool ret_v = to_node( node, std::get<0>(dest), _T("value")) ;
 			if constexpr ( std::tuple_size_v<T> > 1 )
-				ret_v |= to_node( node, dest._Get_rest(), name) ;
+				ret_v |= to_node( node, WS::get_rest(dest), name) ;
 
 			return ret_v;
 		}

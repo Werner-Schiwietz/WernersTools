@@ -10,16 +10,19 @@
 #include <sstream>
 #include <iostream>
 
-class LoggerStreambuf : public std::streambuf
+template<typename char_t>
+class LoggerStreambuf : public std::basic_streambuf<char_t, std::char_traits<char_t>>
 {
-
 public:
-	virtual int_type overflow( int_type c = EOF ) {
-		static std::string buf;
+	using base_t = std::basic_streambuf<char_t, std::char_traits<char_t>>;
+	using int_type = typename base_t::int_type;
+	virtual int_type overflow( int_type c = EOF ) 
+	{
+		static std::basic_string<char_t, std::char_traits<char_t>, std::allocator<char_t>> buf;
 		if( c != EOF )
 		{
 			if( c != '\n' )
-				buf += static_cast<char>(c);
+				buf += static_cast<decltype(buf)::traits_type::char_type>( c );
 			else
 			{
 				Logger::WriteMessage( buf.c_str() );
@@ -29,7 +32,7 @@ public:
 		return c;
 	}
 };
-template<typename streambuf_t=LoggerStreambuf>
+template<typename streambuf_t=LoggerStreambuf<char>>
 class Cout2Output
 {
 	streambuf_t dbgstream;
@@ -42,5 +45,20 @@ public:
 
 	~Cout2Output() {
 		std::cout.rdbuf( default_stream );
+	}
+};
+template<typename streambuf_t=LoggerStreambuf<wchar_t>>
+class WCout2Output
+{
+	streambuf_t dbgstream;
+	std::wstreambuf *default_stream;
+
+public:
+	WCout2Output() {
+		default_stream = std::wcout.rdbuf( &dbgstream );
+	}
+
+	~WCout2Output() {
+		std::wcout.rdbuf( default_stream );
 	}
 };

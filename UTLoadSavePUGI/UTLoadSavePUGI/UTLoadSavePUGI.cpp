@@ -8,6 +8,7 @@ using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 #include "..\..\headeronly\to_underlying.h"
 #include "..\..\headeronly\rotate.h"
 #include "..\..\headeronly\pugi_loadsave.h"
+#include "..\..\headeronly\cout_umleitung.h"
 
 #include <tuple>
 #include <functional>
@@ -44,7 +45,19 @@ struct Data
 	//>;
 	constexpr auto getTuple() // liefert tuple_type
 	{
-		return std::make_tuple( std::ref(this->Integer)
+		//return std::tie( this->Integer
+		//				, this->Ushort
+		//				, this->String
+		//				, this->Bool
+		//				, this->Enum
+		//				, this->Enum2
+		//				, this->Enum3
+		//				, this->Double
+		//				, this->Array
+		//				, this->Pair
+		//				, this->Tuple
+		//);
+		return std::make_tuple( std::ref(  this->Integer)
 								, std::ref(this->Ushort)
 								, std::ref(this->String)
 								, std::ref(this->Bool)
@@ -220,14 +233,36 @@ inline bool Data::save( pugi::xml_node parent, PUGIXML_CHAR const * node_name ) 
 }
 
 
+
 namespace UTLoadSavePUGI
 {
 	TEST_CLASS(UTLoadSavePUGI)
 	{
 	public:
-
-		TEST_METHOD(TestMethod1)
+		TEST_METHOD(zerlege_tuple)
 		{
+			auto tuple = std::make_tuple(5,"hallo",short{7});
+			{
+				auto tuple1 = WS::get_rest(tuple);
+				auto tuple2 = WS::get_rest(tuple1);
+				auto tuple3 = WS::get_rest(tuple2);//tuple3 ist leer
+				//auto tuple4 = WS::get_rest(tuple3);//error C2672: 'WS::get_rest': no matching overloaded function found
+
+				std::get<0>(tuple1) = "welt";
+			}
+			{
+				auto tuple1 = WS::get_rest(const_cast<decltype(tuple) const&>(tuple));
+				auto tuple2 = WS::get_rest(tuple1);
+				auto tuple3 = WS::get_rest(tuple2);//tuple3 ist leer
+				//auto tuple4 = WS::get_rest(tuple3);//error C2672: 'WS::get_rest': no matching overloaded function found
+
+				//std::get<0>(tuple1) = "welt";//error C3892: 'std::get': you cannot assign to a variable that is const
+			}
+		}
+		TEST_METHOD(Data_to_from_xml_1)
+		{
+			WCout2Output wcout_umleiten;
+			std::wcout << __FUNCTION__ << std::endl;
 			auto data = Data{};
 			data.Integer = -1;
 			data.Ushort = 2;
@@ -236,7 +271,7 @@ namespace UTLoadSavePUGI
 			data.Enum=Data::enum_t::_4;
 
 			pugi::xml_document doc;
-			auto nodedoc = doc.append_child(PUGIXML_TEXT("test"));//node als rahmen für die testdaten
+			auto nodedoc = doc.append_child(PUGIXML_TEXT("Data_to_from_xml_1"));//node als rahmen für die testdaten
 			//schreiben der ersten struktur
 			data.save( nodedoc, _T("testData") );
 			//schreiben der zweiten, identische struktur und inhalt mit anderer funktion
@@ -246,7 +281,7 @@ namespace UTLoadSavePUGI
 			std::stringstream ss;
 			doc.save(ss);
 			[[maybe_unused]]auto xml = ss.str();
-			Logger::WriteMessage(xml.c_str());
+			std::wcout << xml.c_str() << std::endl;
 
 
 			auto data2_1 = Data{ nodedoc, _T("testData") };//lesen des ersten Datensatz Data
@@ -268,6 +303,43 @@ namespace UTLoadSavePUGI
 			Assert::IsTrue( data4==data2);
 		#pragma warning(suppress:26800)//Use of a moved from object
 			Assert::IsTrue( data3!=data2);
+			std::wcout << std::endl;
+		}
+		TEST_METHOD(Data_to_from_xml_2)
+		{
+			WCout2Output wcout_umleiten;
+			std::wcout << _T(__FUNCTION__) << std::endl;
+
+			auto data = Data{};
+			data.Integer = -2;
+			data.Ushort = 3;
+			data.String=PUGIXML_TEXT("welt");
+			data.Bool=false;
+			data.Enum=Data::enum_t::_2;
+
+
+			pugi::xml_document doc;
+			auto nodedoc = doc.append_child(PUGIXML_TEXT("Data_to_from_xml_2"));//node als rahmen für die testdaten
+
+			WS::to_node( nodedoc, data, _T("testData") );
+			//WS::to_node( nodedoc, data.getTuple(), _T("testData") );//klappt so nicht, die membername als tag wären weg und durch "value" ersetzt
+
+			//xml-text besorgen, zum anschauen
+			std::stringstream ss;
+			doc.save(ss);
+			[[maybe_unused]]auto xml = ss.str();
+			std::wcout << xml.c_str() << std::endl;
+
+			Data data2;
+			WS::from_node( nodedoc, data2, _T("testData") );
+			Assert::IsTrue( data == data2 );
+
+			//Data data3;
+			//auto t = data3.getTuple();t;
+			//WS::from_node( nodedoc, t, _T("testData") );//wird nicht kompiliert, aber egal, save über tuple klappt ja auch nicht
+			//Assert::IsTrue( data3 == data2 );
+
+			std::wcout << std::endl;
 		}
 	};
 }
