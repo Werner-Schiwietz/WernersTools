@@ -130,9 +130,11 @@ namespace WS
 		template<container_type T> auto IsContainer(int) -> std::true_type;
 		template<typename T> static bool constexpr IsContainer_v = decltype(IsContainer<T>(0))::value;
 
+		template<typename T> concept has_mapped_type = requires { typename T::mapped_type; };//c++20 concept statt std::void_t
 		template<typename T> concept map_type = 
 			not IsStdBasisString_v<T> //std-strings wären sonst auch container, die haben aber ihre spezialisierung
 			&& IsStdPair_v<typename T::value_type>
+			&& has_mapped_type<T>
 			&& requires(typename std::remove_cvref_t<T> m) 
 				{ 
 					{(void)m.begin()}; 
@@ -148,7 +150,7 @@ namespace WS
 
 		template<typename T> concept set_type = 
 			   not IsStdBasisString_v<T> 
-			&& not IsStdPair_v<typename T::value_type>
+			&& not has_mapped_type<T>
 			&& requires(typename std::remove_cvref_t<T> s) 
 				{ 
 					{(void)s.begin()}; 
@@ -345,6 +347,7 @@ namespace WS
 
 	template<typename T> bool from_node( pugi::xml_node const & container, T &dest, TCHAR const* name)
 	{
+		static_assert( not std::is_const_v<std::remove_reference_t<T>>, "dest darf nicht const sein");
 		if constexpr (_node::HasMethod_load_v<T>)
 		{
 			//ASSERT( stringcmp(name,dest.node_name())==0);
@@ -392,6 +395,7 @@ namespace WS
 			for( auto child : node.children(valuename) )
 			{
 				std::pair<typename T::key_type,typename T::mapped_type> value{};
+				//typename T::value_type value{};//geht nicht, key_type wäre const
 				if( from_node(child,value,valuename) )
 					dest.insert( value );
 			}
