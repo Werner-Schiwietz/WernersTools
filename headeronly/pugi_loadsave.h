@@ -211,6 +211,8 @@ namespace WS
 		/// pugi::string_t oder ein assigneable-string 
 		/// double presion 20
 		/// float  presion 10
+		/// 
+		/// komplexere datentypen brauchen eine spezialisierung von to_node/from_node
 		/// </summary>
 		/// <typeparam name="T"></typeparam>
 		/// <param name="node"></param>
@@ -342,7 +344,7 @@ namespace WS
 	template<_node::container_type T>	bool from_node( pugi::xml_node const & container, T &dest, TCHAR const* name);
 	template<_node::map_type T>			bool from_node( pugi::xml_node const & container, T &dest, TCHAR const* name);
 	template<_node::set_type T>			bool from_node( pugi::xml_node const & container, T &dest, TCHAR const* name);
-	template<_node::std_tuple_type T>	bool from_node(pugi::xml_node const & container, T &dest, TCHAR const* name);
+	template<_node::std_tuple_type T>	bool from_node( pugi::xml_node const & container, T &dest, TCHAR const* name);
 	template<_node::std_pair_type T>	bool from_node( pugi::xml_node const & container, T &dest, TCHAR const* name);
 
 	template<typename T> bool from_node( pugi::xml_node const & container, T &dest, TCHAR const* name)
@@ -423,12 +425,12 @@ namespace WS
 	{
 		if( nodes.begin() != nodes.end() )
 		{
-			bool ret_v = from_node( *nodes.begin(), std::get<0>(dest), name );
+			bool ret_v = from_node( *nodes.begin(), std::get<0>(dest), name );//first lesen
 
 			if constexpr ( std::tuple_size_v<T> > 1  )
 			{
-				nodes = decltype(nodes){ ++nodes.begin(), nodes.end() };
-				auto dest2 = WS::get_rest(dest);
+				nodes = decltype(nodes){ ++nodes.begin(), nodes.end() };//first entfernen
+				auto dest2 = WS::get_rest(dest);						//first entfernen
 				ret_v |= _from_node_tuple_helper(nodes, dest2, name);
 			}
 			return ret_v;
@@ -440,7 +442,7 @@ namespace WS
 	{
 		pugi::xml_node node = _node::nodename(container,name);
 		if( node != container )
-			dest = T{};
+			dest = T{};//zurücksetzen von dest 
 
 		if( node )
 		{
