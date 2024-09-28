@@ -46,8 +46,11 @@ namespace UT_allgemein
 				Assert::IsTrue( r3!=r2);
 			}
 			{
-				decltype(auto) r2 = WS::toggleconst_cast(int{4});//echter rvalue
-				[[maybe_unused]]char x[100]{};
+				decltype(auto) r2 = WS::toggleconst_cast(int{4});//liefert int const als rvalue zurück, decltype(auto) nimmt das const weg
+				static_assert( std::is_const_v<decltype(r2)> == false );
+				decltype(WS::toggleconst_cast(int{4})) r3 = WS::toggleconst_cast(int{4});
+				//static_assert( std::is_const_v<decltype(r3)>  );
+				//static_assert( std::is_const_v<decltype(WS::toggleconst_cast(int{4}))> );//liefert int const als rvalue zurück
 
 				static_assert( std::is_reference_v<decltype(r2)> == false );
 				Assert::IsTrue( r2==4 );
