@@ -24,6 +24,10 @@
 #include <sstream>
 #include <iomanip>
 
+//#include <map>
+//#include <unordered_map>
+
+
 #undef __CONCAT
 #define __CONCAT(x, y) x ## y
 #undef _CONCAT
@@ -130,8 +134,13 @@ namespace WS
 		template<container_type T> auto IsContainer(int) -> std::true_type;
 		template<typename T> static bool constexpr IsContainer_v = decltype(IsContainer<T>(0))::value;
 
+
+		//template<typename T> concept map_type = 
+		//	std::derived_from<std::map<typename T::key_type, typename T::mapped_type, typename T::key_compare, typename T::allocator_type>,T> ||
+		//	std::derived_from<std::unordered_map<typename T::key_type, typename T::mapped_type, typename T::hasher, typename T::key_equal, typename T::allocator_type>,T>;
+
 		template<typename T> concept has_mapped_type = requires { typename T::mapped_type; };//c++20 concept statt std::void_t
-		template<typename T> concept map_type = 
+		template<typename T> concept map_type = //prüft aufs interface, nicht auf die klasse
 			not IsStdBasisString_v<T> //std-strings wären sonst auch container, die haben aber ihre spezialisierung
 			&& IsStdPair_v<typename T::value_type>
 			&& has_mapped_type<T>

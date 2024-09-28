@@ -238,9 +238,35 @@ inline bool Data::save( pugi::xml_node parent, PUGIXML_CHAR const * node_name ) 
 
 namespace UTLoadSavePUGI
 {
+	//don't use Derive, std::derived__from ist die wahl
+	template <class derived_class,class base_class> concept Derived = std::is_base_of<base_class, derived_class>::value;
+	template<typename T,typename...Ts> concept is_std_map = std::derived_from<T,std::map<Ts...>>;
+
 	TEST_CLASS(UTLoadSavePUGI)
 	{
 	public:
+		TEST_METHOD(is_derived)
+		{
+			static_assert( not Derived<int,int> );
+			static_assert( not Derived<std::wstring,std::string> );//std::string ist keine ableitung von std::basic_string, sondern per using definiert
+			static_assert( Derived<std::wstring,std::wstring> );
+			static_assert( Derived<std::wstring,std::basic_string<std::wstring::value_type,std::wstring::traits_type,std::wstring::allocator_type>> );
+			static_assert( Derived<std::basic_string<std::wstring::value_type,std::wstring::traits_type,std::wstring::allocator_type>, std::wstring> );
+			static_assert( Derived<std::string,std::basic_string<std::string::value_type,std::string::traits_type,std::string::allocator_type>> );
+			static_assert( Derived<std::basic_string<std::string::value_type,std::string::traits_type,std::string::allocator_type>,std::string> );
+			static_assert( not Derived<std::string,std::basic_string<std::wstring::value_type,std::wstring::traits_type,std::wstring::allocator_type>> );
+
+			struct B {};
+			struct D : B {};
+			static_assert(		Derived<B,B> );
+			static_assert(		Derived<D,D> );
+			static_assert( not	Derived<B,D> );
+			static_assert(		Derived<D,B> );
+			static_assert(		std::derived_from<B,B> );
+			static_assert(		std::derived_from<D,D> );
+			static_assert( not	std::derived_from<B,D> );
+			static_assert(		std::derived_from<D,B> );
+		}
 		TEST_METHOD(zerlege_tuple)
 		{
 			auto tuple = std::make_tuple(5,"hallo",short{7});
