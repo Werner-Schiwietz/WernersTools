@@ -76,19 +76,36 @@ namespace WS
 		return std::move(value);
 	}
 
-	template<typename T> auto notconst_cast( T & value) -> std::enable_if_t<std::is_const_v<std::remove_reference_t<T>>, std::remove_const_t<std::remove_reference_t<T>> &>
+	template<typename T> auto notconst_cast( T & value) -> std::enable_if_t<std::is_const_v<T>, std::remove_const_t<T> &>
 	{
 		return toggleconst_cast(value);
 	}
-	template<typename T> auto notconst_cast( T && value) -> std::enable_if_t<std::is_const_v<std::remove_reference_t<T>>, std::remove_const_t<std::remove_reference_t<T>>>
+	template<typename T> auto notconst_cast( T && value) -> std::enable_if_t<std::is_const_v<T>, std::remove_const_t<T>>
 	{
 		return toggleconst_cast(std::move(value));
 	}
-	template<typename T> auto toconst_cast( T & value) -> std::enable_if_t<std::is_const<T>::value==false, T const &>
+	template<typename T> auto notconst_cast( T & value) -> std::enable_if_t<not std::is_const_v<T>, T &>
 	{
 		return value;
 	}
-	template<typename T> auto toconst_cast( T && value) -> std::enable_if_t<std::is_const<T>::value==false, T const>
+	template<typename T> auto notconst_cast( T && value) -> std::enable_if_t<not std::is_const_v<T>, T>
+	{
+		return std::move(value);
+	}
+
+	template<typename T> auto toconst_cast( T & value) -> std::enable_if_t<not std::is_const_v<T>, T const &>
+	{
+		return value;
+	}
+	template<typename T> auto toconst_cast( T && value) -> std::enable_if_t<not std::is_const_v<T>, T const>
+	{
+		return std::move(value);
+	}
+	template<typename T> auto toconst_cast( T & value) -> std::enable_if_t<std::is_const_v<T>, T const &>
+	{
+		return value;
+	}
+	template<typename T> auto toconst_cast( T && value) -> std::enable_if_t<std::is_const_v<T>, T const>
 	{
 		return std::move(value);
 	}
@@ -107,12 +124,18 @@ namespace WS
 	{
 		return toggleconst_cast(value);
 	}
-	template<typename T> auto notconst_cast( T * value) -> std::enable_if_t<std::is_const_v<T> == false, std::remove_const_t<T> *> = delete;//T to T ist unerwünscht
+	template<typename T> auto notconst_cast( T * value) -> std::enable_if_t<std::is_const_v<T> == false, std::remove_const_t<T> *>
+	{
+		return value;
+	}
 	template<typename T> auto toconst_cast( T * value) -> std::enable_if_t<std::is_const<T>::value==false, T const *>
 	{
 		return value;
 	}
-	template<typename T> auto toconst_cast( T * value) -> std::enable_if_t<std::is_const<T>::value, T const *> = delete;//T const to T const ist unerwünscht
+	template<typename T> auto toconst_cast( T * value) -> std::enable_if_t<std::is_const<T>::value, T *>
+	{
+		return value;
+	}
 #pragma endregion 
 
 #pragma region std::shared_ptr
@@ -128,20 +151,20 @@ namespace WS
 	{
 		return std::const_pointer_cast<std::remove_const_t<T>>(value);
 	}
-	template<typename T> auto notconst_cast( std::shared_ptr<T> & value ) -> std::enable_if_t<std::is_const_v<T> == false, std::shared_ptr<std::remove_const_t<T>>> = delete;//T to T ist unerwünscht
-	//{
-	//	static_assert( false, "T ist nicht const");
-	//	return std::const_pointer_cast<std::remove_const_t<T>>(value);
-	//}
+	template<typename T> auto notconst_cast( std::shared_ptr<T> & value ) -> std::enable_if_t<std::is_const_v<T> == false, std::shared_ptr<std::remove_const_t<T>>>
+	{
+		//static_assert( false, "T ist nicht const");
+		return std::const_pointer_cast<std::remove_const_t<T>>(value);
+	}
 	template<typename T> auto toconst_cast( std::shared_ptr<T> & value ) -> std::enable_if_t<std::is_const<T>::value==false, std::shared_ptr<T const>>
 	{
 		return std::const_pointer_cast<T const>( value );
 	}
-	template<typename T> auto toconst_cast( std::shared_ptr<T> & value ) -> std::enable_if_t<std::is_const<T>::value, std::shared_ptr<T const>> = delete;//T const to T const ist unerwünscht
-	//{
-	//	static_assert( false, "T ist schon const");
-	//	return std::const_pointer_cast<T const>( value );
-	//}
+	template<typename T> auto toconst_cast( std::shared_ptr<T> & value ) -> std::enable_if_t<std::is_const<T>::value, std::shared_ptr<T const>>
+	{
+		//static_assert( false, "T ist schon const");
+		return std::const_pointer_cast<T const>( value );
+	}
 #pragma endregion 
 
 }
