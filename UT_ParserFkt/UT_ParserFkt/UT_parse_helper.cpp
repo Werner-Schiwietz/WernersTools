@@ -577,8 +577,8 @@ namespace UTParserFkt
 			Assert::IsTrue( eat( toparse, begin_end_item ) );
 			auto erg = eat_till( toparse, begin_end_item, escape_item );
 			Assert::IsFalse( erg );
-			Assert::IsTrue( erg==WS::parse_error::invalid_escape_sequence);
-			Assert::IsTrue( erg.eaten_till_error == WS::iterator_access( "hal" ) );
+			Assert::IsTrue( erg==WS::parse_error::tillitem_not_found);
+			Assert::IsTrue( erg.eaten_till_error == WS::iterator_access( "hal\\lo" ) );
 		}
 		TEST_METHOD(eat_till_positive)
 		{
@@ -923,7 +923,7 @@ namespace UTParserFkt
 		{
 			{
 				auto toparse = WS::iterator_access( "   \thallo" );
-				auto erg = WS::eat_space( toparse );
+				auto erg = WS::eat_spaces( toparse );
 				Assert::IsTrue( toparse == WS::iterator_access("hallo") );
 				Assert::IsTrue( erg );
 				Assert::IsTrue( erg == WS::iterator_access("   \t") );
@@ -932,7 +932,7 @@ namespace UTParserFkt
 			}
 			{
 				auto toparse = WS::iterator_access( L"   \thallo" );
-				auto erg = WS::eat_space( toparse );
+				auto erg = WS::eat_spaces( toparse );
 				Assert::IsTrue( toparse == WS::iterator_access(L"hallo") );
 				Assert::IsTrue( erg );
 				Assert::IsTrue( erg == WS::iterator_access(L"   \t") );
@@ -1034,7 +1034,8 @@ namespace UTParserFkt
 		{
 			{
 				auto erg = WS::eat_integer<short>( WS::iterator_access( std::wstring(L"-123Hallo") ) );
-				Assert::IsFalse( erg );//eat_integer wertet keine  vorzeichen aus
+				Assert::IsTrue( erg );
+				Assert::IsTrue( erg.value == -123 );
 			}
 		}		
 		TEST_METHOD( UT_stringto_int_mit_vorzeichen )
@@ -1064,8 +1065,9 @@ namespace UTParserFkt
 						Assert::IsTrue( stringcmp( text, "+" )==0 );
 					}
 				}
-				auto erg = WS::eat_integer<short>( WS::iterator_access( std::wstring(L"-123Hallo") ) );
-				Assert::IsFalse( erg );//eat_integer wertet keine  vorzeichen aus
+				auto erg = WS::eat_integer<short>( WS::iterator_access( std::wstring(L"- 123Hallo") ) );
+				Assert::IsTrue( erg );//eat_integer wertet keine  vorzeichen aus
+				Assert::IsTrue( erg.value == -123 );
 			}
 		}		
 		TEST_METHOD( UT_eat_integer_positiv_overflow )
