@@ -19,12 +19,14 @@
 	using TCHAR = wchar_t;
 	using string_t = std::wstring;
 	#define outstream std::wcout
+	#define errstream std::wcerr
 	using regex_t = std::wregex;
 	using match_t = std::wsmatch;
 #else
 	using TCHAR = char;
 	using string_t = std::string;
 	#define outstream std::cout
+	#define errstream std::cerr
 	using regex_t std::regex;
 	using match_t = std::smatch;
 #endif
@@ -38,10 +40,10 @@ int help()
 	outstream << _T("	 by Werner Schiwietz") << std::endl;
 	outstream << _T("	 -h|? diese hilfe") << std::endl;
 	outstream << _T("	 --start [\"|']LW:\\Pfad[\"|'] das Startverzeichnis, ansonst wird das currentdirectory genommen") << std::endl;
-	outstream << _T("	 -|+r unterordner werden auch durchsucht") << std::endl;
-	outstream << _T("	 -|+test es wird keine veränderung vorgenommen, nur angezeigt, was gemacht werden würde") << std::endl;
-	outstream << _T("	 -|+v nur Verzeichnisse umbenennen") << std::endl;
-	outstream << _T("	 -|+d nur Dateien umbenennen") << std::endl;
+	outstream << _T("	 +|-r unterordner werden auch durchsucht") << std::endl;
+	outstream << _T("	 +|-test es wird keine veränderung vorgenommen, nur angezeigt, was gemacht werden würde") << std::endl;
+	outstream << _T("	 -|+v Verzeichnisse (nicht) umbenennen") << std::endl;
+	outstream << _T("	 -|+d Dateien (nicht) umbenennen") << std::endl;
 	outstream << _T("	 +|-b die Suchparameter werden mit ausgegeben") << std::endl;
 
 	return 0;
@@ -58,26 +60,43 @@ namespace WS
 		return string;
 	}
 
-	template<typename to_t,typename from_t> to_t Convert( from_t v ) = delete;
-	template<typename type> type Convert( type v )
+	template<typename to_t,typename from_t> to_t Convert( from_t const & v ) = delete;
+	template<typename type> type Convert( type const & v )
 	{
 		return v;
 	}
-	template<> std::wstring Convert<std::wstring,std::string>( std::string v )
+
+
+	template<> std::string Convert<std::string,char const *>( char const * const & var )
 	{
-		int size_needed = MultiByteToWideChar(CP_UTF8, 0, &v[0], (int)v.size(), NULL, 0);
-		std::wstring wstrTo(size_needed, 0);
-		MultiByteToWideChar(CP_UTF8, 0, &v[0], static_cast<int>(v.size()), &wstrTo[0], size_needed);
-		return wstrTo;
+		return {var};
 	}
-	template<> std::string Convert<std::string,std::wstring>( std::wstring v )
+	template<> std::string Convert<std::string,wchar_t const *>( wchar_t const * const & var )
 	{
+		static std::locale loc("");
+		auto &facet = std::use_facet<std::codecvt<wchar_t, char, std::mbstate_t>>(loc);
 		#pragma warning(suppress:4996)
-		typedef std::codecvt_utf8<wchar_t> convert_typeX;
+		return std::wstring_convert<std::remove_reference<decltype(facet)>::type, wchar_t>(&facet).to_bytes(var);
+	}
+	template<> std::string Convert<std::string,std::wstring>( std::wstring const & var )
+	{
+		return Convert<std::string>( var.c_str() );
+	}
+
+	template<> std::wstring Convert<std::wstring,wchar_t const *>( wchar_t const * const & var )
+	{
+		return {var};
+	}
+	template<> std::wstring Convert<std::wstring,char const *>( char const * const & var )
+	{
+		static std::locale loc("");
+		auto &facet = std::use_facet<std::codecvt<wchar_t, char, std::mbstate_t>>(loc);
 		#pragma warning(suppress:4996)
-		std::wstring_convert<convert_typeX, wchar_t> converterX;
-		#pragma warning(suppress:4996)
-		return converterX.to_bytes(v);
+		return std::wstring_convert<std::remove_reference<decltype(facet)>::type, wchar_t>(&facet).from_bytes(var);
+	}
+	template<> std::wstring Convert<std::wstring,std::string>( std::string const & var )
+	{
+		return Convert<std::wstring>( var.c_str() );
 	}
 }
 struct regexdata
@@ -92,44 +111,61 @@ struct regexdata
 	std::vector<bool> group;
 	string_t s{};
 	bool fix=false;
-	for(;*parameter; ++parameter)
+	auto closefix = [&]()->void
 	{
-		switch(*parameter)
+		if(fix)
 		{
-		case _T('*'):
-			if(fix)
-			{
-				fix = false;
-				s += _T(')');
-			}
+			fix = false;
+			s += _T(')');
+		}
+	};
+	auto openfix = [&]()->bool
+	{
+		if(not fix)
+		{
+			fix = true;
+			s += _T('(');
+			return true;
+		}
+		return false;
+	};
+	auto parse = WS::iterator_access(parameter);
+	for(;parse.len(); )
+	{
+		if( WS::eat(parse, _T('*')) )
+		{
+			closefix();
 			group.push_back(false);
 			s += _T("(.*)");
-			break;
-		case _T('?'):
-			if(fix)
-			{
-				fix = false;
-				s += _T(')');
-			}
+		}
+		else if( WS::eat(parse, _T('?')) )
+		{
+			closefix();
 			group.push_back(false);
-			s += _T("(.?)");
-			break;
-		default:
-			if(not fix)
-			{
+			s += _T("(.)");
+		}
+		else if( WS::eat(parse, WS::iterator_access(_T(".*"))) )
+		{
+			closefix();
+			group.push_back(false);
+			s += _T("(\\..*)?");
+		}
+		else if( WS::eat(parse, _T('.')) )
+		{
+			if(openfix())
 				group.push_back(true);
-				fix = true;
-				s += _T('(');
-			}
-			s += *parameter;
-			break;
+			s += _T("\\.");
+		}
+		else 
+		{
+			if(openfix())
+				group.push_back(true);
+
+			s += *parse.begin();
+			WS::eat(parse);
 		}
 	}
-	if(fix)
-	{
-		fix = false;
-		s += _T(')');
-	}
+	closefix();
 
 	return {s,group};
 }
@@ -169,9 +205,20 @@ string_t renamedfilename( std::filesystem::path const & filename, regexdata cons
 	regex_t searchfor( find.string, std::regex_constants::icase );
 	match_t match;
 	auto fn = static_cast<string_t>(filename.filename());
-	if( not std::regex_search( fn, match, searchfor ) )
+	try
 	{
-		return {};
+		if( not std::regex_search( fn, match, searchfor ) )
+		{
+			return {};
+		}
+	}
+	catch(std::exception &e)
+	{
+		errstream << _T("std::regex_search '") << fn << _T("' exception  : ") << WS::Convert<string_t>( std::string(e.what()) ) << std::endl;
+	}
+	catch(...)
+	{
+		errstream << _T("std::regex_search exception: ") << std::endl;
 	}
 
 	string_t newfilename{};
@@ -201,6 +248,8 @@ string_t renamedfilename( std::filesystem::path const & filename, regexdata cons
 		newfilename += *iterReplace++;
 	}
 
+	while( *newfilename.rbegin() == _T('.') )
+		newfilename.erase(newfilename.length()-1);
 	return newfilename;
 }
 
@@ -315,12 +364,21 @@ Rename( std::filesystem::path name, auto const & finddata, auto const & replaced
 		{
 			std::filesystem::rename( name, newname, ec );
 		}
-		if( param.verbose )
-			outstream << _T("  ") << param.find_str << _T(" ") << param.replace_str << _T("   ");
-		outstream << name << _T(" -> ") << newname_string;
+		decltype(outstream) * pstream{};
 		if( static_cast<bool>(ec) )
-			outstream << _T(" ec:") << WS::Convert<string_t>(ec.message());
-		outstream << std::endl;
+		{
+			pstream = &errstream;
+		}
+		else
+		{
+			pstream = &outstream;
+		}
+		if( param.verbose )
+			(*pstream) << _T( "  " ) << param.find_str << _T( " " ) << param.replace_str << _T( "   " );
+		(*pstream) << name.c_str() << _T(" -> ") << newname_string;
+		if( static_cast<bool>(ec) )
+			(*pstream) << _T(" ec:") << WS::Convert<string_t>(ec.message());
+		(*pstream) << std::endl;
 
 		if( not param.test )
 			return {not static_cast<bool>(ec), name.replace_filename(newname) };
@@ -364,35 +422,51 @@ int _tmain(int argc, TCHAR const *argv[])
 
 	int counter = 0;
 
-	std::deque<std::filesystem::path> dirs;
 	std::deque<std::filesystem::path> dirsumbenannt;
-	std::deque<std::filesystem::path> files;
 	std::deque<std::filesystem::path> filesumbenannt;
 
 	std::function<void(size_t)> worker;// nötig wg rekursion
 	auto fnworker = [&](size_t index)->void
 	{
+		std::deque<std::filesystem::path> dirs;
+		std::deque<std::filesystem::path> dirslokal;
+		std::deque<std::filesystem::path> fileslokal;
+
 		auto &		param		= paramcontainer[index];
 		regexdata	finddata	= getRegex(param.find_str);
 		auto		replacedata = getRegexReplace( param.replace_str);
 
 
-		for( auto const & direntry : std::filesystem::directory_iterator{param.startdir} )
+		try
 		{
-			if(direntry.is_directory())
+			for( auto const & direntry : std::filesystem::directory_iterator{param.startdir} )
 			{
-				if( param.rekursiv || param.verzeichnisse )
+				if(direntry.is_directory())
 				{
-					dirs.push_back(direntry.path());
+					if( param.rekursiv || param.verzeichnisse )
+					{
+						dirs.push_back(direntry.path());
+						dirslokal.push_back(direntry.path());
+					}
+				}
+				else if( param.dateien )
+				{
+					fileslokal.push_back(direntry.path());
 				}
 			}
-			else if( param.dateien )
-				files.push_back(direntry.path());
+		}
+		catch(std::exception &e)
+		{
+			errstream << _T("exception: ") << WS::Convert<string_t>( e.what() ) << std::endl;
+		}
+		catch(...)
+		{
+			errstream << _T("std::filesystem::directory_iterator exception: ") << std::endl;
 		}
 
 		if( param.verzeichnisse )
 		{
-			for( auto const & dir : dirs )
+			for( auto const & dir : dirslokal )
 			{
 				if( auto erg = Rename( dir, finddata, replacedata, param ) )
 				{
@@ -404,7 +478,7 @@ int _tmain(int argc, TCHAR const *argv[])
 
 		if( param.dateien )
 		{
-			for( auto const & file : files )
+			for( auto const & file : fileslokal )
 			{
 				if( auto erg = Rename( file, finddata,  replacedata, param ) )
 				{
@@ -420,17 +494,19 @@ int _tmain(int argc, TCHAR const *argv[])
 			for( auto & dirumbenannt : dirsumbenannt )
 			{
 				paramsub.startdir = dirumbenannt;
-				files.clear();
 				worker(index+1);
 			}
 		}
 
 		if( not dirs.empty() && param.rekursiv )
 		{
-			param.startdir = dirs.front();
-			dirs.pop_front();
-			files.clear();
-			worker(index);
+			for( auto dir : dirs )
+			{
+				auto startdir = param.startdir;
+				param.startdir = dir;
+				worker(index);
+				param.startdir = startdir;
+			}
 		}
 	};
 	worker = fnworker;
