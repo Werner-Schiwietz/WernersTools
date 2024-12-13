@@ -354,6 +354,7 @@ struct
 }
 Rename( std::filesystem::path name, auto const & finddata, auto const & replacedata, auto const & param)
 {
+	static std::basic_string<TCHAR>::size_type last_line_string_len = 0;
 	if( auto newname_string = renamedfilename( name, finddata, replacedata ); not newname_string.empty() )
 	{
 		auto newname = name;
@@ -364,27 +365,40 @@ Rename( std::filesystem::path name, auto const & finddata, auto const & replaced
 		{
 			std::filesystem::rename( name, newname, ec );
 		}
-		decltype(outstream) * pstream{};
+		std::basic_stringstream<TCHAR> stringstream;
+		if( param.verbose )
+			stringstream << _T("  ") << param.find_str << _T( " " ) << param.replace_str << _T( "   " );
+		stringstream << name.c_str() << _T(" -> ") << newname_string;
+		if( static_cast<bool>(ec) )
+			stringstream << _T(" ec:") << WS::Convert<string_t>(ec.message());
+
+		decltype(auto) str = stringstream.str();
+		if( str.length() < last_line_string_len )
+			stringstream << std::basic_string<TCHAR>( (last_line_string_len - str.length()), _T(' ') );//warum geht ctor hier nicht mit {} ??
+
+		stringstream << std::endl;
+		last_line_string_len = 0;
 		if( static_cast<bool>(ec) )
 		{
-			pstream = &errstream;
+			errstream << stringstream.str();
 		}
 		else
 		{
-			pstream = &outstream;
+			outstream << stringstream.str();
 		}
-		if( param.verbose )
-			(*pstream) << _T( "  " ) << param.find_str << _T( " " ) << param.replace_str << _T( "   " );
-		(*pstream) << name.c_str() << _T(" -> ") << newname_string;
-		if( static_cast<bool>(ec) )
-			(*pstream) << _T(" ec:") << WS::Convert<string_t>(ec.message());
-		(*pstream) << std::endl;
 
 		if( not param.test )
 			return {not static_cast<bool>(ec), name.replace_filename(newname) };
 		else 
 			return {not static_cast<bool>(ec), name};
 	}
+
+	string_t str = name;
+	auto len = str.length();
+	if( len < last_line_string_len )
+		str += string_t( last_line_string_len - len, _T(' ') );
+	outstream << str << _T('\r');
+	last_line_string_len = len;
 	return {false};
 }
 
