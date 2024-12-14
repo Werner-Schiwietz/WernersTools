@@ -22,20 +22,26 @@
 
 int help()
 {
-	outstream << _T("rename.exe [-test] [-r] [-v LW:\\Startdir] [+b] sourceFilenameWithWildcard destFilenameWithWildcard") << std::endl;
+	outstream << _T("umbenennen.exe [-test] [-r] [--start LW:\\Startdir] [+b] sourceNameWithWildcard destNameWithWildcard") << std::endl;
 	outstream << _T("	 by Werner Schiwietz") << std::endl;
-	outstream << _T("	 -h|? diese hilfe") << std::endl;
+	outstream << _T("	 --h|? diese hilfe") << std::endl;
 	outstream << _T("	 --start [\"|']LW:\\Pfad[\"|'] das Startverzeichnis, ansonst wird das currentdirectory genommen") << std::endl;
 	outstream << _T("	 +|-r unterordner werden auch durchsucht") << std::endl;
 	outstream << _T("	 +|-test es wird keine veränderung vorgenommen, nur angezeigt, was gemacht werden würde") << std::endl;
 	outstream << _T("	 -|+v Verzeichnisse (nicht) umbenennen") << std::endl;
 	outstream << _T("	 -|+d Dateien (nicht) umbenennen") << std::endl;
 	outstream << _T("	 +|-b die Suchparameter werden mit ausgegeben") << std::endl;
+	outstream << _T("	 +|-i Groß/Kleinschreibung beachten") << std::endl;
+	outstream << _T("	 ") << std::endl;
+	outstream << _T("	 Beispiel: umbenennen.exe *x*.* *y*.*") << std::endl;
+	outstream << _T("	           erstetzt ein x durch ein y, der rest bleibt gleich") << std::endl;
+
 
 	return 0;
 }
 
 auto streamPipe = WS::make_pipe( std::function<void(pipedata &&)>(pipeworker) );
+std::basic_string<TCHAR>::size_type last_line_string_len = 0;
 
 namespace WS
 {
@@ -99,6 +105,8 @@ struct regexdata
 	std::vector<bool> group;
 	string_t s{};
 	bool fix=false;
+	bool addfrombegin = true;
+
 	auto closefix = [&]()->void
 	{
 		if(fix)
@@ -112,11 +120,15 @@ struct regexdata
 		if(not fix)
 		{
 			fix = true;
-			s += _T('(');
+			if( addfrombegin )
+				s = _T("(^");
+			else
+				s += _T('(');
 			return true;
 		}
 		return false;
 	};
+
 	auto parse = WS::iterator_access(parameter);
 	for(;parse.len(); )
 	{
@@ -127,16 +139,22 @@ struct regexdata
 			s += _T("(.*)");
 		}
 		else if( WS::eat(parse, _T('?')) )
-		{
+		{	//genau einzeichen, egal welches
 			closefix();
 			group.push_back(false);
-			s += _T("(.)");
+			if(addfrombegin)
+				s += _T("(^.)");
+			else
+				s += _T("(.)");
 		}
 		else if( WS::eat(parse, WS::iterator_access(_T(".*"))) )
 		{
 			closefix();
 			group.push_back(false);
-			s += _T("(\\..*)?");
+			if(addfrombegin)
+				s += _T("(^\\..*)?");
+			else
+				s += _T("(\\..*)?");
 		}
 		else if( WS::eat(parse, _T('.')) )
 		{
@@ -152,6 +170,7 @@ struct regexdata
 			s += *parse.begin();
 			WS::eat(parse);
 		}
+		addfrombegin = false;
 	}
 	closefix();
 
@@ -188,9 +207,12 @@ std::vector<string_t> getRegexReplace( TCHAR const * parameter)
 	return retvalue;
 }
 
-string_t renamedfilename( std::filesystem::path const & filename, regexdata const & find, auto replace )
+string_t renamedfilename( std::filesystem::path const & filename, regexdata const & find, auto replace, bool casesensitiv )
 {
-	regex_t searchfor( find.string, std::regex_constants::icase );
+	regex_t::flag_type flags = regex_t::flag_type::ECMAScript;
+	if( not casesensitiv )
+		flags |= regex_t::flag_type::icase;
+	regex_t searchfor( find.string, flags );
 	match_t match;
 	auto fn = static_cast<string_t>(filename.filename());
 	try
@@ -253,6 +275,7 @@ struct parameter
 	bool			verbose			= false;
 	bool			verzeichnisse	= true;
 	bool			dateien			= true;
+	bool			casesensitiv	= false;
 
 	string_t		startdir = std::filesystem::current_path();
 	TCHAR const *	find_str{};
@@ -271,10 +294,12 @@ param:
 	decltype(parse) parse2;
 	if( auto optchr = WS::eat_oneof( parse, '-','/', '+' ) )
 	{
-		if( WS::eat_oneof( parse, 'h','H','?') && parse2.len()==0 )
+		if( WS::eat((parse2=parse),WS::iterator_access(_T("-"))) && WS::eat_oneof( parse2, 'h','H','?') && parse2.len()==0 )
 			return false;
 		if( WS::eat( (parse2=parse), WS::iterator_access("-start")) && parse2.len()==0 )
 		{
+			if( *static_cast<TCHAR const *>(optchr)==_T('+') )
+				return false;
 			if(argc<=++index)
 				return false;
 			parse2 = WS::iterator_access(argv[index]);
@@ -312,6 +337,12 @@ param:
 			++index;
 			goto param;
 		}
+		if( WS::eat_oneof( (parse2=parse), 'i','I') && parse2.len()==0 )
+		{
+			param.casesensitiv = *static_cast<TCHAR const *>(optchr)==_T('+');
+			++index;
+			goto param;
+		}
 		if( WS::eat_oneof( (parse2=parse), 'v','V') && parse2.len()==0 )
 		{
 			param.verzeichnisse = *static_cast<TCHAR const *>(optchr)==_T('+');
@@ -346,8 +377,7 @@ struct
 }
 Rename( std::filesystem::path name, auto const & finddata, auto const & replacedata, auto const & param)
 {
-	static std::basic_string<TCHAR>::size_type last_line_string_len = 0;
-	if( auto newname_string = renamedfilename( name, finddata, replacedata ); not newname_string.empty() )
+	if( auto newname_string = renamedfilename( name, finddata, replacedata, param.casesensitiv ); not newname_string.empty() )
 	{
 		auto newname = name;
 		newname.replace_filename( newname_string );
@@ -400,6 +430,8 @@ Rename( std::filesystem::path name, auto const & finddata, auto const & replaced
 
 int _tmain(int argc, TCHAR const *argv[])
 {
+	std::locale::global(std::locale("German_germany"));
+
 	std::deque<parameter> paramcontainer;
 	paramcontainer.emplace_back();
 
@@ -529,7 +561,12 @@ int _tmain(int argc, TCHAR const *argv[])
 	worker = fnworker;
 	worker(0);
 
+	if(last_line_string_len)
+		streamPipe.AddData( pipedata{ string_t(last_line_string_len, _T(' ')) + _T('\r'), outstream, true} ) ;
+
+	streamPipe.member->processdata_endworker();//destructor macht nur soft-terminate und detach, dadurch kann der threadworker länger arbeiten als die eigentliche pipe lebt
 	ConsolenCursor::OnOff(true);
+
 	return counter;
 }
 
