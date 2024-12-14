@@ -103,9 +103,8 @@ struct regexdata
 		return {};
 
 	std::vector<bool> group;
-	string_t s{};
+	string_t s{_T("^")};//von begin der zeile
 	bool fix=false;
-	bool addfrombegin = true;
 
 	auto closefix = [&]()->void
 	{
@@ -120,10 +119,7 @@ struct regexdata
 		if(not fix)
 		{
 			fix = true;
-			if( addfrombegin )
-				s = _T("(^");
-			else
-				s += _T('(');
+			s += _T('(');
 			return true;
 		}
 		return false;
@@ -142,19 +138,13 @@ struct regexdata
 		{	//genau einzeichen, egal welches
 			closefix();
 			group.push_back(false);
-			if(addfrombegin)
-				s += _T("(^.)");
-			else
-				s += _T("(.)");
+			s += _T("(.)");
 		}
 		else if( WS::eat(parse, WS::iterator_access(_T(".*"))) )
 		{
 			closefix();
 			group.push_back(false);
-			if(addfrombegin)
-				s += _T("(^\\..*)?");
-			else
-				s += _T("(\\..*)?");
+			s += _T("(\\..*)?");
 		}
 		else if( WS::eat(parse, _T('.')) )
 		{
@@ -170,9 +160,9 @@ struct regexdata
 			s += *parse.begin();
 			WS::eat(parse);
 		}
-		addfrombegin = false;
 	}
 	closefix();
+	s += _T("$");//bis ende der zeile
 
 	return {s,group};
 }
