@@ -18,5 +18,22 @@
     <ClCompile Include="umbenennen.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="streamPipe.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ConsolenCursorOnOff.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="traits.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="streamPipe.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ConsolenCursorOnOff.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

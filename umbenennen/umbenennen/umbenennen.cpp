@@ -1,8 +1,6 @@
 // rename.cpp : This file contains the 'main' function. Program execution begins and ends there.
 //
 
-#include <iostream>
-#include <regex>
 #include <algorithm>
 #include <tuple>
 #include <assert.h>
@@ -13,23 +11,11 @@
 #include <Windows.h>//MultiByteToWideChar
 #include <codecvt>
 
+#include "traits.h"
+#include "streamPipe.h"
 #include "..\..\headeronly\parse_helper.h"
+#include "ConsolenCursorOnOff.h"
 
-#ifdef _UNICODE
-	using TCHAR = wchar_t;
-	using string_t = std::wstring;
-	#define outstream std::wcout
-	#define errstream std::wcerr
-	using regex_t = std::wregex;
-	using match_t = std::wsmatch;
-#else
-	using TCHAR = char;
-	using string_t = std::string;
-	#define outstream std::cout
-	#define errstream std::cerr
-	using regex_t std::regex;
-	using match_t = std::smatch;
-#endif
 
 //#define _T(x) L ## x
 
@@ -48,6 +34,8 @@ int help()
 
 	return 0;
 }
+
+auto streamPipe = WS::make_pipe( std::function<void(pipedata &&)>(pipeworker) );
 
 namespace WS
 {
@@ -214,11 +202,15 @@ string_t renamedfilename( std::filesystem::path const & filename, regexdata cons
 	}
 	catch(std::exception &e)
 	{
-		errstream << _T("std::regex_search '") << fn << _T("' exception  : ") << WS::Convert<string_t>( std::string(e.what()) ) << std::endl;
+		std::basic_stringstream<TCHAR> stringstream;
+		stringstream << _T("std::regex_search '") << fn << _T("' exception  : ") << WS::Convert<string_t>( std::string(e.what()) ) << std::endl;
+		streamPipe.AddData( pipedata{stringstream.str(),errstream} );
 	}
 	catch(...)
 	{
-		errstream << _T("std::regex_search exception: ") << std::endl;
+		std::basic_stringstream<TCHAR> stringstream;
+		stringstream << _T("std::regex_search exception: ") << std::endl;
+		streamPipe.AddData( pipedata{stringstream.str(),errstream} );
 	}
 
 	string_t newfilename{};
@@ -380,11 +372,13 @@ Rename( std::filesystem::path name, auto const & finddata, auto const & replaced
 		last_line_string_len = 0;
 		if( static_cast<bool>(ec) )
 		{
-			errstream << stringstream.str();
+			//errstream << stringstream.str();
+			streamPipe.AddData( pipedata{stringstream.str(),errstream} );
 		}
 		else
 		{
-			outstream << stringstream.str();
+			//outstream << stringstream.str();
+			streamPipe.AddData( pipedata{stringstream.str(),outstream} );
 		}
 
 		if( not param.test )
@@ -397,7 +391,9 @@ Rename( std::filesystem::path name, auto const & finddata, auto const & replaced
 	auto len = str.length();
 	if( len < last_line_string_len )
 		str += string_t( last_line_string_len - len, _T(' ') );
-	outstream << str << _T('\r');
+
+	//outstream << str << _T('\r');
+	streamPipe.AddData( pipedata{str + _T('\r'),outstream,true} );
 	last_line_string_len = len;
 	return {false};
 }
@@ -433,6 +429,9 @@ int _tmain(int argc, TCHAR const *argv[])
 
 	//irgendein testname
 	//auto file = std::filesystem::path{_T("(ARCHIV_20211102)_SOLL_TC1194804.pdf")};
+
+	ConsolenCursor::OnOff(false);
+
 
 	int counter = 0;
 
@@ -471,11 +470,15 @@ int _tmain(int argc, TCHAR const *argv[])
 		}
 		catch(std::exception &e)
 		{
-			errstream << _T("exception: ") << WS::Convert<string_t>( e.what() ) << std::endl;
+			std::basic_stringstream<TCHAR> stringstream;
+			stringstream  << _T("exception: ") << WS::Convert<string_t>( e.what() ) << std::endl;
+			streamPipe.AddData( pipedata{stringstream.str(),errstream} );
 		}
 		catch(...)
 		{
-			errstream << _T("std::filesystem::directory_iterator exception: ") << std::endl;
+			std::basic_stringstream<TCHAR> stringstream;
+			stringstream << _T("std::filesystem::directory_iterator exception: ") << std::endl;
+			streamPipe.AddData( pipedata{stringstream.str(),errstream} );
 		}
 
 		if( param.verzeichnisse )
@@ -526,6 +529,7 @@ int _tmain(int argc, TCHAR const *argv[])
 	worker = fnworker;
 	worker(0);
 
+	ConsolenCursor::OnOff(true);
 	return counter;
 }
 

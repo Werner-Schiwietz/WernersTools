@@ -131,7 +131,14 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="ConsolenCursorOnOff.cpp" />
+    <ClCompile Include="streamPipe.cpp" />
     <ClCompile Include="umbenennen.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="ConsolenCursorOnOff.h" />
+    <ClInclude Include="streamPipe.h" />
+    <ClInclude Include="traits.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
