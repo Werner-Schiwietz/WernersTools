@@ -17,6 +17,6 @@
 	using ostream_t = std::ostream;
 	#define outstream std::cout
 	#define errstream std::cerr
-	using regex_t std::regex;
+	using regex_t = std::regex;
 	using match_t = std::smatch;
 #endif

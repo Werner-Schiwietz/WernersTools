@@ -10,6 +10,7 @@
 
 #include <Windows.h>//MultiByteToWideChar
 #include <codecvt>
+#include <direct.h>
 
 #include "traits.h"
 #include "streamPipe.h"
@@ -22,19 +23,19 @@
 
 int help()
 {
-	outstream << _T("umbenennen.exe [-test] [-r] [--start LW:\\Startdir] [+b] sourceNameWithWildcard destNameWithWildcard") << std::endl;
+	outstream << _T("umbenennen.exe [+test] [+r] [-v] [-d] [-i] [--start LW:\\Startdir] [+b] sourceNameWithWildcard destNameWithWildcard") << std::endl;
 	outstream << _T("	 by Werner Schiwietz") << std::endl;
 	outstream << _T("	 --h|? diese hilfe") << std::endl;
 	outstream << _T("	 --start [\"|']LW:\\Pfad[\"|'] das Startverzeichnis, ansonst wird das currentdirectory genommen") << std::endl;
 	outstream << _T("	 +|-r unterordner werden auch durchsucht") << std::endl;
 	outstream << _T("	 +|-test es wird keine veränderung vorgenommen, nur angezeigt, was gemacht werden würde") << std::endl;
+	outstream << _T("	 +|-b die Suchparameter werden mit ausgegeben") << std::endl;
 	outstream << _T("	 -|+v Verzeichnisse (nicht) umbenennen") << std::endl;
 	outstream << _T("	 -|+d Dateien (nicht) umbenennen") << std::endl;
-	outstream << _T("	 +|-b die Suchparameter werden mit ausgegeben") << std::endl;
-	outstream << _T("	 +|-i Groß/Kleinschreibung beachten") << std::endl;
-	outstream << _T("	 ") << std::endl;
-	outstream << _T("	 Beispiel: umbenennen.exe *x*.* *y*.*") << std::endl;
-	outstream << _T("	           erstetzt ein x durch ein y, der rest bleibt gleich") << std::endl;
+	outstream << _T("	 -|+i Groß/Kleinschreibung beachten") << std::endl;
+	outstream << std::endl;
+	outstream << _T("	 Beispiel: umbenennen.exe -i *x*.* *X*.*") << std::endl;
+	outstream << _T("	           erstetzt genau ein x durch ein X, der rest bleibt gleich") << std::endl;
 
 
 	return 0;
@@ -128,11 +129,13 @@ struct regexdata
 	auto parse = WS::iterator_access(parameter);
 	for(;parse.len(); )
 	{
+		//*? 	Matches the previous element zero or more times, but as few times as possible.
+
 		if( WS::eat(parse, _T('*')) )
 		{
 			closefix();
 			group.push_back(false);
-			s += _T("(.*)");
+			s += _T("(.*?)");
 		}
 		else if( WS::eat(parse, _T('?')) )
 		{	//genau einzeichen, egal welches
@@ -144,7 +147,7 @@ struct regexdata
 		{
 			closefix();
 			group.push_back(false);
-			s += _T("(\\..*)?");
+			s += _T("(\\..*?)?");
 		}
 		else if( WS::eat(parse, _T('.')) )
 		{
@@ -311,37 +314,37 @@ param:
 		if( WS::eat_oneof( (parse2=parse), 'r','R') && parse2.len()==0 )
 		{
 
-			param.rekursiv = *static_cast<TCHAR const *>(optchr)==_T('+');
+			param.rekursiv = (*static_cast<TCHAR const *>(optchr))==_T('+');
 			++index;
 			goto param;
 		}
 		if( WS::eat( (parse2=parse), WS::iterator_access("test")) && parse2.len()==0 )
 		{
-			param.test = *static_cast<TCHAR const *>(optchr)==_T('+');
+			param.test = (*static_cast<TCHAR const *>(optchr))==_T('+');
 			++index;
 			goto param;
 		}
 		if( WS::eat_oneof( (parse2=parse), 'b','B') && parse2.len()==0 )
 		{
-			param.verbose = *static_cast<TCHAR const *>(optchr)==_T('+');
+			param.verbose = (*static_cast<TCHAR const *>(optchr))==_T('+');
 			++index;
 			goto param;
 		}
 		if( WS::eat_oneof( (parse2=parse), 'i','I') && parse2.len()==0 )
 		{
-			param.casesensitiv = *static_cast<TCHAR const *>(optchr)==_T('+');
+			param.casesensitiv = *static_cast<TCHAR const *>(optchr)!=_T('+');
 			++index;
 			goto param;
 		}
 		if( WS::eat_oneof( (parse2=parse), 'v','V') && parse2.len()==0 )
 		{
-			param.verzeichnisse = *static_cast<TCHAR const *>(optchr)==_T('+');
+			param.verzeichnisse = (*static_cast<TCHAR const *>(optchr))==_T('+');
 			++index;
 			goto param;
 		}
 		if( WS::eat_oneof( (parse2=parse), 'd','D') && parse2.len()==0 )
 		{
-			param.dateien = *static_cast<TCHAR const *>(optchr)==_T('+');
+			param.dateien = (*static_cast<TCHAR const *>(optchr))==_T('+');
 			++index;
 			goto param;
 		}
@@ -379,7 +382,7 @@ Rename( std::filesystem::path name, auto const & finddata, auto const & replaced
 		}
 		std::basic_stringstream<TCHAR> stringstream;
 		if( param.verbose )
-			stringstream << _T("  ") << param.find_str << _T( " " ) << param.replace_str << _T( "   " );
+			stringstream << _T("  ") << param.find_str << _T(" ") << param.replace_str << _T("   ");
 		stringstream << name.c_str() << _T(" -> ") << newname_string;
 		if( static_cast<bool>(ec) )
 			stringstream << _T(" ec:") << WS::Convert<string_t>(ec.message());
@@ -432,6 +435,7 @@ int _tmain(int argc, TCHAR const *argv[])
 
 		if( not GetParameter(paramcontainer[0], index, argc, argv) )
 			return help();//fehler oder help
+
 
 		for(;;)
 		{
