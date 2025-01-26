@@ -37,6 +37,7 @@ namespace
 //VERIFY ohne dialog
 
 #include "..\..\headeronly\containerFastFind.h"
+#include "..\..\headeronly\pipe.h"
 
 
 
@@ -191,7 +192,54 @@ namespace UTContainerMitSuche
 
             Assert::IsTrue( container.find(Data{5}) == 0 );
             Assert::IsTrue( container.find(Data{7}) == 1 );
+        }
+        TEST_METHOD(UT_InsertAsyncExternalPipe)
+        {
+            struct Data
+            {
+                int i;
 
+                constexpr bool operator<(Data const& r) const{ return this->i < r.i; }
+                //bool operator<(Data const&) const = default;//so compile-error
+            };
+
+            //container mit GetKey-Funktion anlegen
+            auto container = WS::ContainerMitSuche<std::vector<Data>>{};
+            auto worker= [&]( Data && v )
+            {
+                container.push_back( std::move(v) );
+            };
+            auto pipe = WS::make_pipe<Data>( worker );
+
+            for(int i=0;  i<2500; ++i )
+            {
+                pipe.AddData(Data{i});//trägt die werte asyncron in den container ei, dauert länger
+                //container.push_back( Data{i} );
+            }
+
+            while( pipe.pending() )
+                Sleep(2);//ohne dauert es deutlich länger
+        }
+        TEST_METHOD(UT_InsertAsyncInternalPipe)
+        {
+            struct Data
+            {
+                int i;
+
+                constexpr bool operator<(Data const& r) const{ return this->i < r.i; }
+                //bool operator<(Data const&) const = default;//so compile-error
+            };
+
+            //container mit GetKey-Funktion anlegen
+            auto container = WS::ContainerMitSucheAsync<std::vector<Data>>{};
+
+            for(int i=0;  i<2500; ++i )
+            {
+                container.push_back( Data{i} );
+            }
+
+            while( container.pending() )
+                Sleep(2);//ohne dauert es deutlich länger
         }
 
     };

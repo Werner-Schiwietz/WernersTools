@@ -127,7 +127,7 @@ namespace WS
 			enum enumThreadState{running,process_and_terminate,terminate,blocked};
 			std::atomic<enumThreadState> threadstate{enumThreadState::running};
 			WS::Semaphore       semaphore;//ohne daten wird verarbeitungsthread schlafen gelegt
-			mutex_t		        mutex;
+			mutable mutex_t     mutex;
 			std::thread         thread_working;
 			pipedata_type		data_pool;
 
@@ -152,7 +152,7 @@ namespace WS
 				}
 			}
 
-			auto pending(WS::lock_guard<mutex_t> locked)
+			auto pending(WS::lock_guard<mutex_t> locked) const
 			{
 				struct pending_ret_t : WS::compare_bool
 				{
@@ -165,7 +165,7 @@ namespace WS
 				}ret_value( std::move(locked), this->data_pool.size() );
 				return ret_value;
 			}
-			auto pending()
+			auto pending() const
 			{
 				return pending(WS::lock_guard(this->mutex));
 			}
@@ -217,7 +217,7 @@ namespace WS
 		std::optional<data_t> PopData(){return this->member->PopData();}
 		
 	#pragma region funktionen zum testen
-		auto pending(){return member->pending();}//liefert ob, und wieviele daten zur verarbeitung bereitstehen. VORSICHT ret_value hält lock_guard
+		auto pending() const {return member->pending();}//liefert ob, und wieviele daten zur verarbeitung bereitstehen. VORSICHT ret_value hält lock_guard
 		void set_processing_blocked()//verarbeitung auch mit daten blockieren
 		{
 			this->member->threadstate = enumThreadState::blocked;

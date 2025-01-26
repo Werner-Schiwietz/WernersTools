@@ -14,7 +14,7 @@
 #include <vector>
 #include <deque>
 #include <mutex>
-
+#include "pipe.h"
 
 namespace WS
 {
@@ -77,6 +77,7 @@ namespace WS
             this->map.clear();
         }
 
+        index_t size() const { return this->daten.size(); }
         index_t push_back( value_t && v )
         {
             auto locked=std::lock_guard(this->mutex);
@@ -179,6 +180,38 @@ namespace WS
         container_t daten;
         std::map<findkey_t,std::vector<index_t>> map;
         mutable mutex_t mutex{};
+    };
+
+    /// <summary>
+    /// wie ContainerMitSuche nur push_back wird asynchron im thread ausgeführt
+    /// </summary>
+    /// <typeparam name="pred_getKeyType"></typeparam>
+    /// <typeparam name="mutex_type"></typeparam>
+    /// <typeparam name="container_type"></typeparam>
+    template<typename container_type,typename pred_getKeyType=WS::GetValueAsKey<typename container_type::value_type>,typename mutex_type=std::mutex>
+    class ContainerMitSucheAsync : public ContainerMitSuche<typename container_type,typename pred_getKeyType,typename mutex_type>
+    {
+    public:
+        using base_t = ContainerMitSuche<typename container_type,typename pred_getKeyType,typename mutex_type>;
+        using container_t = typename base_t::container_t;
+        using value_t = typename base_t::value_t;
+        using index_t = typename base_t::index_t;
+        using mutex_t = typename base_t::mutex_t;
+        using findkey_t = typename base_t::findkey_t;
+        ContainerMitSucheAsync() 
+            : base_t()
+            , pipe(make_pipe<value_t>( [&](value_t && v){base_t::push_back(std::move(v));})){}
+        ContainerMitSucheAsync( pred_getKeyType fnGetKeyType) 
+            : base_t(fnGetKeyType) 
+            , pipe(make_pipe<value_t>( [&](value_t && v){base_t::push_back(std::move(v));})){}//ctor mit key-funktion, z.b. eine lambda
+
+        void push_back( value_t && v )
+        {
+            pipe.AddData( std::move(v) );
+        }
+        auto pending() const {return this->pipe.pending();}
+    private:
+        WS::Pipe<value_t> pipe;
     };
 }
 
