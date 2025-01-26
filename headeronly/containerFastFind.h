@@ -24,6 +24,15 @@ namespace WS
         void lock(){ }
         void unlock(){ }
     };
+
+    /// <summary>
+    /// liefert value_t komplett als key
+    /// </summary>
+    /// <typeparam name="value_t"></typeparam>
+    template<typename value_t> struct GetValueAsKey
+    {
+        value_t const & operator()( value_t const & v ){return v;}
+    };
 }
 namespace WS
 {
@@ -35,6 +44,7 @@ namespace WS
     ///                   push_back
     ///                   operator[]
     ///                   at
+    ///                   erase(iterator)
     /// und traits
     ///                   value_type
     ///                   size_type
@@ -43,7 +53,7 @@ namespace WS
     /// <typeparam name="container_type">std::vector std::deque</typeparam>
     /// <typeparam name="pred_getKeyType">funktion(sobjekt) welches aus value_t einen key liefert</typeparam>
     /// <typeparam name="mutex_type"></typeparam>
-    template<typename container_type,typename pred_getKeyType,typename mutex_type=std::mutex>
+    template<typename container_type,typename pred_getKeyType=WS::GetValueAsKey<typename container_type::value_type>,typename mutex_type=std::mutex>
     class ContainerMitSuche
     {
     public:
@@ -51,7 +61,6 @@ namespace WS
         using value_t = typename container_type::value_type;
         using index_t = typename container_type::size_type;
         using mutex_t = typename mutex_type;
-        //using findkey_t = typename std::remove_cv_t<std::remove_reference_t<decltype(pred_getKeyType{}(std::declval<value_t>()))>>;
         using findkey_t = typename std::remove_cvref_t<decltype(pred_getKeyType{}(std::declval<value_t>()))>;
 
         virtual ~ContainerMitSuche(){}
@@ -106,13 +115,21 @@ namespace WS
             return this->daten.at(index);//?gefährlich ref auf array ohne lock zurückliefern? ggf decltype(auto) zu auto ändern
         }
 
+        void erase_at( index_t index)
+        {
+            auto locked=std::lock_guard(this->mutex);
+            ASSERT(valid_index(index));
+            this->daten.erase(this->daten.begin()+index);
+            _newmap();
+        }
+
         //liefert einen pointer auf std:vector<index_t> mit allen einträgen, die die key-bedingung erfüllen, oder nullptr, wenn es keine ergebnismenge gibt
         auto findall( findkey_t const & key ) const
         {
             auto locked=std::lock_guard(this->mutex);
             return _findall(key);
         }
-        //wenn der gelieferte wert ein Valid_index ist, ist der wert mit dem key genau einmal enthalten.
+        //wenn der gelieferte wert ein Valid_index ist, ist der wert mit dem key genau einmal enthalten. in eValid steht ggf warum es kein index geleifert werden kann
         struct find_ret_t
         {
             enum valid_t {valid,key_not_found,key_ambiguous} eValid;
@@ -145,6 +162,17 @@ namespace WS
                 return &iter->second;
             }
             return (decltype(&iter->second))nullptr;
+        }
+        void _newmap()
+        {
+            //auto locked=std::lock_guard(this->mutex);
+            this->map.clear();
+            index_t index = 0;
+            for(auto const & datum : this->daten )
+            {
+                this->map[this->GetKey(datum)].push_back(index);
+                ++index;
+            }
         }
 
         pred_getKeyType GetKey{};//funktion(objekt), liefert den key des value
