@@ -90,6 +90,20 @@ namespace WS
         {
             return push_back(value_t{v});
         }
+        index_t push_back_unique( value_t && v )
+        {
+            auto locked=std::lock_guard(this->mutex);
+            if( _find(GetKey(v)) )
+                return index_t(-1);
+            auto index = this->daten.size();
+            this->map[GetKey(v)].push_back(index);
+            this->daten.push_back(std::move(v));
+            return index;
+        }
+        index_t push_back_unique( value_t const & v )
+        {
+            return push_back_unique(value_t{v});
+        }
 
         decltype(auto) operator[](index_t index)
         {
@@ -142,15 +156,7 @@ namespace WS
         find( findkey_t const & key ) const
         {
             auto locked=std::lock_guard(this->mutex);
-
-            if( auto pAllIndex = _findall(key) )
-                if( pAllIndex->size()==1)
-                {
-                    return find_ret_t(find_ret_t::valid,(*pAllIndex)[0]);
-                }
-                else
-                    return {find_ret_t::key_ambiguous,(*pAllIndex)[0]};
-            return {find_ret_t::key_not_found,index_t(-1)};
+            return _find(key);
         }
 
     private:
@@ -163,6 +169,17 @@ namespace WS
                 return &iter->second;
             }
             return (decltype(&iter->second))nullptr;
+        }
+        find_ret_t _find( findkey_t const & key ) const
+        {
+            if( auto pAllIndex = _findall(key) )
+                if( pAllIndex->size()==1)
+                {
+                    return find_ret_t(find_ret_t::valid,(*pAllIndex)[0]);
+                }
+                else
+                    return {find_ret_t::key_ambiguous,(*pAllIndex)[0]};
+            return {find_ret_t::key_not_found,index_t(-1)};
         }
         void _newmap()
         {
@@ -206,6 +223,37 @@ namespace WS
             , pipe(make_pipe<value_t>( [&](value_t && v){base_t::push_back(std::move(v));})){}//ctor mit key-funktion, z.b. eine lambda
 
         void push_back( value_t && v )
+        {
+            pipe.AddData( std::move(v) );
+        }
+        auto pending() const {return this->pipe.pending();}
+    private:
+        WS::Pipe<value_t> pipe;
+    };
+    /// <summary>
+    /// wie ContainerMitSuche nur push_back wird asynchron im thread ausgeführt
+    /// </summary>
+    /// <typeparam name="pred_getKeyType"></typeparam>
+    /// <typeparam name="mutex_type"></typeparam>
+    /// <typeparam name="container_type"></typeparam>
+    template<typename container_type,typename pred_getKeyType=WS::GetValueAsKey<typename container_type::value_type>,typename mutex_type=std::mutex>
+    class ContainerMitSucheUniqueAsync : public ContainerMitSuche<typename container_type,typename pred_getKeyType,typename mutex_type>
+    {
+    public:
+        using base_t = ContainerMitSuche<typename container_type,typename pred_getKeyType,typename mutex_type>;
+        using container_t = typename base_t::container_t;
+        using value_t = typename base_t::value_t;
+        using index_t = typename base_t::index_t;
+        using mutex_t = typename base_t::mutex_t;
+        using findkey_t = typename base_t::findkey_t;
+        ContainerMitSucheUniqueAsync() 
+            : base_t()
+            , pipe(make_pipe<value_t>( [&](value_t && v){base_t::push_back_unique(std::move(v));})){}
+        ContainerMitSucheUniqueAsync( pred_getKeyType fnGetKeyType) 
+            : base_t(fnGetKeyType) 
+            , pipe(make_pipe<value_t>( [&](value_t && v){base_t::push_back_unique(std::move(v));})){}//ctor mit key-funktion, z.b. eine lambda
+
+        void push_back_unique( value_t && v )
         {
             pipe.AddData( std::move(v) );
         }

@@ -207,7 +207,7 @@ namespace UTContainerMitSuche
             auto container = WS::ContainerMitSuche<std::vector<Data>>{};
             auto worker= [&]( Data && v )
             {
-                container.push_back( std::move(v) );
+                container.push_back_unique( std::move(v) );
             };
             auto pipe = WS::make_pipe<Data>( worker );
 
@@ -218,7 +218,7 @@ namespace UTContainerMitSuche
             }
 
             while( pipe.pending() )
-                Sleep(2);//ohne dauert es deutlich länger
+                Sleep(2);//ohne Sleep dauert es deutlich länger. liegt an der synchronisation(locking)
         }
         TEST_METHOD(UT_InsertAsyncInternalPipe)
         {
@@ -231,7 +231,7 @@ namespace UTContainerMitSuche
             };
 
             //container mit GetKey-Funktion anlegen
-            auto container = WS::ContainerMitSucheAsync<std::vector<Data>>{};
+            auto container = WS::ContainerMitSucheUniqueAsync<std::vector<Data>>{};
 
             for(int i=0;  i<2500; ++i )
             {
@@ -239,7 +239,7 @@ namespace UTContainerMitSuche
             }
 
             while( container.pending() )
-                Sleep(2);//ohne dauert es deutlich länger
+                Sleep(2);//ohne dauert es deutlich länger. liegt an der synchronisation(locking)
         }
 
     };
