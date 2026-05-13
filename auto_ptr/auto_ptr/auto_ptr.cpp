@@ -690,7 +690,7 @@ namespace autoptr
 		TEST_METHOD(auto_ptr__as_parameter_copy)
 		{
 			WS::auto_ptr<int>  ptr_owner;
-			auto donothing = [](WS::auto_ptr<int> ptr)
+			auto donothing = [](WS::auto_ptr<int> )
 			{
 			};
 			auto takeownership = [&](WS::auto_ptr<int> ptr)
