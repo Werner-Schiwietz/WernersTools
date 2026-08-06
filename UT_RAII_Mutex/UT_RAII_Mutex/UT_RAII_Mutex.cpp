@@ -36,7 +36,7 @@ int xxxx = []()->int
 
 	(void)std::lock_guard{m};
 	(void)std::scoped_lock{m};
-	(void)lock(m);//lock + unlock //warum übersetzt das. es gibt kein "using namespace WP"
+	(void)lock(m);//lock + unlock //warum übersetzt das. es gibt kein "using namespace WS"
 	(void)WS::lock(m);//lock + unlock
 	auto locked = WS::lock(m);
 	[[maybe_unused]]decltype(locked)::base_t & basetype_locked = locked;

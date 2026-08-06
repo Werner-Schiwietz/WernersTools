@@ -16,19 +16,24 @@
 /// usage C++17
 /// auto oldvalue = WS::getold{value} = newvalue;
 /// usage C++14
-/// auto oldvalue = WS::getold<decltype(dest)>{value} = newvalue;
+/// auto oldvalue = WS::getold<decltype(value)>{value} = newvalue;
+
+#include <utility> //std::swap
+#include <type_traits> //std::is_const_v
 
 namespace WS
 {
-	template<typename T> struct getold
-	{
-		T & value;
-		getold( T & value):value(value){}
-
-		T operator=(T v) && //only rvalue desired
-		{ 
-			std::swap( value, v);
-			return std::move(v);
-		}
-	};
+    template<typename T> requires (not std::is_const_v<T>) struct getold;
 }
+
+template<typename T> requires (not std::is_const_v<T>) struct WS::getold
+{
+    T& value;
+    getold(T& value) : value(value) {}
+
+    T operator=(T v)&& //only rvalue desired
+    {
+        std::swap(this->value, v);
+        return std::move(v);
+    }
+};
