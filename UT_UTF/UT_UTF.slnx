@@ -1,0 +1,10 @@
+<Solution>
+  <Configurations>
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Project Path="UTF Modul/UTF Modul.vcxproj" Id="9784d853-3d94-4675-8fa6-8a209f896925" />
+  <Project Path="UT_UTF/UT_UTF.vcxproj">
+    <BuildDependency Project="UTF Modul/UTF Modul.vcxproj" />
+  </Project>
+</Solution>
