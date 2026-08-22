@@ -1,7 +1,5 @@
 module;
 
-#include <string>
-
 export module UTF;
 
 export import <type_traits>;
@@ -27,7 +25,7 @@ export struct UTF32Result
 	size_t units_consumed = 0;
 };
 
-export UTF32Result UTFtoUTF32( char8_t const *&str ) 
+export UTF32Result UTF8toUTF32( char8_t const *&str ) 
 {
 
 	char8_t const * instr = str;
@@ -313,7 +311,7 @@ template<> std::basic_string<char16_t> Convert<char16_t,char8_t>(char8_t const *
 	
 	for( auto p = str; *p; ++p )
 	{
-		UTF32Result r = UTFtoUTF32(p);
+		UTF32Result r = UTF8toUTF32(p);
 		if(r.error != UTFError::None)
 		{
 			throw UTF_convert_error( "invalid utf8-input" );
@@ -336,7 +334,7 @@ template<> std::basic_string<wchar_t>  Convert<wchar_t,char8_t>(char8_t const * 
 
 	for( char8_t const *p = str; *p; ++p )
 	{
-		UTF32Result r = UTFtoUTF32( p );
+		UTF32Result r = UTF8toUTF32( p );
 		if( r.error != UTFError::None )
 		{
 			throw UTF_convert_error( "invalid utf8-input" );
@@ -366,7 +364,7 @@ template<> std::basic_string<char32_t> Convert<char32_t,char8_t>(char8_t const *
 	
 	for( auto p = str; *p; ++p )
 	{
-		UTF32Result r = UTFtoUTF32(p);
+		UTF32Result r = UTF8toUTF32(p);
 		if(r.error != UTFError::None)
 		{
 			throw UTF_convert_error( "invalid utf8-input" );

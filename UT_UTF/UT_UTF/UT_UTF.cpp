@@ -17,7 +17,7 @@ namespace UTUTF
 		{
 			char8_t const* input = u8"A";
 
-			UTF32Result res = UTFtoUTF32( input );
+			UTF32Result res = UTF8toUTF32( input );
 
 			Assert::IsTrue( res.codepoint == U'A' );
 			Assert::IsTrue( res.units_consumed == 1 );
@@ -29,7 +29,7 @@ namespace UTUTF
 		{
 			char8_t const* input = u8"ä";
 
-			UTF32Result res = UTFtoUTF32( input );
+			UTF32Result res = UTF8toUTF32( input );
 
 			Assert::IsTrue( res.codepoint == U'ä' );
 			Assert::IsTrue( res.units_consumed == 2 );
@@ -41,7 +41,7 @@ namespace UTUTF
 		{
 			char8_t const *input = u8"€";
 
-			UTF32Result res = UTFtoUTF32( input );
+			UTF32Result res = UTF8toUTF32( input );
 
 			Assert::IsTrue( res.codepoint == U'€' );
 			Assert::IsTrue( res.units_consumed == 3 );
@@ -54,7 +54,7 @@ namespace UTUTF
 			char8_t bad[] = { (char8_t)0xC0, (char8_t)0xAF, (char8_t)0x00 };
 			char8_t const *input = bad;
 
-			UTF32Result res = UTFtoUTF32( input );
+			UTF32Result res = UTF8toUTF32( input );
 
 			Assert::IsTrue( res.error == UTFError::OverlongEncoding );
 			Assert::IsTrue( res.units_consumed == 0 );
