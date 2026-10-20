@@ -225,27 +225,35 @@ namespace WS
 		auto reversefind( value_t const & value )
 		{
 			auto iter = end();
-			while( iter--!=begin()() && *iter != value ){}
-			return iter;
+			while( iter!=begin() )
+				if( *--iter == value )
+					return iter;
+			return end();
 		}
 		auto reversefind( value_t const & value ) const
 		{
-			//_reverse_iterator_acces()
 			auto iter = end();
-			while( iter--!=begin() && *iter != value ){}
-			return iter;
+			while( iter!=begin() )
+				if( *--iter == value )
+					return iter;
+			return end();
 		}
+
 		template<typename other_itherator_t>auto reversefindoneof( _iterator_access<other_itherator_t> const & elemente ) 
 		{
 			auto iter = end();
-			while( iter--!=begin() && elemente.find(*iter )==elemente.end() ){}
-			return iter;
+			while( iter != begin() )
+				if( elemente.find( *--iter ) != elemente.end() )
+					return iter;
+			return end();
 		}
 		template<typename other_itherator_t>auto reversefindoneof( _iterator_access<other_itherator_t> const & elemente ) const
 		{
 			auto iter = end();
-			while( iter--!=begin() && elemente.find(*iter )==elemente.end() ){}
-			return iter;
+			while( iter != begin() )
+				if( elemente.find( *--iter ) != elemente.end() )
+					return iter;
+			return end();
 		}
 
 		auto reverse_iterator_acces( )
