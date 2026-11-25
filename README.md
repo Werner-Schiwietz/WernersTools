@@ -1,6 +1,6 @@
 # WernersTools
 
-## Lizens MIT
+## Lizenz MIT
 Copyright (c) 2020 Werner Schiwietz Werner.githubpublic(at)gisbw(dot)de
 Jedem, der eine Kopie dieser Software und der zugehörigen Dokumentationsdateien (die "Software") erhält, wird hiermit kostenlos die Erlaubnis erteilt, 
 ohne Einschränkung mit der Software zu handeln, einschließlich und ohne Einschränkung der Rechte zur Nutzung, zum Kopieren, Ändern, Zusammenführen, Veröffentlichen, 
