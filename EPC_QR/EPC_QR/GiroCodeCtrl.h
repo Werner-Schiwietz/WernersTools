@@ -12,7 +12,10 @@ enum class CopyToClipboardError
 	devicecontext,
 	bitmap,
 	openclipboard,
-	nothing_copied
+	nothing_copied,
+	globalalloc,
+	globallock,
+	clipboarddata
 };
 inline bool Success(CopyToClipboardError value) { return value==CopyToClipboardError::none; }
 #pragma endregion

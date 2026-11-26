@@ -4,6 +4,7 @@
 #include "pch.h"
 #include "GiroCodeCtrl.h"
 #include "qrcodegen.hpp"
+#include "GlobalAllocGuard.h"
 
 //using qrcodegen::QrCode;
 
@@ -162,9 +163,13 @@ CopyToClipboardError GiroCodeCtrl::CopyToClipboard( GiroCodeCtrl::toCB was, int 
 
 		memDC.SelectObject( oldBitmap );
 
-
-		// Format A: Das Bild (CF_BITMAP) – Windows übernimmt ab hier den Besitz am HBITMAP!
-		::SetClipboardData( CF_BITMAP, bitmap.Detach() );
+		// Format A: Das Bild (CF_BITMAP)
+		HBITMAP clipboardBitmap = static_cast<HBITMAP>( bitmap.Detach() );
+		if( ::SetClipboardData( CF_BITMAP, clipboardBitmap ) == nullptr )
+		{
+			::DeleteObject( clipboardBitmap );
+			return CopyToClipboardError::clipboarddata;
+		}
 	}
 
 	if( was & toCB::text )
@@ -175,21 +180,23 @@ CopyToClipboardError GiroCodeCtrl::CopyToClipboard( GiroCodeCtrl::toCB was, int 
         winText.Replace( _T("\n"), _T("\r\n") );
 
         size_t bytes = ( winText.GetLength() + 1 ) * sizeof( wchar_t );
-        HGLOBAL globalMem = ::GlobalAlloc( GMEM_MOVEABLE, bytes );
-        if( globalMem != nullptr )
+        GlobalAllocGuard globalMem( bytes, GMEM_MOVEABLE );
+        if( not globalMem )
+            return CopyToClipboardError::globalalloc;
+
         {
-            void* locked = ::GlobalLock( globalMem );
-            if( locked != nullptr )
-            {
-                memcpy( locked, winText.GetString(), bytes );
-                ::GlobalUnlock( globalMem );
-                ::SetClipboardData( CF_UNICODETEXT, globalMem );
-            }
-            else
-            {
-                ::GlobalFree( globalMem );
-            }
+            GlobalLockGuard lockedMem( globalMem );
+            if( not lockedMem )
+                return CopyToClipboardError::globallock;
+
+            memcpy( lockedMem, winText.GetString(), bytes );
         }
+
+        if( ::SetClipboardData( CF_UNICODETEXT, globalMem ) == nullptr )
+            return CopyToClipboardError::clipboarddata;
+
+        //::SetClipboardData gibt den Besitz des globalen Speichers an das System ab, daher muss globalMem.release() aufgerufen werden, um zu verhindern, dass der Speicher beim Verlassen des Gültigkeitsbereichs freigegeben wird.
+        globalMem.release();
     }
 
     return CopyToClipboardError::none;//alles ohne fehler ausgegeben
