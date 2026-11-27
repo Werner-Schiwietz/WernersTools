@@ -10,9 +10,10 @@ END_MESSAGE_MAP()
 
 void UppercaseEdit::OnChar( UINT ch, UINT repCnt, UINT flags )
 {
-    TCHAR character = static_cast<TCHAR>(ch);
-    CharUpperBuff( &character, 1 );
-    CEdit::OnChar( static_cast<UINT>(character), repCnt, flags );
+    TCHAR upperChar = static_cast<TCHAR>(ch);
+    CharUpperBuff( &upperChar, 1 );
+
+    DefWindowProc( WM_CHAR, upperChar, MAKELPARAM( repCnt, flags ) );
 }
 
 LRESULT UppercaseEdit::OnPaste( WPARAM, LPARAM )

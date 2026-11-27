@@ -49,10 +49,13 @@ namespace
         { L"SK", 24, true,  false }, // Slowakei
         { L"SM", 27, false, true  }, // San Marino
         { L"VA", 22, true,  true  }, // Vatikanstadt
-		{ }							 // ungültiger, leerer eintrag
+        { {}   , 34 }				 // ungültiger, leerer eintrag mit der max.länge
     };
 }
-
+CountryIbanSpec const & GetSepaSpec( )//liefert den ungültigen
+{
+    return SepaIbanSpecs[_countof(SepaIbanSpecs)-1];
+}
 CountryIbanSpec const & GetSepaSpec( std::size_t index )
 {
 	if( index >= _countof(SepaIbanSpecs) )
@@ -63,14 +66,14 @@ CountryIbanSpec const & GetSepaSpec( std::size_t index )
 CountryIbanSpec const & FindSepaSpecIndex( CString const & iban )
 {
     if( iban.GetLength() < 2 )
-        return SepaIbanSpecs[_countof(SepaIbanSpecs)];
+        return GetSepaSpec();
 
     for( auto& SepaIbanSpec : SepaIbanSpecs )
     {
         if( iban[0] == SepaIbanSpec.code[0] && iban[1] == SepaIbanSpec.code[1] )
             return SepaIbanSpec;
     }
-    return SepaIbanSpecs[_countof(SepaIbanSpecs)];
+    return GetSepaSpec();
 }
 
 namespace

@@ -99,9 +99,10 @@ void IbanEdit::OnChar( UINT ch, UINT repCnt, UINT flags )
     if( not isDigit && not isAlpha )
         return;
 
-    // Großbuchstaben erzwingen und Standard-Eingabe ausführen
-    UINT upperCh = ( ch >= L'a' && ch <= L'z' ) ? ( ch - 32 ) : ch;
-    CEdit::OnChar( upperCh, repCnt, flags );
+    // Großbuchstaben erzwingen und Standard-Eingabe ausführen, macht ReformatKeepCaret zwar eh, aber wer weiß
+    TCHAR upperChar = static_cast<TCHAR>(ch);
+    CharUpperBuff( &upperChar, 1 );
+    DefWindowProc( WM_CHAR, upperChar, MAKELPARAM( repCnt, flags ) );
 
     this->ReformatKeepCaret();
 }
