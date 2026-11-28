@@ -13,11 +13,28 @@ struct AccountInfo
 	bool operator==( AccountInfo const& ) const = default;
 };
 
+struct AccountInfoLoadResult
+{
+	bool success{};
+	std::vector<AccountInfo> accounts;
+	CString error;
+
+	explicit operator bool() const noexcept { return this->success; }
+};
+
+struct AccountInfoSaveResult
+{
+	bool success{};
+	CString error;
+
+	explicit operator bool() const noexcept { return this->success; }
+};
+
 class AccountInfoStore
 {
 public:
 	static constexpr std::size_t MaxRecentAccounts = 5;
 
-	static bool Load( std::vector<AccountInfo>& accounts, CString& error );
-	static bool Save( std::vector<AccountInfo> const& accounts, CString& error );
+	static AccountInfoLoadResult Load();
+	static AccountInfoSaveResult Save( std::vector<AccountInfo> const& accounts );
 };

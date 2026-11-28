@@ -109,7 +109,7 @@ void IbanEdit::OnChar( UINT ch, UINT repCnt, UINT flags )
 
 LRESULT IbanEdit::OnPaste( WPARAM wParam, LPARAM lParam )
 {
-    LRESULT res = Default(); // Windows fügt den Text ein
+    LRESULT result = this->DefWindowProc( WM_PASTE, wParam, lParam );
     this->ReformatKeepCaret();
-    return res;
+    return result;
 }

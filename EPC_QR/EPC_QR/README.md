@@ -26,6 +26,12 @@ Bis zu fünf zuletzt verwendete Datensätze mit Empfängername, IBAN, BIC, Betra
 
 Die Datei enthält per Windows-DPAPI verschlüsselte Daten. Sie können normalerweise nur vom selben Windows-Benutzer auf demselben Computer entschlüsselt werden. Wird die Datei neben der EXE auf einen anderen Computer kopiert, stehen die gespeicherten Angaben dort daher in der Regel nicht zur Verfügung.
 
+## BIC-Ermittlung
+
+Für deutsche IBANs kann die BIC anhand der Bankleitzahl aus der lokalen Datei `Data\blz-bic-de.csv` ermittelt werden; ist der Programmordner nicht beschreibbar, liegt sie unter `%LOCALAPPDATA%\EPC_QR\blz-bic-de.csv`. Eine vorhandene ältere `blz-bic.csv` wird beim Start übernommen. Über „BIC-Tabelle DE“ wird die aktuelle CSV-Datei von der Deutschen Bundesbank geladen und lokal in eine BLZ/BIC-Zuordnung umgewandelt. Es wird keine IBAN an einen Internetdienst gesendet. Die Datenbank deckt nur deutsche Bankleitzahlen ab; für andere Länder bleibt die BIC manuell einzugeben.
+
+Quelle und Update: [Download der Bankleitzahlendateien bei der Deutschen Bundesbank](https://www.bundesbank.de/de/aufgaben/unbarer-zahlungsverkehr/serviceangebot/bankleitzahlen/download-bankleitzahlen-602592). Die öffentliche Datei wird ohne Gewähr bereitgestellt und ist keine vollständige BIC-Datenbank für den gesamten SEPA-Raum. Die Zuordnung ist daher ein Vorschlag und muss vor einer Überweisung geprüft werden. Die Aktualisierung setzt eine Internetverbindung voraus.
+
 ## Hinweise
 
 keine Gewährleistung für die Richtigkeit der Daten, die in den QR-Code eingegeben werden. Bitte überprüfen Sie die Daten vor der Verwendung.

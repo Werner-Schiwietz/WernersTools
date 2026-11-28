@@ -27,7 +27,9 @@
 #define IDC_BUTTON1                     1017
 #define IDC_COMBO_RECENT_ACCOUNTS       1018
 #define IDC_STATIC_RECENT_ACCOUNTS      1019
+#define IDC_BTN_UPDATE_BIC_DATABASE     1020
 #define IDS_TOOLTIP_COPY_QR             8000
+#define IDS_TOOLTIP_UPDATE_BIC_DATABASE 8007
 #define IDS_CBCOPY_QR_OK                8001
 #define IDS_CBCOPY_TEXT_OK				8002
 #define IDS_CBCOPY_ERROR                8003
@@ -41,7 +43,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        20000
 #define _APS_NEXT_COMMAND_VALUE         32771
-#define _APS_NEXT_CONTROL_VALUE         1020
+#define _APS_NEXT_CONTROL_VALUE         1021
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

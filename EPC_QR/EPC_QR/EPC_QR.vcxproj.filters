@@ -18,6 +18,9 @@
     <ClInclude Include="AccountInfoStore.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="BicDatabase.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="EPC_QR.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -63,6 +66,9 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="AccountInfoStore.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="BicDatabase.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="EPC_QR.cpp">

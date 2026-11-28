@@ -19,44 +19,57 @@ namespace
 	constexpr wchar_t dataFileName[] = L"account.dat";
 	constexpr wchar_t appDataFolderName[] = L"EPC_QR";
 
-	void SetSystemError( CString& error, wchar_t const* action, DWORD code = GetLastError() )
+	struct PathResult
+	{
+		bool success{};
+		CString path;
+		CString error;
+
+		explicit operator bool() const noexcept { return this->success; }
+	};
+
+	CString SystemError( wchar_t const* action, DWORD code = GetLastError() )
 	{
 		wchar_t* message = nullptr;
 		FormatMessageW( FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
 						nullptr, code, 0, reinterpret_cast<LPWSTR>( &message ), 0, nullptr );
+		CString error;
 		error.Format( L"%s (Fehler %lu)%s%s", action, code,
 					  message == nullptr ? L"" : L": ", message == nullptr ? L"" : message );
 		if( message != nullptr )
 			LocalFree( message );
+		return error;
 	}
 
-	bool GetExecutableDirectory( CString& directory, CString& error )
+	PathResult GetExecutableDirectory()
 	{
+		PathResult result;
 		std::vector<wchar_t> path( MAX_PATH );
 		for( ;; )
 		{
 			DWORD length = GetModuleFileNameW( nullptr, path.data(), static_cast<DWORD>( path.size() ) );
 			if( length == 0 )
 			{
-				SetSystemError( error, L"Pfad der Programmdatei kann nicht ermittelt werden" );
-				return false;
+				result.error = SystemError( L"Pfad der Programmdatei kann nicht ermittelt werden" );
+				return result;
 			}
 			if( length < path.size() - 1 )
 			{
-				directory.SetString( path.data(), static_cast<int>( length ) );
-				int separator = directory.ReverseFind( L'\\' );
+				result.path.SetString( path.data(), static_cast<int>( length ) );
+				int separator = result.path.ReverseFind( L'\\' );
 				if( separator < 0 )
 				{
-					error = L"Der Programmordner kann nicht ermittelt werden.";
-					return false;
+					result.error = L"Der Programmordner kann nicht ermittelt werden.";
+					return result;
 				}
-				directory.Truncate( separator );
-				return true;
+				result.path.Truncate( separator );
+				result.success = true;
+				return result;
 			}
 			if( path.size() >= 32768 )
 			{
-				error = L"Der Pfad der Programmdatei ist zu lang.";
-				return false;
+				result.error = L"Der Pfad der Programmdatei ist zu lang.";
+				return result;
 			}
 			path.resize( std::min<std::size_t>( path.size() * 2, 32768 ) );
 		}
@@ -73,127 +86,213 @@ namespace
 		return DeleteFileW( temporary ) != FALSE;
 	}
 
-	bool GetStoragePath( CString& filePath, CString& error )
+	PathResult GetStoragePath()
 	{
-		CString executableDirectory;
-		if( not GetExecutableDirectory( executableDirectory, error ) )
-			return false;
+		PathResult result;
+		auto executableDirectory = GetExecutableDirectory();
+		if( not executableDirectory )
+			return executableDirectory;
 
-		CString portableDirectory = executableDirectory + L"\\" + dataFolderName;
+		CString portableDirectory = executableDirectory.path + L"\\" + dataFolderName;
 		if( EnsureWritableDirectory( portableDirectory ) )
 		{
-			filePath = portableDirectory + L"\\" + dataFileName;
-			return true;
+			result.path = portableDirectory + L"\\" + dataFileName;
+			result.success = true;
+			return result;
 		}
 
 		wchar_t localAppData[MAX_PATH]{};
-		HRESULT result = SHGetFolderPathW( nullptr, CSIDL_LOCAL_APPDATA | CSIDL_FLAG_CREATE,
-										   nullptr, SHGFP_TYPE_CURRENT, localAppData );
-		if( FAILED( result ) )
+		HRESULT folderResult = SHGetFolderPathW( nullptr, CSIDL_LOCAL_APPDATA | CSIDL_FLAG_CREATE,
+											 nullptr, SHGFP_TYPE_CURRENT, localAppData );
+		if( FAILED( folderResult ) )
 		{
-			error.Format( L"Der lokale Anwendungsdatenordner kann nicht ermittelt werden (HRESULT 0x%08lX).",
-						  static_cast<unsigned long>( result ) );
-			return false;
+			result.error.Format( L"Der lokale Anwendungsdatenordner kann nicht ermittelt werden (HRESULT 0x%08lX).",
+							 static_cast<unsigned long>( folderResult ) );
+			return result;
 		}
 
 		CString fallbackDirectory = CString( localAppData ) + L"\\" + appDataFolderName;
 		if( not EnsureWritableDirectory( fallbackDirectory ) )
 		{
-			SetSystemError( error, L"Kein beschreibbarer Speicherort für Kontodaten verfügbar" );
-			return false;
+			result.error = SystemError( L"Kein beschreibbarer Speicherort für Kontodaten verfügbar" );
+			return result;
 		}
 
-		filePath = fallbackDirectory + L"\\" + dataFileName;
-		return true;
+		result.path = fallbackDirectory + L"\\" + dataFileName;
+		result.success = true;
+		return result;
 	}
 
 	template<typename T>
-	void AppendValue( std::vector<BYTE>& data, T value )
+	std::vector<BYTE> AppendValue( std::vector<BYTE> data, T value )
 	{
 		auto const* bytes = reinterpret_cast<BYTE const*>( &value );
 		data.insert( data.end(), bytes, bytes + sizeof( value ) );
+		return data;
 	}
 
-	void AppendString( std::vector<BYTE>& data, CString const& value )
+	std::vector<BYTE> AppendString( std::vector<BYTE> data, CString const& value )
 	{
 		DWORD length = static_cast<DWORD>( value.GetLength() );
-		AppendValue( data, length );
+		data = AppendValue( std::move( data ), length );
 		auto const* bytes = reinterpret_cast<BYTE const*>( static_cast<LPCWSTR>( value ) );
 		data.insert( data.end(), bytes, bytes + length * sizeof( wchar_t ) );
+		return data;
 	}
 
 	template<typename T>
-	bool ReadValue( BYTE const*& current, BYTE const* end, T& value )
+	struct ValueReadResult
 	{
-		if( static_cast<std::size_t>( end - current ) < sizeof( value ) )
-			return false;
-		memcpy( &value, current, sizeof( value ) );
-		current += sizeof( value );
-		return true;
+		bool success{};
+		T value{};
+		BYTE const* next{};
+
+		explicit operator bool() const noexcept { return this->success; }
+	};
+
+	struct StringReadResult
+	{
+		bool success{};
+		CString value;
+		BYTE const* next{};
+
+		explicit operator bool() const noexcept { return this->success; }
+	};
+
+	struct AccountReadResult
+	{
+		bool success{};
+		AccountInfo account;
+		BYTE const* next{};
+
+		explicit operator bool() const noexcept { return this->success; }
+	};
+
+	struct AccountListReadResult
+	{
+		bool success{};
+		std::vector<AccountInfo> accounts;
+
+		explicit operator bool() const noexcept { return this->success; }
+	};
+
+	template<typename T>
+	ValueReadResult<T> ReadValue( BYTE const* current, BYTE const* end )
+	{
+		ValueReadResult<T> result;
+		if( static_cast<std::size_t>( end - current ) < sizeof( result.value ) )
+			return result;
+		memcpy( &result.value, current, sizeof( result.value ) );
+		result.next = current + sizeof( result.value );
+		result.success = true;
+		return result;
 	}
 
-	bool ReadString( BYTE const*& current, BYTE const* end, CString& value )
+	StringReadResult ReadString( BYTE const* current, BYTE const* end )
 	{
-		DWORD length = 0;
-		if( not ReadValue( current, end, length ) || length > 4096 )
-			return false;
-		std::size_t byteLength = static_cast<std::size_t>( length ) * sizeof( wchar_t );
+		StringReadResult result;
+		auto lengthResult = ReadValue<DWORD>( current, end );
+		if( not lengthResult || lengthResult.value > 4096 )
+			return result;
+		current = lengthResult.next;
+		std::size_t byteLength = static_cast<std::size_t>( lengthResult.value ) * sizeof( wchar_t );
 		if( static_cast<std::size_t>( end - current ) < byteLength )
-			return false;
-		value.SetString( reinterpret_cast<wchar_t const*>( current ), static_cast<int>( length ) );
-		current += byteLength;
-		return true;
+			return result;
+		result.value.SetString( reinterpret_cast<wchar_t const*>( current ), static_cast<int>( lengthResult.value ) );
+		result.next = current + byteLength;
+		result.success = true;
+		return result;
 	}
 
-	bool ReadAccountInfo( BYTE const*& current, BYTE const* end, AccountInfo& info )
+	AccountReadResult ReadAccountInfo( BYTE const* current, BYTE const* end )
 	{
-		return ReadString( current, end, info.name ) &&
-			ReadString( current, end, info.iban ) &&
-			ReadString( current, end, info.bic ) &&
-			ReadString( current, end, info.amount ) &&
-			ReadString( current, end, info.purpose );
+		AccountReadResult result;
+		auto name = ReadString( current, end );
+		if( not name )
+			return result;
+		current = name.next;
+		result.account.name = std::move( name.value );
+
+		auto iban = ReadString( current, end );
+		if( not iban )
+			return result;
+		current = iban.next;
+		result.account.iban = std::move( iban.value );
+
+		auto bic = ReadString( current, end );
+		if( not bic )
+			return result;
+		current = bic.next;
+		result.account.bic = std::move( bic.value );
+
+		auto amount = ReadString( current, end );
+		if( not amount )
+			return result;
+		current = amount.next;
+		result.account.amount = std::move( amount.value );
+
+		auto purpose = ReadString( current, end );
+		if( not purpose )
+			return result;
+		result.account.purpose = std::move( purpose.value );
+		result.next = purpose.next;
+		result.success = true;
+		return result;
 	}
 
-	bool ReadAccountInfoList( BYTE const* data, DWORD size, std::vector<AccountInfo>& accounts )
+	AccountListReadResult ReadAccountInfoList( BYTE const* data, DWORD size )
 	{
-		BYTE const* current = data;
+		AccountListReadResult result;
+		std::vector<AccountInfo> accounts;
 		BYTE const* end = data + size;
-		DWORD magic = 0;
-		if( not ReadValue( current, end, magic ) )
-			return false;
+		auto magicResult = ReadValue<DWORD>( data, end );
+		if( not magicResult )
+			return result;
+		BYTE const* current = magicResult.next;
 
-		if( magic == previousFileMagic )
+		if( magicResult.value == previousFileMagic )
 		{
-			AccountInfo account;
-			if( not ReadAccountInfo( current, end, account ) || current != end )
-				return false;
-			accounts.push_back( std::move( account ) );
-			return true;
+			auto account = ReadAccountInfo( current, end );
+			if( not account || account.next != end )
+				return result;
+			accounts.push_back( std::move( account.account ) );
+			result.accounts = std::move( accounts );
+			result.success = true;
+			return result;
 		}
-		if( magic != fileMagic )
-			return false;
+		if( magicResult.value != fileMagic )
+			return result;
 
-		DWORD count = 0;
-		if( not ReadValue( current, end, count ) || count > AccountInfoStore::MaxRecentAccounts )
-			return false;
-		for( DWORD i = 0; i < count; ++i )
+		auto countResult = ReadValue<DWORD>( current, end );
+		if( not countResult || countResult.value > AccountInfoStore::MaxRecentAccounts )
+			return result;
+		current = countResult.next;
+		for( DWORD i = 0; i < countResult.value; ++i )
 		{
-			AccountInfo account;
-			if( not ReadAccountInfo( current, end, account ) )
-				return false;
-			accounts.push_back( std::move( account ) );
+			auto account = ReadAccountInfo( current, end );
+			if( not account )
+				return result;
+			current = account.next;
+			accounts.push_back( std::move( account.account ) );
 		}
-		return current == end;
+		result.success = current == end;
+		if( result.success )
+			result.accounts = std::move( accounts );
+		return result;
 	}
 }
 
-bool AccountInfoStore::Load( std::vector<AccountInfo>& accounts, CString& error )
+	AccountInfoLoadResult AccountInfoStore::Load()
 {
-	error.Empty();
-	accounts.clear();
-	CString path;
-	if( not GetStoragePath( path, error ) )
-		return false;
+	AccountInfoLoadResult result;
+	CString& error = result.error;
+	auto storagePath = GetStoragePath();
+	if( not storagePath )
+	{
+		error = storagePath.error;
+		return result;
+	}
+	CString const& path = storagePath.path;
 
 	HANDLE file = CreateFileW( path, GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING,
 							   FILE_ATTRIBUTE_NORMAL, nullptr );
@@ -201,9 +300,12 @@ bool AccountInfoStore::Load( std::vector<AccountInfo>& accounts, CString& error 
 	{
 		DWORD code = GetLastError();
 		if( code == ERROR_FILE_NOT_FOUND || code == ERROR_PATH_NOT_FOUND )
-			return true;
-		SetSystemError( error, L"Gespeicherte Kontodaten können nicht geöffnet werden", code );
-		return false;
+		{
+			result.success = true;
+			return result;
+		}
+		error = SystemError( L"Gespeicherte Kontodaten können nicht geöffnet werden", code );
+		return result;
 	}
 
 	LARGE_INTEGER fileSize{};
@@ -211,7 +313,7 @@ bool AccountInfoStore::Load( std::vector<AccountInfo>& accounts, CString& error 
 	{
 		CloseHandle( file );
 		error = L"Die Datei mit den gespeicherten Kontodaten hat eine ungültige Größe.";
-		return false;
+		return result;
 	}
 
 	std::vector<BYTE> encrypted( static_cast<std::size_t>( fileSize.QuadPart ) );
@@ -221,34 +323,37 @@ bool AccountInfoStore::Load( std::vector<AccountInfo>& accounts, CString& error 
 	CloseHandle( file );
 	if( not readResult || bytesRead != encrypted.size() )
 	{
-		SetSystemError( error, L"Gespeicherte Kontodaten können nicht vollständig gelesen werden",
-						readError == ERROR_SUCCESS ? ERROR_HANDLE_EOF : readError );
-		return false;
+		error = SystemError( L"Gespeicherte Kontodaten können nicht vollständig gelesen werden",
+							 readError == ERROR_SUCCESS ? ERROR_HANDLE_EOF : readError );
+		return result;
 	}
 
 	DATA_BLOB input{ bytesRead, encrypted.data() };
 	DATA_BLOB output{};
 	if( not CryptUnprotectData( &input, nullptr, nullptr, nullptr, nullptr, CRYPTPROTECT_UI_FORBIDDEN, &output ) )
 	{
-		SetSystemError( error, L"Kontodaten können für diesen Windows-Benutzer nicht entschlüsselt werden" );
-		return false;
+		error = SystemError( L"Kontodaten können für diesen Windows-Benutzer nicht entschlüsselt werden" );
+		return result;
 	}
 
-	bool valid = ReadAccountInfoList( output.pbData, output.cbData, accounts );
+	auto parsed = ReadAccountInfoList( output.pbData, output.cbData );
 	SecureZeroMemory( output.pbData, output.cbData );
 	LocalFree( output.pbData );
-	if( not valid )
+	if( not parsed )
 		error = L"Die entschlüsselten Kontodaten haben ein ungültiges Format.";
-	return valid;
+	result.accounts = std::move( parsed.accounts );
+	result.success = parsed.success;
+	return result;
 }
 
-bool AccountInfoStore::Save( std::vector<AccountInfo> const& accounts, CString& error )
+AccountInfoSaveResult AccountInfoStore::Save( std::vector<AccountInfo> const& accounts )
 {
-	error.Empty();
+	AccountInfoSaveResult result;
+	CString& error = result.error;
 	if( accounts.size() > MaxRecentAccounts )
 	{
 		error = L"Es können höchstens fünf Konten gespeichert werden.";
-		return false;
+		return result;
 	}
 	for( auto const& account : accounts )
 	{
@@ -257,24 +362,28 @@ bool AccountInfoStore::Save( std::vector<AccountInfo> const& accounts, CString& 
 			account.purpose.GetLength() > 4096 )
 		{
 			error = L"Die eingegebenen Daten sind zu lang und können nicht gespeichert werden.";
-			return false;
+			return result;
 		}
 	}
 
-	CString path;
-	if( not GetStoragePath( path, error ) )
-		return false;
+	auto storagePath = GetStoragePath();
+	if( not storagePath )
+	{
+		error = storagePath.error;
+		return result;
+	}
+	CString const& path = storagePath.path;
 
 	std::vector<BYTE> plain;
-	AppendValue( plain, fileMagic );
-	AppendValue( plain, static_cast<DWORD>( accounts.size() ) );
+	plain = AppendValue( std::move( plain ), fileMagic );
+	plain = AppendValue( std::move( plain ), static_cast<DWORD>( accounts.size() ) );
 	for( auto const& account : accounts )
 	{
-		AppendString( plain, account.name );
-		AppendString( plain, account.iban );
-		AppendString( plain, account.bic );
-		AppendString( plain, account.amount );
-		AppendString( plain, account.purpose );
+		plain = AppendString( std::move( plain ), account.name );
+		plain = AppendString( std::move( plain ), account.iban );
+		plain = AppendString( std::move( plain ), account.bic );
+		plain = AppendString( std::move( plain ), account.amount );
+		plain = AppendString( std::move( plain ), account.purpose );
 	}
 
 	DATA_BLOB input{ static_cast<DWORD>( plain.size() ), plain.data() };
@@ -283,8 +392,8 @@ bool AccountInfoStore::Save( std::vector<AccountInfo> const& accounts, CString& 
 							  CRYPTPROTECT_UI_FORBIDDEN, &output ) )
 	{
 		SecureZeroMemory( plain.data(), plain.size() );
-		SetSystemError( error, L"Kontodaten können nicht verschlüsselt werden" );
-		return false;
+		error = SystemError( L"Kontodaten können nicht verschlüsselt werden" );
+		return result;
 	}
 	SecureZeroMemory( plain.data(), plain.size() );
 
@@ -294,8 +403,8 @@ bool AccountInfoStore::Save( std::vector<AccountInfo> const& accounts, CString& 
 	{
 		SecureZeroMemory( output.pbData, output.cbData );
 		LocalFree( output.pbData );
-		SetSystemError( error, L"Temporäre Datei für Kontodaten kann nicht angelegt werden" );
-		return false;
+		error = SystemError( L"Temporäre Datei für Kontodaten kann nicht angelegt werden" );
+		return result;
 	}
 
 	HANDLE file = CreateFileW( temporary, GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS,
@@ -305,8 +414,8 @@ bool AccountInfoStore::Save( std::vector<AccountInfo> const& accounts, CString& 
 		DeleteFileW( temporary );
 		SecureZeroMemory( output.pbData, output.cbData );
 		LocalFree( output.pbData );
-		SetSystemError( error, L"Temporäre Datei für Kontodaten kann nicht geöffnet werden" );
-		return false;
+		error = SystemError( L"Temporäre Datei für Kontodaten kann nicht geöffnet werden" );
+		return result;
 	}
 
 	DWORD bytesWritten = 0;
@@ -321,17 +430,18 @@ bool AccountInfoStore::Save( std::vector<AccountInfo> const& accounts, CString& 
 	if( not writeResult || bytesWritten != output.cbData || not flushResult )
 	{
 		DeleteFileW( temporary );
-		SetSystemError( error, L"Kontodaten können nicht vollständig gespeichert werden",
-						writeError == ERROR_SUCCESS ? ERROR_WRITE_FAULT : writeError );
-		return false;
+		error = SystemError( L"Kontodaten können nicht vollständig gespeichert werden",
+						 writeError == ERROR_SUCCESS ? ERROR_WRITE_FAULT : writeError );
+		return result;
 	}
 
 	if( not MoveFileExW( temporary, path, MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH ) )
 	{
 		DWORD code = GetLastError();
 		DeleteFileW( temporary );
-		SetSystemError( error, L"Die gespeicherten Kontodaten können nicht aktualisiert werden", code );
-		return false;
+		error = SystemError( L"Die gespeicherten Kontodaten können nicht aktualisiert werden", code );
+		return result;
 	}
-	return true;
+	result.success = true;
+	return result;
 }

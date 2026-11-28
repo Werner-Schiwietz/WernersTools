@@ -13,7 +13,7 @@ BEGIN_MESSAGE_MAP( GiroCodeCtrl, CStatic )
     ON_WM_ERASEBKGND()
 END_MESSAGE_MAP()
 
-BOOL GiroCodeCtrl::OnEraseBkgnd( CDC* dc )
+BOOL GiroCodeCtrl::OnEraseBkgnd( CDC* )
 {
     return TRUE;
 }
@@ -66,10 +66,10 @@ std::string GiroCodeCtrl::ToUTF8( const CString& text )
     return utf8;
 }
 
-bool GiroCodeCtrl::SetEPCData( const EPCString& epcData )
+bool GiroCodeCtrl::SetEPCData( const EPCString& epcDataIn )
 {
     this->modules.clear();
-	this->epcData = epcData;
+	this->epcData = epcDataIn;
 
     if( not this->epcData)
     {

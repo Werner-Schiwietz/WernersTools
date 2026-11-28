@@ -7,6 +7,7 @@
 #include "EPCString.h"
 #include "EPCAmount.h"
 #include "AccountInfoStore.h"
+#include "BicDatabase.h"
 
 #include <algorithm>
 #include <afxtaskdialog.h> // Oben in der .cpp (oder in pch.h) einbinden
@@ -94,11 +95,13 @@ BEGIN_MESSAGE_MAP( EPC_QRDlg, CDialogEx )
 	ON_WM_SYSCOMMAND()
 	ON_WM_PAINT()
 	ON_WM_QUERYDRAGICON()
+	ON_WM_CLOSE()
 	ON_WM_CONTEXTMENU()
     ON_BN_CLICKED( IDC_BTN_TOCLIPBOARD, &OnToClipboard )
+    ON_BN_CLICKED( IDC_BTN_UPDATE_BIC_DATABASE, &OnUpdateBicDatabase )
     ON_CBN_SELCHANGE( IDC_COMBO_RECENT_ACCOUNTS, &OnRecentAccountChanged )
     ON_EN_CHANGE(IDC_EDIT_NAME,      &OnInputChanged)
-    ON_EN_CHANGE(IDC_EDIT_IBAN,      &OnInputChanged)
+    ON_EN_CHANGE(IDC_EDIT_IBAN,      &OnIbanChanged)
     ON_EN_CHANGE(IDC_EDIT_BIC,       &OnInputChanged)
     ON_EN_CHANGE(IDC_EDIT_AMOUNT,    &OnInputChanged)
     ON_EN_CHANGE(IDC_EDIT_REF,		 &OnInputChanged)
@@ -130,14 +133,16 @@ BOOL EPC_QRDlg::OnInitDialog()
 	this->toolTip.Create( this );
 	this->toolTip.SetMaxTipWidth( 400 ); // Aktiviert mehrzeilige Tooltips (max. 300 Pixel breit)
 	this->toolTip.AddTool( this->GetDlgItem( IDC_BTN_TOCLIPBOARD ), LoadResourceString(IDS_TOOLTIP_COPY_QR) );
+	this->toolTip.AddTool( this->GetDlgItem( IDC_BTN_UPDATE_BIC_DATABASE ), LoadResourceString(IDS_TOOLTIP_UPDATE_BIC_DATABASE) );
 	this->toolTip.Activate( TRUE );
 
     this->SetIcon( this->icon, TRUE );
     this->SetIcon( this->icon, FALSE );
 
-	CString storageError;
-	if( AccountInfoStore::Load( this->recentAccounts, storageError ) )
+	auto accountLoadResult = AccountInfoStore::Load();
+	if( accountLoadResult )
 	{
+		this->recentAccounts = std::move( accountLoadResult.accounts );
 		if( this->recentAccounts.empty() )
 		{
 			this->recentAccountsCtrl.AddString( _T("Keine gespeicherten Konten") );
@@ -165,8 +170,14 @@ BOOL EPC_QRDlg::OnInitDialog()
 	else
 	{
 		this->recentAccountsCtrl.EnableWindow( FALSE );
-		this->MessageBox( storageError, _T("Kontodaten"), MB_ICONWARNING );
+		this->MessageBox( accountLoadResult.error, _T("Kontodaten"), MB_ICONWARNING );
 	}
+
+	auto bicDatabaseLoadResult = BicDatabase::Load();
+	if( not bicDatabaseLoadResult )
+		this->MessageBox( bicDatabaseLoadResult.error, _T("BIC-Datenbank"), MB_ICONWARNING );
+	else
+		this->OnIbanChanged();
 
 	this->UpdateQrCode();
 	return TRUE;
@@ -304,6 +315,12 @@ void EPC_QRDlg::OnCancel()
     CDialogEx::OnCancel();
 }
 
+void EPC_QRDlg::OnClose()
+{
+    this->SaveAccountInfoIfChanged();
+    CDialogEx::OnClose();
+}
+
 void EPC_QRDlg::SaveAccountInfoIfChanged()
 {
     AccountInfo currentAccountInfo;
@@ -332,9 +349,9 @@ void EPC_QRDlg::SaveAccountInfoIfChanged()
         if( this->recentAccounts.size() > AccountInfoStore::MaxRecentAccounts )
             this->recentAccounts.resize( AccountInfoStore::MaxRecentAccounts );
 
-        CString error;
-        if( not AccountInfoStore::Save( this->recentAccounts, error ) )
-            this->MessageBox( error, _T("Kontodaten konnten nicht gespeichert werden"), MB_ICONWARNING );
+        auto saveResult = AccountInfoStore::Save( this->recentAccounts );
+        if( not saveResult )
+            this->MessageBox( saveResult.error, _T("Kontodaten konnten nicht gespeichert werden"), MB_ICONWARNING );
     }
 }
 
@@ -350,6 +367,48 @@ void EPC_QRDlg::OnRecentAccountChanged()
     this->SetDlgItemText( IDC_EDIT_BIC, account.bic );
     this->SetDlgItemText( IDC_EDIT_AMOUNT, account.amount );
     this->SetDlgItemText( IDC_EDIT_PURPOSE, account.purpose );
+    this->autoFilledBic.Empty();
+    this->UpdateQrCode();
+    this->amountEdit.SetFocus();
+    this->amountEdit.SetSel( 0, -1 );
+}
+
+void EPC_QRDlg::OnUpdateBicDatabase()
+{
+    CWaitCursor wait;
+    auto updateResult = BicDatabase::UpdateFromInternet();
+    if( updateResult )
+    {
+        CString message;
+        message.Format( _T("Die lokale Deutschland-BIC-Datenbank wurde mit %zu Zuordnungen aktualisiert."),
+                        updateResult.updatedCount );
+        this->MessageBox( message, _T("BIC-Datenbank"), MB_ICONINFORMATION );
+        this->OnIbanChanged();
+    }
+    else
+    {
+        this->MessageBox( updateResult.error, _T("BIC-Datenbank konnte nicht aktualisiert werden"), MB_ICONWARNING );
+    }
+}
+
+void EPC_QRDlg::OnIbanChanged()
+{
+    CString iban;
+    this->GetDlgItemText( IDC_EDIT_IBAN, iban );
+    auto lookupResult = BicDatabase::FindGermanIbanBic( iban );
+    if( lookupResult )
+    {
+        this->SetDlgItemText( IDC_EDIT_BIC, lookupResult.bic );
+        this->autoFilledBic = lookupResult.bic;
+    }
+    else
+    {
+        CString currentBic;
+        this->GetDlgItemText( IDC_EDIT_BIC, currentBic );
+        if( not this->autoFilledBic.IsEmpty() && currentBic == this->autoFilledBic )
+            this->SetDlgItemText( IDC_EDIT_BIC, _T( "" ) );
+        this->autoFilledBic.Empty();
+    }
     this->UpdateQrCode();
 }
 

@@ -23,10 +23,14 @@ protected:
     virtual void OnOK() override {}
     virtual void OnCancel() override;
 
+    afx_msg void OnClose();
+
     afx_msg void OnSysCommand( UINT id, LPARAM lParam );
     afx_msg void OnPaint();
     afx_msg HCURSOR OnQueryDragIcon();
 	afx_msg void OnToClipboard();
+	afx_msg void OnUpdateBicDatabase();
+	afx_msg void OnIbanChanged();
 	afx_msg void OnRecentAccountChanged();
 	afx_msg void OnInputChanged();
 	afx_msg void OnContextMenu( CWnd* wnd, CPoint point );
@@ -51,5 +55,6 @@ private:
 	CComboBox       recentAccountsCtrl;
 	std::vector<AccountInfo> recentAccounts;
 	AccountInfo     initialAccountInfo;
+	CString         autoFilledBic;
 
 };

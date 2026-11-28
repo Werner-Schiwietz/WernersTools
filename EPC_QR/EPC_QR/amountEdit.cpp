@@ -239,7 +239,7 @@ void AmountEdit::OnKeyDown( UINT ch, UINT repCnt, UINT flags )
 
 LRESULT AmountEdit::OnPaste( WPARAM wParam, LPARAM lParam )
 {
-    LRESULT res = Default();
+    LRESULT result = this->DefWindowProc( WM_PASTE, wParam, lParam );
     this->ReformatKeepCaret();
-    return res;
+    return result;
 }

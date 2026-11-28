@@ -28,55 +28,54 @@ static auto end( CString const & s )
 
 namespace
 {
-	bool skipSpaces( std::wstring_view & text )
+	bool skipSpaces( std::wstring_view& text )
 	{
-        bool ret_v = false;
-		while( text.size() && iswspace( text[0] ) )
-        {
-            text.remove_prefix( 1 );
-            ret_v = true;
-        }
-		return ret_v;
+		bool skipped = false;
+		while( not text.empty() && iswspace( text.front() ) )
+		{
+			text.remove_prefix( 1 );
+			skipped = true;
+		}
+		return skipped;
 	}
-    wchar_t pop_front( std::wstring_view& text )
-    {
-        if( text.empty() ) 
-            return {};//sollte nie passieren
 
-        const wchar_t ch = text.front();
-        text.remove_prefix( 1 );
-        return ch;
-    }
-    bool eat_eur( std::wstring_view & textIn )
-    {
-        auto text = textIn;
-		if( auto ch = pop_front(text); ch != L'E' && ch != L'e' ) return false;
-		if( auto ch = pop_front(text); ch != L'U' && ch != L'u' ) return false;
-		if( auto ch = pop_front(text); ch != L'R' && ch != L'r' ) return false;
+	wchar_t pop_front( std::wstring_view& text )
+	{
+		if( text.empty() )
+			return {};
 
-        textIn = text;
-        return true;
-    }
+		wchar_t ch = text.front();
+		text.remove_prefix( 1 );
+		return ch;
+	}
 
-    bool eat( std::wstring_view & textIn , wchar_t const * gesucht)
-    {
-        auto text = textIn;
+	bool eat_eur( std::wstring_view& textIn )
+	{
+		auto text = textIn;
+		if( auto ch = pop_front( text ); ch != L'E' && ch != L'e' ) return false;
+		if( auto ch = pop_front( text ); ch != L'U' && ch != L'u' ) return false;
+		if( auto ch = pop_front( text ); ch != L'R' && ch != L'r' ) return false;
 
-        for( ; *gesucht; ++gesucht )
-        {
-            if( pop_front(text) != *gesucht )
-                return false;
-        }
-        textIn = text;
-        return true;
-    }
+		textIn = text;
+		return true;
+	}
 
-    std::int64_t getEuroInCent( CString rawText )
-    {
-        std::wstring_view text{ rawText.GetString() };
+	bool eat( std::wstring_view& textIn, wchar_t const* gesucht )
+	{
+		auto text = textIn;
+		for( ; *gesucht; ++gesucht )
+		{
+			if( pop_front( text ) != *gesucht )
+				return false;
+		}
+		textIn = text;
+		return true;
+	}
 
-        skipSpaces(text);
-        //if( not eat_eur(text) ) return CEuroAmount::InvalidCents;
+	std::int64_t getEuroInCent( CString rawText )
+	{
+		std::wstring_view text{ rawText.GetString() };
+		skipSpaces( text );
 
         #pragma region "lokale Trennzeichen abfragen und auf Gültigkeit prüfen"
         std::array<wchar_t, 4> decSep{L',', L'\0'};
