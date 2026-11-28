@@ -206,6 +206,7 @@
     </ResourceCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="AccountInfoStore.h" />
     <ClInclude Include="amountEdit.h" />
     <ClInclude Include="EPCAmount.h" />
     <ClInclude Include="EPCString.h" />
@@ -222,6 +223,7 @@
     <ClInclude Include="UppercaseEdit.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="AccountInfoStore.cpp" />
     <ClCompile Include="amountEdit.cpp" />
     <ClCompile Include="EPCAmount.cpp" />
     <ClCompile Include="EPC_QR.cpp" />

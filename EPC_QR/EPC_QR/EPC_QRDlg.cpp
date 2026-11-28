@@ -6,7 +6,9 @@
 
 #include "EPCString.h"
 #include "EPCAmount.h"
+#include "AccountInfoStore.h"
 
+#include <algorithm>
 #include <afxtaskdialog.h> // Oben in der .cpp (oder in pch.h) einbinden
 
 #ifdef _DEBUG
@@ -20,6 +22,19 @@ namespace
 		CString str;
 		str.LoadString(nID);
 		return str;
+	}
+
+	CString AccountLabel( AccountInfo const& account )
+	{
+		return account.name + _T(" | ") + account.iban;
+	}
+
+	CString NormalizeIban( CString iban )
+	{
+		iban.Remove( _T(' ') );
+		iban.Trim();
+		iban.MakeUpper();
+		return iban;
 	}
 }
 class CAboutDlg : public CDialogEx
@@ -72,16 +87,19 @@ void EPC_QRDlg::DoDataExchange( CDataExchange* pDX )
 	DDX_Control( pDX, IDC_EDIT_IBAN, this->ibanEdit );
 	DDX_Control( pDX, IDC_EDIT_BIC, this->bicEdit );
 	DDX_Control( pDX, IDC_EDIT_AMOUNT, this->amountEdit );
+	DDX_Control( pDX, IDC_COMBO_RECENT_ACCOUNTS, this->recentAccountsCtrl );
 }
 
 BEGIN_MESSAGE_MAP( EPC_QRDlg, CDialogEx )
-    ON_WM_SYSCOMMAND()
-    ON_WM_PAINT()
-    ON_WM_QUERYDRAGICON()
+	ON_WM_SYSCOMMAND()
+	ON_WM_PAINT()
+	ON_WM_QUERYDRAGICON()
 	ON_WM_CONTEXTMENU()
     ON_BN_CLICKED( IDC_BTN_TOCLIPBOARD, &OnToClipboard )
+    ON_CBN_SELCHANGE( IDC_COMBO_RECENT_ACCOUNTS, &OnRecentAccountChanged )
     ON_EN_CHANGE(IDC_EDIT_NAME,      &OnInputChanged)
     ON_EN_CHANGE(IDC_EDIT_IBAN,      &OnInputChanged)
+    ON_EN_CHANGE(IDC_EDIT_BIC,       &OnInputChanged)
     ON_EN_CHANGE(IDC_EDIT_AMOUNT,    &OnInputChanged)
     ON_EN_CHANGE(IDC_EDIT_REF,		 &OnInputChanged)
     ON_EN_CHANGE(IDC_EDIT_PURPOSE,	 &OnInputChanged)
@@ -117,17 +135,41 @@ BOOL EPC_QRDlg::OnInitDialog()
     this->SetIcon( this->icon, TRUE );
     this->SetIcon( this->icon, FALSE );
 
-    // Testdaten vorbelegen
-    this->SetDlgItemText( IDC_EDIT_NAME,    _T("Max Mustermann") );
-	this->SetDlgItemText( IDC_EDIT_IBAN,	IbanEdit::FormatIban( _T("DE89370400440532013000") ) );
-    this->SetDlgItemText( IDC_EDIT_BIC,     _T("COBADEFFXXX") );
-	this->amountEdit.SetAmount( CEuroAmount( 123454 ) ); // Zeigt "1.234,54"
-    this->SetDlgItemText( IDC_EDIT_PURPOSE, _T("Test-Ueberweisung") );
+	CString storageError;
+	if( AccountInfoStore::Load( this->recentAccounts, storageError ) )
+	{
+		if( this->recentAccounts.empty() )
+		{
+			this->recentAccountsCtrl.AddString( _T("Keine gespeicherten Konten") );
+			this->recentAccountsCtrl.EnableWindow( FALSE );
+			this->initialAccountInfo.name = _T( "Max Mustermann" );
+			this->initialAccountInfo.iban = _T( "DE89370400440532013000" );
+			this->initialAccountInfo.bic = _T( "COBADEFFXXX" );
+			this->initialAccountInfo.amount = _T( "1.234,54" );
+			this->initialAccountInfo.purpose = _T( "Test-Ueberweisung" );
+		}
+		else
+		{
+			for( auto const& account : this->recentAccounts )
+				this->recentAccountsCtrl.AddString( AccountLabel( account ) );
+			this->recentAccountsCtrl.SetCurSel( 0 );
+			this->initialAccountInfo = this->recentAccounts.front();
+		}
 
-    // Ersten QR-Code direkt beim Start zeichnen
-    this->GenerateQr(GenerateEPCString());
+		this->SetDlgItemText( IDC_EDIT_NAME, this->initialAccountInfo.name );
+		this->SetDlgItemText( IDC_EDIT_IBAN, this->initialAccountInfo.iban );
+		this->SetDlgItemText( IDC_EDIT_BIC, this->initialAccountInfo.bic );
+		this->SetDlgItemText( IDC_EDIT_AMOUNT, this->initialAccountInfo.amount );
+		this->SetDlgItemText( IDC_EDIT_PURPOSE, this->initialAccountInfo.purpose );
+	}
+	else
+	{
+		this->recentAccountsCtrl.EnableWindow( FALSE );
+		this->MessageBox( storageError, _T("Kontodaten"), MB_ICONWARNING );
+	}
 
-    return TRUE;
+	this->UpdateQrCode();
+	return TRUE;
 }
 
 void EPC_QRDlg::OnSysCommand( UINT id, LPARAM lParam )
@@ -254,6 +296,61 @@ void EPC_QRDlg::GenerateQr(EPCString const & epc)
         case EPCString_Error::Ref_Purpose: this->MessageBox( _T("Entweder Referenz ODER Verwendungszweck angeben."), _T("Fehler"), MB_ICONWARNING ); break;
         default:                           this->MessageBox( _T("Unbekannter Eingabefehler."), _T("Fehler"), MB_ICONWARNING ); break;
     }
+}
+
+void EPC_QRDlg::OnCancel()
+{
+    this->SaveAccountInfoIfChanged();
+    CDialogEx::OnCancel();
+}
+
+void EPC_QRDlg::SaveAccountInfoIfChanged()
+{
+    AccountInfo currentAccountInfo;
+    this->GetDlgItemText( IDC_EDIT_NAME, currentAccountInfo.name );
+    this->GetDlgItemText( IDC_EDIT_IBAN, currentAccountInfo.iban );
+    this->GetDlgItemText( IDC_EDIT_BIC, currentAccountInfo.bic );
+    this->GetDlgItemText( IDC_EDIT_AMOUNT, currentAccountInfo.amount );
+    this->GetDlgItemText( IDC_EDIT_PURPOSE, currentAccountInfo.purpose );
+
+    if( currentAccountInfo != this->initialAccountInfo )
+    {
+        CString currentIban = NormalizeIban( currentAccountInfo.iban );
+        auto existing = std::find_if( this->recentAccounts.begin(), this->recentAccounts.end(),
+            [&currentAccountInfo, &currentIban]( AccountInfo const& account )
+            {
+                CString savedIban = NormalizeIban( account.iban );
+                if( not currentIban.IsEmpty() )
+                    return savedIban == currentIban;
+                return savedIban.IsEmpty() && account.name == currentAccountInfo.name &&
+                       account.bic == currentAccountInfo.bic;
+            } );
+
+        if( existing != this->recentAccounts.end() )
+            this->recentAccounts.erase( existing );
+        this->recentAccounts.insert( this->recentAccounts.begin(), currentAccountInfo );
+        if( this->recentAccounts.size() > AccountInfoStore::MaxRecentAccounts )
+            this->recentAccounts.resize( AccountInfoStore::MaxRecentAccounts );
+
+        CString error;
+        if( not AccountInfoStore::Save( this->recentAccounts, error ) )
+            this->MessageBox( error, _T("Kontodaten konnten nicht gespeichert werden"), MB_ICONWARNING );
+    }
+}
+
+void EPC_QRDlg::OnRecentAccountChanged()
+{
+    int selection = this->recentAccountsCtrl.GetCurSel();
+    if( selection < 0 || static_cast<std::size_t>( selection ) >= this->recentAccounts.size() )
+        return;
+
+    AccountInfo const& account = this->recentAccounts[selection];
+    this->SetDlgItemText( IDC_EDIT_NAME, account.name );
+    this->SetDlgItemText( IDC_EDIT_IBAN, account.iban );
+    this->SetDlgItemText( IDC_EDIT_BIC, account.bic );
+    this->SetDlgItemText( IDC_EDIT_AMOUNT, account.amount );
+    this->SetDlgItemText( IDC_EDIT_PURPOSE, account.purpose );
+    this->UpdateQrCode();
 }
 
 void EPC_QRDlg::OnInputChanged()

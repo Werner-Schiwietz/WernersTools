@@ -1,5 +1,6 @@
 #pragma once
 #include "GiroCodeCtrl.h"
+#include "AccountInfoStore.h"
 
 #include "IbanEdit.h"
 #include "AmountEdit.h"
@@ -20,17 +21,20 @@ protected:
     virtual BOOL OnInitDialog() override;
     virtual BOOL PreTranslateMessage( MSG* msg ) override;
     virtual void OnOK() override {}
+    virtual void OnCancel() override;
 
     afx_msg void OnSysCommand( UINT id, LPARAM lParam );
     afx_msg void OnPaint();
     afx_msg HCURSOR OnQueryDragIcon();
-    afx_msg void OnToClipboard();
+	afx_msg void OnToClipboard();
+	afx_msg void OnRecentAccountChanged();
 	afx_msg void OnInputChanged();
 	afx_msg void OnContextMenu( CWnd* wnd, CPoint point );
     DECLARE_MESSAGE_MAP()
 
 private:
 	void								UpdateQrCode();
+	void                                SaveAccountInfoIfChanged();
 	void								GenerateQr(EPCString const & EPCString);
 	EPCString							GenerateEPCString();
 
@@ -43,6 +47,9 @@ private:
 	CString			baseBicLabel;
 private:
 	CString			lastEpcPayload;
-    CToolTipCtrl	toolTip;
+	CToolTipCtrl	toolTip;
+	CComboBox       recentAccountsCtrl;
+	std::vector<AccountInfo> recentAccounts;
+	AccountInfo     initialAccountInfo;
 
 };
