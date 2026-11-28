@@ -62,7 +62,13 @@ namespace
 		explicit operator bool() const noexcept { return this->success; }
 	};
 
-	std::unordered_map<std::string, std::string> bicByBlz;
+	struct BankRecord
+	{
+		std::string bic;
+		std::string bankName;
+	};
+
+	std::unordered_map<std::string, BankRecord> bankByBlz;
 
 	CString SystemError( wchar_t const* action, DWORD code = GetLastError() )
 	{
@@ -205,10 +211,10 @@ namespace
 		return fields;
 	}
 
-	OperationResult<std::unordered_map<std::string, std::string>> ParseBundesbankCsv( std::string const& csv )
+	OperationResult<std::unordered_map<std::string, BankRecord>> ParseBundesbankCsv( std::string const& csv )
 	{
-		OperationResult<std::unordered_map<std::string, std::string>> result;
-		std::unordered_map<std::string, std::string> records;
+		OperationResult<std::unordered_map<std::string, BankRecord>> result;
+		std::unordered_map<std::string, BankRecord> records;
 		std::size_t position = 0;
 		bool headerFound = false;
 		while( position < csv.size() )
@@ -232,7 +238,7 @@ namespace
 			if( not headerFound )
 			{
 				if( fields.size() < 13 || fields[0] != "Bankleitzahl" ||
-					fields[1] != "Merkmal" || fields[7] != "BIC" )
+					fields[1] != "Merkmal" || fields[2] != "Bezeichnung" || fields[7] != "BIC" )
 				{
 					result.error = L"Die heruntergeladene Datei hat nicht das erwartete Bundesbank-CSV-Format.";
 					return result;
@@ -244,11 +250,12 @@ namespace
 			if( fields.size() < 13 || fields[1] != "1" || fields[10] == "D" )
 				continue;
 			std::string_view blz = fields[0];
+			std::string_view bankName = fields[2];
 			std::string_view bic = fields[7];
 			if( blz.size() != 8 || not std::all_of( blz.begin(), blz.end(), IsAsciiDigit ) ||
-				not IsBic( bic ) )
+				not IsBic( bic ) || bankName.empty() )
 				continue;
-			records[std::string( blz )] = std::string( bic );
+			records[std::string( blz )] = {std::string( bic ), std::string( bankName )};
 		}
 
 		if( not headerFound || records.size() < 100 )
@@ -397,8 +404,24 @@ namespace
 		return result;
 	}
 
+	std::string EscapeCsvField( std::string_view value )
+	{
+		if( value.find_first_of( ";\"\r\n" ) == std::string_view::npos )
+			return std::string( value );
+		std::string escaped = "\"";
+		for( char character : value )
+		{
+			if( character == '\"' )
+				escaped += "\"\"";
+			else
+				escaped += character;
+		}
+		escaped += '\"';
+		return escaped;
+	}
+
 	StatusResult WriteDatabaseFile( CString const& path,
-									std::unordered_map<std::string, std::string> const& records )
+									std::unordered_map<std::string, BankRecord> const& records )
 	{
 		StatusResult result;
 		CString directory = path.Left( path.ReverseFind( L'\\' ) );
@@ -419,9 +442,9 @@ namespace
 			return result;
 		}
 
-		std::string content = "# Deutsche Bundesbank BLZ/BIC, ohne Gewaehr\r\nBLZ;BIC\r\n";
-		for( auto const& [blz, bic] : records )
-			content += blz + ";" + bic + "\r\n";
+		std::string content = "# Deutsche Bundesbank BLZ/BIC/Bankname, ohne Gewaehr\r\nBLZ;BIC;Bankname\r\n";
+		for( auto const& [blz, record] : records )
+			content += blz + ";" + record.bic + ";" + EscapeCsvField( record.bankName ) + "\r\n";
 
 		DWORD bytesWritten = 0;
 		BOOL writeResult = WriteFile( file, content.data(), static_cast<DWORD>( content.size() ),
@@ -449,9 +472,9 @@ namespace
 		return result;
 	}
 
-	OperationResult<std::unordered_map<std::string, std::string>> LoadLocalDatabase( CString const& path )
+	OperationResult<std::unordered_map<std::string, BankRecord>> LoadLocalDatabase( CString const& path )
 	{
-		OperationResult<std::unordered_map<std::string, std::string>> result;
+		OperationResult<std::unordered_map<std::string, BankRecord>> result;
 		HANDLE file = CreateFileW( path, GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING,
 								   FILE_ATTRIBUTE_NORMAL, nullptr );
 		if( file == INVALID_HANDLE_VALUE )
@@ -486,7 +509,7 @@ namespace
 			return result;
 		}
 
-		std::unordered_map<std::string, std::string> records;
+		std::unordered_map<std::string, BankRecord> records;
 		std::size_t position = 0;
 		while( position < content.size() )
 		{
@@ -497,22 +520,21 @@ namespace
 			if( not line.empty() && line.back() == '\r' )
 				line.remove_suffix( 1 );
 			position = end + ( end < content.size() ? 1 : 0 );
-			if( line.empty() || line.front() == '#' || line == "BLZ;BIC" )
+			if( line.empty() || line.front() == '#' )
 				continue;
-			std::size_t separator = line.find( ';' );
-			if( separator != 8 || line.find( ';', separator + 1 ) != std::string_view::npos )
-			{
-				result.error = L"Die lokale BIC-Datenbank enthält eine ungültige Zeile.";
-				return result;
-			}
-			std::string_view blz = line.substr( 0, separator );
-			std::string_view bic = line.substr( separator + 1 );
-			if( not std::all_of( blz.begin(), blz.end(), IsAsciiDigit ) || not IsBic( bic ) )
+			auto fields = SplitCsvRow( line );
+			if( fields.size() == 2 && fields[0] == "BLZ" && fields[1] == "BIC" )
+				continue;
+			if( fields.size() == 3 && fields[0] == "BLZ" && fields[1] == "BIC" && fields[2] == "Bankname" )
+				continue;
+			if( ( fields.size() != 2 && fields.size() != 3 ) || fields[0].size() != 8 ||
+				not std::all_of( fields[0].begin(), fields[0].end(), IsAsciiDigit ) || not IsBic( fields[1] ) )
 			{
 				result.error = L"Die lokale BIC-Datenbank enthält eine ungültige BLZ/BIC-Zuordnung.";
 				return result;
 			}
-			records[std::string( blz )] = std::string( bic );
+			records[std::string( fields[0] )] = {std::string( fields[1] ),
+				fields.size() == 3 ? std::string( fields[2] ) : std::string{}};
 		}
 		if( records.size() < 100 )
 		{
@@ -532,35 +554,32 @@ BicDatabaseLoadResult BicDatabase::Load()
 	{
 		return {databasePath.error};
 	}
-	auto loadedResult = LoadLocalDatabase( databasePath.value );
-	if( not loadedResult )
+	auto loaded = LoadLocalDatabase( databasePath.value );
+	if( not loaded )
 	{
-		return {loadedResult.error};
+		return {loaded.error};
 	}
-	auto loaded = std::move( loadedResult.value );
 
-	if( loaded.empty() )
+	if( loaded.value.empty() )
 	{
 		std::filesystem::path databaseFilePath( databasePath.c_str() );
 		CString legacyPath = ( databaseFilePath.parent_path() / L"blz-bic.csv" ).c_str();
-		auto legacyResult = LoadLocalDatabase( legacyPath );
-		if( not legacyResult )
+		
+		if( auto legacyResult = LoadLocalDatabase( legacyPath ); not legacyResult )
 		{
 			return {legacyResult.error};
 		}
-		auto legacyRecords = std::move( legacyResult.value );
-		if( not legacyRecords.empty() )
+		else if( not legacyResult.value.empty() )
 		{
-			
-			if( auto writeResult = WriteDatabaseFile( databasePath.value, legacyRecords ); not writeResult )
+			if( auto writeResult = WriteDatabaseFile( databasePath.value, legacyResult.value ); not writeResult )
 			{
 				return {writeResult.error};
 			}
-			loaded = std::move( legacyRecords );
+			loaded.value = std::move( legacyResult.value );
 		}
 	}
 
-	bicByBlz = std::move( loaded );
+	bankByBlz = std::move( loaded.value );
 	return {};
 }
 
@@ -585,11 +604,23 @@ BicLookupResult BicDatabase::FindGermanIbanBic( CString const& iban )
 		blz.push_back( static_cast<char>( digit ) );
 	}
 
-	auto found = bicByBlz.find( blz );
-	if( found == bicByBlz.end() )
+	auto found = bankByBlz.find( blz );
+	if( found == bankByBlz.end() )
 		return result;
-	for( char character : found->second )
+	for( char character : found->second.bic )
 		bic += static_cast<wchar_t>( character );
+	if( not found->second.bankName.empty() )
+	{
+		int length = MultiByteToWideChar( CP_UTF8, MB_ERR_INVALID_CHARS, found->second.bankName.data(),
+										  static_cast<int>( found->second.bankName.size() ), nullptr, 0 );
+		if( length > 0 )
+		{
+			std::wstring bankName( length, L'\0' );
+			if( MultiByteToWideChar( CP_UTF8, MB_ERR_INVALID_CHARS, found->second.bankName.data(),
+										 static_cast<int>( found->second.bankName.size() ), bankName.data(), length ) == length )
+				result.bankName.SetString( bankName.data(), length );
+		}
+	}
 	result.success = true;
 	return result;
 }
@@ -639,8 +670,8 @@ BicDatabaseUpdateResult BicDatabase::UpdateFromInternet()
 		return result;
 	}
 
-	bicByBlz = std::move( downloaded );
-	result.updatedCount = bicByBlz.size();
+	bankByBlz = std::move( downloaded );
+	result.updatedCount = bankByBlz.size();
 	result.success = true;
 	return result;
 }

@@ -134,6 +134,7 @@ BOOL EPC_QRDlg::OnInitDialog()
 	this->toolTip.SetMaxTipWidth( 400 ); // Aktiviert mehrzeilige Tooltips (max. 300 Pixel breit)
 	this->toolTip.AddTool( this->GetDlgItem( IDC_BTN_TOCLIPBOARD ), LoadResourceString(IDS_TOOLTIP_COPY_QR) );
 	this->toolTip.AddTool( this->GetDlgItem( IDC_BTN_UPDATE_BIC_DATABASE ), LoadResourceString(IDS_TOOLTIP_UPDATE_BIC_DATABASE) );
+	this->toolTip.AddTool( this->GetDlgItem( IDC_EDIT_IBAN ), _T("Bankname wird anhand der deutschen IBAN ermittelt.") );
 	this->toolTip.Activate( TRUE );
 
     this->SetIcon( this->icon, TRUE );
@@ -396,6 +397,17 @@ void EPC_QRDlg::OnIbanChanged()
     CString iban;
     this->GetDlgItemText( IDC_EDIT_IBAN, iban );
     auto lookupResult = BicDatabase::FindGermanIbanBic( iban );
+    CString bankTooltip;
+    if( lookupResult && not lookupResult.bankName.IsEmpty() )
+    {
+        bankTooltip = _T("Bank: ");
+        bankTooltip += lookupResult.bankName;
+    }
+    else if( NormalizeIban( iban ).Left( 2 ) == _T("DE") )
+        bankTooltip = _T("Für diese deutsche IBAN ist kein Bankname in der lokalen Datenbank verfügbar.");
+    else
+        bankTooltip = _T("Der Bankname kann nur für deutsche IBANs aus der lokalen Datenbank ermittelt werden.");
+    this->toolTip.UpdateTipText( bankTooltip, this->GetDlgItem( IDC_EDIT_IBAN ) );
     if( lookupResult )
     {
         this->SetDlgItemText( IDC_EDIT_BIC, lookupResult.bic );

@@ -27,6 +27,7 @@ struct BicLookupResult
 {
 	bool success{};
 	CString bic;
+	CString bankName;
 
 	explicit operator bool() const noexcept { return this->success; }
 };
